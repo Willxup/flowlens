@@ -12,7 +12,10 @@ import (
 	"unicode/utf8"
 )
 
-const dataDirectory = "/var/lib/flowlens"
+const (
+	dataDirectory               = "/var/lib/flowlens"
+	exampleAccessKeyPlaceholder = "请替换为至少16字符的随机登录密钥"
+)
 
 func Validate(cfg *Config) error {
 	if cfg == nil {
@@ -47,6 +50,9 @@ func Validate(cfg *Config) error {
 	accessKey := cfg.Auth.AccessKey.Value()
 	if strings.TrimSpace(accessKey) == "" || utf8.RuneCountInString(accessKey) < 16 {
 		return fieldError("auth.access_key", "must contain at least 16 characters")
+	}
+	if accessKey == exampleAccessKeyPlaceholder {
+		return fieldError("auth.access_key", "must replace the example value")
 	}
 	if cfg.Auth.SessionTTL.Duration <= 0 {
 		return fieldError("auth.session_ttl", "must be positive")

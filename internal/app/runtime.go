@@ -105,9 +105,16 @@ func (r *Runtime) ObserveConnections(ctx context.Context, at time.Time, afterGap
 			return ErrRuntimeState
 		}
 	}
-	observation, err := r.counter.Observe(collector.ByteTotals{
+	currentTotals := collector.ByteTotals{
 		Upload: snapshot.UploadTotal, Download: snapshot.DownloadTotal,
-	}, afterGap)
+	}
+	previousTotals, hasPrevious := r.counter.Last()
+	willReset := hasPrevious &&
+		(currentTotals.Upload < previousTotals.Upload || currentTotals.Download < previousTotals.Download)
+	if willReset && r.endSession != nil {
+		return ErrRuntimeState
+	}
+	observation, err := r.counter.Observe(currentTotals, afterGap)
 	if err != nil {
 		return ErrRuntimeState
 	}
@@ -121,14 +128,13 @@ func (r *Runtime) ObserveConnections(ctx context.Context, at time.Time, afterGap
 			ID: id, StartedAt: seconds, StartReason: "startup", SingBoxVersion: r.version,
 		}
 	} else if observation.NewSession {
-		if r.newSession != nil || r.endSession != nil {
-			return ErrRuntimeState
-		}
 		id, err := randomID()
 		if err != nil {
 			return err
 		}
-		r.endSession = &storage.RuntimeSessionEnd{ID: r.sessionID, EndedAt: seconds, EndReason: "counter_reset"}
+		if r.newSession == nil {
+			r.endSession = &storage.RuntimeSessionEnd{ID: r.sessionID, EndedAt: seconds, EndReason: "counter_reset"}
+		}
 		r.newSession = &storage.RuntimeSessionStart{
 			ID: id, StartedAt: seconds, StartReason: "counter_reset", SingBoxVersion: r.version,
 		}

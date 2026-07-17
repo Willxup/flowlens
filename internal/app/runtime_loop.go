@@ -22,14 +22,13 @@ func (r *Runtime) Run(ctx context.Context) error {
 	defer sealTicker.Stop()
 	traffic := make(chan trafficEvent, 16)
 	go r.readTraffic(ctx, traffic)
-	afterGap := false
+	afterGap := r.hasDurable
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case event := <-traffic:
 			if event.err != nil {
-				afterGap = true
 				_ = r.status.Set(flowstatus.LevelDegraded, "clash_unavailable", true)
 				continue
 			}

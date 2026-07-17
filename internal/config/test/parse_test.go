@@ -12,6 +12,8 @@ import (
 )
 
 const examplePath = "../../../config/config.example.yaml"
+const exampleAccessKey = "请替换为至少16字符的随机登录密钥"
+const fixtureAccessKey = "fixture-access-key-123456"
 
 func exampleYAML(t *testing.T) string {
 	t.Helper()
@@ -26,7 +28,8 @@ func exampleYAML(t *testing.T) string {
 func parseExample(t *testing.T) config.Config {
 	t.Helper()
 
-	cfg, err := config.Parse(strings.NewReader(exampleYAML(t)))
+	input := strings.Replace(exampleYAML(t), exampleAccessKey, fixtureAccessKey, 1)
+	cfg, err := config.Parse(strings.NewReader(input))
 	if err != nil {
 		t.Fatalf("parse example config: %v", err)
 	}
@@ -57,7 +60,7 @@ func TestExampleConfigLoads(t *testing.T) {
 	if int64(cfg.ClashAPI.MaxResponseSize) != 16<<20 {
 		t.Fatalf("max response size = %d", cfg.ClashAPI.MaxResponseSize)
 	}
-	if cfg.Auth.AccessKey.Value() != "请替换为至少16字符的随机登录密钥" {
+	if cfg.Auth.AccessKey.Value() != fixtureAccessKey {
 		t.Fatal("access key was not parsed exactly")
 	}
 	if cfg.Auth.SessionTTL.Duration != 24*time.Hour {
@@ -74,6 +77,14 @@ func TestExampleConfigLoads(t *testing.T) {
 	}
 	if cfg.Backup.LocalTime.Hour != 4 || cfg.Backup.LocalTime.Minute != 0 {
 		t.Fatalf("backup local time = %02d:%02d", cfg.Backup.LocalTime.Hour, cfg.Backup.LocalTime.Minute)
+	}
+}
+
+func TestExampleConfigRequiresAccessKeyReplacement(t *testing.T) {
+	if _, err := config.Parse(strings.NewReader(exampleYAML(t))); err == nil {
+		t.Fatal("Parse accepted the example access key placeholder")
+	} else if !strings.Contains(err.Error(), "auth.access_key") {
+		t.Fatalf("Parse error = %q, want auth.access_key", err)
 	}
 }
 

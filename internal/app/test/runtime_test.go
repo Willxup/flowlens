@@ -87,6 +87,206 @@ func TestRuntimePersistsBaselineNormalGapAndResetTransitions(t *testing.T) {
 	}
 }
 
+func TestRuntimePersistsResetBeforeInitialBucketSealWithoutLosingBytes(t *testing.T) {
+	client, closeServer := runtimeClient(t, []clashapi.ConnectionsSnapshot{
+		{UploadTotal: 1000, DownloadTotal: 4000},
+		{UploadTotal: 40, DownloadTotal: 100},
+		{UploadTotal: 50, DownloadTotal: 130},
+	})
+	defer closeServer()
+	store, _ := runtimeStore(t)
+	ring, _ := collector.NewRing(collector.DefaultRingCapacity)
+	runtime := newRuntime(t, client, store, ring, flowstatus.NewTracker())
+
+	for _, second := range []int64{1, 2, 3} {
+		if err := runtime.ObserveConnections(
+			context.Background(), time.Unix(runtimeBucketStart+second, 0), false,
+		); err != nil {
+			t.Fatalf("ObserveConnections(second %d) error = %v", second, err)
+		}
+	}
+	if err := runtime.Seal(context.Background(), time.Unix(runtimeBucketStart+10, 0)); err != nil {
+		t.Fatalf("Seal() error = %v", err)
+	}
+
+	rollup := mustRollup(t, store, runtimeBucketStart)
+	if rollup.UploadBytes != 50 || rollup.DownloadBytes != 130 || rollup.ResetCount != 1 {
+		t.Errorf("reset rollup = %#v", rollup)
+	}
+	state := mustState(t, store)
+	if state.LastTotals != (storage.ByteTotals{Upload: 50, Download: 130}) {
+		t.Errorf("reset state = %#v", state)
+	}
+	session, found, err := store.RuntimeSession(context.Background(), state.RuntimeSessionID)
+	if err != nil || !found || session.StartReason != "counter_reset" {
+		t.Errorf("RuntimeSession() = %#v, %t, %v", session, found, err)
+	}
+}
+
+func TestRuntimeRunMarksFirstPersistedObservationAsGap(t *testing.T) {
+	seedClient, closeSeedServer := runtimeClient(t, []clashapi.ConnectionsSnapshot{
+		{UploadTotal: 1000, DownloadTotal: 4000},
+	})
+	defer closeSeedServer()
+	store, _ := runtimeStore(t)
+	ring, _ := collector.NewRing(collector.DefaultRingCapacity)
+	seedRuntime := newRuntime(t, seedClient, store, ring, flowstatus.NewTracker())
+	observeAndSeal(t, seedRuntime, runtimeBucketStart+1)
+
+	observedBucket := make(chan int64, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Header.Get("Authorization") != "Bearer fixture-clash-secret" {
+			writer.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		switch request.URL.Path {
+		case "/version":
+			_ = json.NewEncoder(writer).Encode(map[string]any{"version": "sing-box 1.12.0-fixture"})
+		case "/connections":
+			_ = json.NewEncoder(writer).Encode(clashapi.ConnectionsSnapshot{
+				UploadTotal: 1100, DownloadTotal: 4300,
+			})
+			select {
+			case observedBucket <- time.Now().UTC().Unix() / 10 * 10:
+			default:
+			}
+		case "/traffic":
+			flusher, _ := writer.(http.Flusher)
+			ticker := time.NewTicker(10 * time.Millisecond)
+			defer ticker.Stop()
+			for {
+				_, _ = writer.Write([]byte("{\"up\":1,\"down\":2}\n"))
+				if flusher != nil {
+					flusher.Flush()
+				}
+				select {
+				case <-request.Context().Done():
+					return
+				case <-ticker.C:
+				}
+			}
+		default:
+			writer.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+	client, err := clashapi.New(clashapi.Options{
+		BaseURL: server.URL, Secret: "fixture-clash-secret", RequestTimeout: time.Second, MaxResponseSize: 1 << 20,
+	})
+	if err != nil {
+		t.Fatalf("clashapi.New() error = %v", err)
+	}
+	tracker := flowstatus.NewTracker()
+	restarted := newRuntimeWithInterval(t, client, store, ring, tracker, 25*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
+	runResult := make(chan error, 1)
+	go func() { runResult <- restarted.Run(ctx) }()
+
+	var bucketStart int64
+	select {
+	case bucketStart = <-observedBucket:
+	case <-time.After(time.Second):
+		cancel()
+		t.Fatal("runtime did not poll persisted counter")
+	}
+	waitStatusLevel(t, tracker, flowstatus.LevelOK)
+	cancel()
+	if err := <-runResult; err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if err := restarted.Seal(context.Background(), time.Unix(bucketStart+20, 0)); err != nil {
+		t.Fatalf("Seal() error = %v", err)
+	}
+
+	rollup := mustRollupNear(t, store, bucketStart)
+	if rollup.UploadBytes != 100 || rollup.DownloadBytes != 300 ||
+		rollup.RecoveredUploadBytes != 100 || rollup.RecoveredDownloadBytes != 300 ||
+		rollup.QualityFlags&collector.QualityFlagGap == 0 {
+		t.Errorf("restart rollup = %#v", rollup)
+	}
+}
+
+func TestRuntimeRunDoesNotTreatTrafficStreamErrorAsCounterGap(t *testing.T) {
+	connectionBuckets := make(chan int64, 4)
+	releaseTrafficError := make(chan struct{})
+	var mutex sync.Mutex
+	connectionsCall := 0
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Header.Get("Authorization") != "Bearer fixture-clash-secret" {
+			writer.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		switch request.URL.Path {
+		case "/version":
+			_ = json.NewEncoder(writer).Encode(map[string]any{"version": "sing-box 1.12.0-fixture"})
+		case "/connections":
+			mutex.Lock()
+			connectionsCall++
+			call := connectionsCall
+			mutex.Unlock()
+			snapshot := clashapi.ConnectionsSnapshot{UploadTotal: 1000, DownloadTotal: 4000}
+			if call > 1 {
+				snapshot = clashapi.ConnectionsSnapshot{UploadTotal: 1100, DownloadTotal: 4300}
+			}
+			_ = json.NewEncoder(writer).Encode(snapshot)
+			connectionBuckets <- time.Now().UTC().Unix() / 10 * 10
+		case "/traffic":
+			select {
+			case <-releaseTrafficError:
+			case <-request.Context().Done():
+			}
+		default:
+			writer.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+	client, err := clashapi.New(clashapi.Options{
+		BaseURL: server.URL, Secret: "fixture-clash-secret", RequestTimeout: time.Second, MaxResponseSize: 1 << 20,
+	})
+	if err != nil {
+		t.Fatalf("clashapi.New() error = %v", err)
+	}
+	store, _ := runtimeStore(t)
+	ring, _ := collector.NewRing(collector.DefaultRingCapacity)
+	tracker := flowstatus.NewTracker()
+	runtime := newRuntimeWithInterval(t, client, store, ring, tracker, 200*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
+	runResult := make(chan error, 1)
+	go func() { runResult <- runtime.Run(ctx) }()
+
+	select {
+	case <-connectionBuckets:
+	case <-time.After(time.Second):
+		cancel()
+		t.Fatal("runtime did not establish counter baseline")
+	}
+	waitStatusLevel(t, tracker, flowstatus.LevelOK)
+	close(releaseTrafficError)
+	waitStatusLevel(t, tracker, flowstatus.LevelDegraded)
+	var secondBucketStart int64
+	select {
+	case secondBucketStart = <-connectionBuckets:
+	case <-time.After(time.Second):
+		cancel()
+		t.Fatal("runtime did not poll counter after traffic error")
+	}
+	waitStatusLevel(t, tracker, flowstatus.LevelOK)
+	cancel()
+	if err := <-runResult; err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if err := runtime.Seal(context.Background(), time.Unix(secondBucketStart+20, 0)); err != nil {
+		t.Fatalf("Seal() error = %v", err)
+	}
+
+	rollup := mustRollup(t, store, secondBucketStart)
+	if rollup.UploadBytes != 100 || rollup.DownloadBytes != 300 ||
+		rollup.RecoveredUploadBytes != 0 || rollup.RecoveredDownloadBytes != 0 ||
+		rollup.QualityFlags&collector.QualityFlagGap != 0 {
+		t.Errorf("traffic recovery rollup = %#v", rollup)
+	}
+}
+
 func TestRuntimeRetriesIdenticalPendingBatchWithoutAdvancingCursor(t *testing.T) {
 	client, closeServer := runtimeClient(t, []clashapi.ConnectionsSnapshot{
 		{UploadTotal: 1000, DownloadTotal: 4000},
@@ -191,15 +391,38 @@ func runtimeStore(t *testing.T) (*storage.Store, string) {
 }
 
 func newRuntime(t *testing.T, client *clashapi.Client, store *storage.Store, ring *collector.Ring, tracker *flowstatus.Tracker) *app.Runtime {
+	return newRuntimeWithInterval(t, client, store, ring, tracker, time.Second)
+}
+
+func newRuntimeWithInterval(
+	t *testing.T,
+	client *clashapi.Client,
+	store *storage.Store,
+	ring *collector.Ring,
+	tracker *flowstatus.Tracker,
+	interval time.Duration,
+) *app.Runtime {
 	t.Helper()
 	runtime, err := app.NewRuntime(context.Background(), app.RuntimeOptions{
 		Client: client, Store: store, Ring: ring, Status: tracker,
-		BucketTimezone: "Asia/Shanghai", ConnectionsInterval: time.Second,
+		BucketTimezone: "Asia/Shanghai", ConnectionsInterval: interval,
 	})
 	if err != nil {
 		t.Fatalf("NewRuntime() error = %v", err)
 	}
 	return runtime
+}
+
+func waitStatusLevel(t *testing.T, tracker *flowstatus.Tracker, level flowstatus.Level) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if tracker.Snapshot().Level == level {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatalf("status level = %q, want %q", tracker.Snapshot().Level, level)
 }
 
 func observeAndSeal(t *testing.T, runtime *app.Runtime, at int64) {
@@ -229,4 +452,19 @@ func mustRollup(t *testing.T, store *storage.Store, start int64) storage.Traffic
 		t.Fatalf("TrafficRollup(%d) = %#v, %t, %v", start, rollup, found, err)
 	}
 	return rollup
+}
+
+func mustRollupNear(t *testing.T, store *storage.Store, start int64) storage.TrafficRollup {
+	t.Helper()
+	for _, candidate := range []int64{start - 10, start, start + 10} {
+		rollup, found, err := store.TrafficRollup(context.Background(), 10, candidate)
+		if err != nil {
+			t.Fatalf("TrafficRollup(%d) error = %v", candidate, err)
+		}
+		if found {
+			return rollup
+		}
+	}
+	t.Fatalf("TrafficRollup near %d was not found", start)
+	return storage.TrafficRollup{}
 }
