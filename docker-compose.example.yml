@@ -1,0 +1,25 @@
+services:
+  flowlens:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    user: "10001:10001"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./config/config.yaml:/etc/flowlens/config.yaml:ro
+      - ./data:/var/lib/flowlens
+    networks:
+      - flowlens_private
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+networks:
+  flowlens_private:
+    external: true

@@ -1,0 +1,23 @@
+# macOS metadata
+.DS_Store
+
+# Project-local development workspace
+.flowlens-dev/
+
+# Real deployment configuration and runtime data
+/config/config.yaml
+/data/
+
+# Internal development plans
+/docs/
+
+# Go build and test outputs
+*.test
+*.out
+/coverage/
+
+# Frontend dependencies and generated outputs
+node_modules/
+/web/dist/
+/playwright-report/
+/test-results/

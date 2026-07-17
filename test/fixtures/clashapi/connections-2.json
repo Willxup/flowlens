@@ -1,0 +1,47 @@
+{
+  "downloadTotal": 4750,
+  "uploadTotal": 1250,
+  "connections": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "metadata": {
+        "network": "tcp",
+        "type": "mixed/fixture-inbound",
+        "sourceIP": "192.0.2.10",
+        "destinationIP": "198.51.100.20",
+        "sourcePort": "53001",
+        "destinationPort": "443",
+        "host": "api.example.test",
+        "dnsMode": "normal",
+        "processPath": ""
+      },
+      "upload": 250,
+      "download": 900,
+      "start": "2026-01-01T00:00:00Z",
+      "chains": ["direct"],
+      "rule": "final",
+      "rulePayload": ""
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "metadata": {
+        "network": "udp",
+        "type": "mixed/fixture-inbound",
+        "sourceIP": "2001:db8::10",
+        "destinationIP": "2001:db8:1::20",
+        "sourcePort": "53002",
+        "destinationPort": "853",
+        "host": "storage.example.test",
+        "dnsMode": "normal",
+        "processPath": ""
+      },
+      "upload": 100,
+      "download": 150,
+      "start": "2026-01-01T00:00:01Z",
+      "chains": ["direct"],
+      "rule": "final",
+      "rulePayload": ""
+    }
+  ],
+  "memory": 68157440
+}

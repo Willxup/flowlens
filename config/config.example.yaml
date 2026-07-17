@@ -1,0 +1,122 @@
+# 配置格式版本。
+# 第一版只接受 1；用于未来识别不兼容的配置变更。
+# 修改后需要重启 FlowLens。
+schema_version: 1
+
+server:
+  # FlowLens Web 和 API 在容器内的监听地址，格式为 主机:端口。
+  # Docker Compose 部署必须监听 0.0.0.0，宿主机暴露范围由 Compose ports 控制。
+  # 推荐保持 0.0.0.0:8080；修改后需要重启 FlowLens。
+  listen: "0.0.0.0:8080"
+
+clash_api:
+  # sing-box Clash API 的完整 HTTP 根地址。
+  # FlowLens 与 sing-box 位于同一 Docker 私有网络时，主机名填写 sing-box 服务名。
+  # 只支持 http://；必须包含主机和端口，不能包含路径、用户信息、query 或 fragment。
+  # 推荐值为 http://sing-box:9090；修改后需要重启 FlowLens。
+  url: "http://sing-box:9090"
+
+  # sing-box experimental.clash_api.secret 的明文值。
+  # 必须与 sing-box 配置完全一致；不会写入数据库、日志或 API 响应。
+  # 真实 config.yaml 不得提交到 Git；修改后需要重启 FlowLens。
+  secret: "请替换为真实 Clash API Secret"
+
+  # 普通 Clash API 请求的超时时间，使用 Go duration 格式，例如 500ms、3s。
+  # 推荐 3s；过短可能造成误判，过长会延迟故障发现。
+  # 修改后需要重启 FlowLens。
+  request_timeout: "3s"
+
+  # /connections 快照采集间隔，使用 Go duration 格式。
+  # 推荐 1s；更短会增加 sing-box 和 FlowLens 负载，更长会降低多维归因覆盖率。
+  # 修改后需要重启 FlowLens。
+  connections_interval: "1s"
+
+  # 单次 Clash API 响应允许读取的最大大小，使用 KiB、MiB 等二进制单位。
+  # 推荐 16MiB，用于限制异常响应带来的内存占用。
+  # 修改后需要重启 FlowLens。
+  max_response_size: "16MiB"
+
+auth:
+  # FlowLens Web 登录使用的共享密钥，登录后拥有全部 FlowLens 权限。
+  # 必须至少 16 个字符；建议使用 openssl rand -base64 16 生成。
+  # 密钥以明文保存在此 YAML，但不会写入数据库、日志、Cookie 或 API 响应。
+  # 修改后需要重启 FlowLens，重启会使全部旧会话失效。
+  access_key: "请替换为至少16字符的随机登录密钥"
+
+  # 登录成功后会话的绝对有效时间，使用 Go duration 格式。
+  # 推荐 24h；会话不会因访问自动续期，过期后需要重新登录。
+  # 修改后需要重启 FlowLens。
+  session_ttl: "24h"
+
+storage:
+  # SQLite 主数据库在容器内的绝对路径。
+  # 路径必须位于可写的数据卷 /var/lib/flowlens 内。
+  # 推荐保持默认值；修改后需要重启 FlowLens。
+  database_path: "/var/lib/flowlens/flowlens.db"
+
+  # SQLite 主文件的存储软上限，使用 MiB、GiB 等二进制单位。
+  # 推荐 256MiB；达到上限后停止创建新具体维度并执行容量保护，不删除日级数据。
+  # 修改后需要重启 FlowLens。
+  soft_limit: "256MiB"
+
+time:
+  # 日级时间桶、备份时间和日期预设使用的 IANA 时区。
+  # 例如 UTC、Asia/Shanghai；数据库首次写入后不得修改。
+  # 修改后需要重启 FlowLens，非空数据库修改此值会拒绝采集。
+  timezone: "Asia/Shanghai"
+
+retention:
+  # 10 秒粒度的全局和多维数据保留天数，正整数。
+  # 推荐 1 天；修改后需要重启 FlowLens。
+  ten_second_days: 1
+
+  # 1 分钟粒度的全局和多维数据保留天数，正整数。
+  # 推荐 7 天；修改后需要重启 FlowLens。
+  minute_days: 7
+
+  # 30 分钟粒度的全局和多维数据保留天数，正整数。
+  # 推荐 365 天；修改后需要重启 FlowLens。
+  half_hour_days: 365
+
+  # 1 小时粒度的全局和多维数据保留天数，正整数。
+  # 推荐 1095 天，即约 3 年；修改后需要重启 FlowLens。
+  hour_days: 1095
+
+  # 每个多维时间桶保留的具体维度数量，允许 1 到 100。
+  # 推荐 20；另外始终保留 _other 和 _unattributed 两行。
+  # 修改后需要重启 FlowLens。
+  top_k: 20
+
+privacy:
+  # 来源地址的保存方式：full、prefix 或 disabled。
+  # 推荐 prefix，只保存脱敏网段；修改后需要重启 FlowLens。
+  source_mode: "prefix"
+
+  # source_mode=prefix 时 IPv4 来源地址保留的前缀长度，允许 0 到 32。
+  # 推荐 24；值越小，来源地址越难被识别。
+  # 修改后需要重启 FlowLens。
+  source_ipv4_prefix: 24
+
+  # source_mode=prefix 时 IPv6 来源地址保留的前缀长度，允许 0 到 128。
+  # 推荐 64；值越小，来源地址越难被识别。
+  # 修改后需要重启 FlowLens。
+  source_ipv6_prefix: 64
+
+backup:
+  # 本地备份目录在容器内的绝对路径。
+  # 必须位于持久化数据卷内；FlowLens 不会自动把备份外传。
+  # 推荐保持默认值；修改后需要重启 FlowLens。
+  directory: "/var/lib/flowlens/backups"
+
+  # 每日备份时间，使用配置时区中的 24 小时 HH:MM 格式。
+  # 推荐 04:00，并在日级 rollup 和清理完成后执行。
+  # 修改后需要重启 FlowLens。
+  local_time: "04:00"
+
+  # 每日完整备份的保留份数，正整数。
+  # 推荐 3；修改后需要重启 FlowLens。
+  daily_keep: 3
+
+  # 每月 1 日完整备份的保留份数，正整数。
+  # 推荐 3；修改后需要重启 FlowLens。
+  monthly_keep: 3

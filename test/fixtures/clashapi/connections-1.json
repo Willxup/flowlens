@@ -1,0 +1,27 @@
+{
+  "downloadTotal": 4000,
+  "uploadTotal": 1000,
+  "connections": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "metadata": {
+        "network": "tcp",
+        "type": "mixed/fixture-inbound",
+        "sourceIP": "192.0.2.10",
+        "destinationIP": "198.51.100.20",
+        "sourcePort": "53001",
+        "destinationPort": "443",
+        "host": "api.example.test",
+        "dnsMode": "normal",
+        "processPath": ""
+      },
+      "upload": 100,
+      "download": 400,
+      "start": "2026-01-01T00:00:00Z",
+      "chains": ["direct"],
+      "rule": "final",
+      "rulePayload": ""
+    }
+  ],
+  "memory": 67108864
+}

@@ -1,0 +1,11 @@
+.git
+.flowlens-dev
+docs
+config/config.yaml
+data
+node_modules
+web/dist
+coverage
+*.db
+*.db-wal
+*.db-shm
