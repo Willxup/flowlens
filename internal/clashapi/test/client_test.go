@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -102,6 +103,35 @@ func TestNewRejectsInvalidOptions(t *testing.T) {
 			}
 			assertSanitized(t, err)
 		})
+	}
+}
+
+func TestDefaultClientDoesNotConsultInheritedProxy(t *testing.T) {
+	server := fixtureServer(t, "/version", "version.json")
+	defer server.Close()
+
+	originalTransport := http.DefaultTransport
+	transport := originalTransport.(*http.Transport).Clone()
+	var proxyCalls atomic.Int64
+	transport.Proxy = func(*http.Request) (*url.URL, error) {
+		proxyCalls.Add(1)
+		return nil, nil
+	}
+	http.DefaultTransport = transport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	client, err := clashapi.New(clashapi.Options{
+		BaseURL: server.URL, Secret: fixtureSecret,
+		RequestTimeout: time.Second, MaxResponseSize: 1 << 20,
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if _, err := client.Version(context.Background()); err != nil {
+		t.Fatalf("Version() error = %v", err)
+	}
+	if calls := proxyCalls.Load(); calls != 0 {
+		t.Fatalf("inherited proxy calls = %d, want 0", calls)
 	}
 }
 

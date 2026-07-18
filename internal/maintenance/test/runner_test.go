@@ -120,7 +120,7 @@ func TestRunOnceRollsUpBeforeCleanupAndRecordsResult(t *testing.T) {
 	if err := runner.RunOnce(context.Background(), now, retention); err != nil {
 		t.Fatalf("RunOnce() error = %v", err)
 	}
-	wantCalls := []string{"maintenance_cleanup", "10:60:60", "cleanup", "record"}
+	wantCalls := []string{"maintenance_cleanup", "quality_cleanup", "10:60:60", "cleanup", "record"}
 	if !reflect.DeepEqual(store.calls, wantCalls) {
 		t.Fatalf("RunOnce() calls = %#v, want %#v", store.calls, wantCalls)
 	}
@@ -132,6 +132,9 @@ func TestRunOnceRollsUpBeforeCleanupAndRecordsResult(t *testing.T) {
 	}
 	if store.cleanupCutoffs != wantCutoffs {
 		t.Fatalf("RunOnce() cutoffs = %#v, want %#v", store.cleanupCutoffs, wantCutoffs)
+	}
+	if store.qualityBefore != now.AddDate(-3, 0, 0).Unix() {
+		t.Fatalf("RunOnce() quality cutoff = %d, want %d", store.qualityBefore, now.AddDate(-3, 0, 0).Unix())
 	}
 	if len(store.runs) != 1 || store.runs[0].Operation != "rollup_cleanup" ||
 		store.runs[0].DeletedRows != 10 || store.runs[0].EndedAt == nil ||
@@ -203,6 +206,9 @@ func TestRunScheduledRetriesPruneWithoutCreatingAnotherSnapshot(t *testing.T) {
 			BucketTimezone: "UTC", ApplicationVersion: "0.1.0-test",
 		},
 		BackupTime: config.ClockTime{Hour: 4},
+		FindBackup: func(context.Context, string, time.Time, string) (bool, error) {
+			return false, nil
+		},
 		CreateBackup: func(context.Context, backup.Options, time.Time) (backup.Artifact, error) {
 			backupCalls++
 			return backup.Artifact{}, nil
@@ -226,18 +232,68 @@ func TestRunScheduledRetriesPruneWithoutCreatingAnotherSnapshot(t *testing.T) {
 	}
 }
 
+func TestRunScheduledRecognizesCommittedBackupWhenBookkeepingRetryIsNeeded(t *testing.T) {
+	store := &recordingRollupStore{
+		pending:        map[string][]rollup.Window{},
+		maintenance:    make(map[string]storage.MaintenanceRun),
+		failRecordOnce: "backup",
+	}
+	findCalls := 0
+	backupCalls := 0
+	runner, err := maintenance.New(maintenance.Options{
+		Store: store, Location: time.UTC,
+		Retention: config.Retention{TenSecondDays: 1, MinuteDays: 7, HalfHourDays: 365, HourDays: 1095},
+		Backup: backup.Options{
+			Directory: t.TempDir(), DailyKeep: 3, MonthlyKeep: 3,
+			BucketTimezone: "UTC", ApplicationVersion: "0.1.0-test",
+		},
+		BackupTime: config.ClockTime{Hour: 4},
+		FindBackup: func(context.Context, string, time.Time, string) (bool, error) {
+			findCalls++
+			return findCalls > 1, nil
+		},
+		CreateBackup: func(context.Context, backup.Options, time.Time) (backup.Artifact, error) {
+			backupCalls++
+			return backup.Artifact{}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	now := time.Date(2026, time.July, 18, 5, 0, 0, 0, time.UTC)
+	if err := runner.RunScheduled(context.Background(), now); !errors.Is(err, maintenance.ErrScheduledMaintenance) {
+		t.Fatalf("first RunScheduled() error = %v", err)
+	}
+	if err := runner.RunScheduled(context.Background(), now.Add(time.Minute)); err != nil {
+		t.Fatalf("second RunScheduled() error = %v", err)
+	}
+	if findCalls != 2 || backupCalls != 1 || store.optimizeCalls != 1 ||
+		!reflect.DeepEqual(store.vacuumPages, []int64{1024}) {
+		t.Fatalf("backup retry state = finds:%d backups:%d optimize:%d vacuum:%#v",
+			findCalls, backupCalls, store.optimizeCalls, store.vacuumPages)
+	}
+	if run, found := store.maintenance["backup"]; !found || run.EndedAt == nil || run.Error != nil {
+		t.Fatalf("backup maintenance = %#v, found=%t", run, found)
+	}
+	if run, found := store.maintenance["backup_retention"]; !found || run.EndedAt == nil || run.Error != nil {
+		t.Fatalf("backup retention = %#v, found=%t", run, found)
+	}
+}
+
 type recordingRollupStore struct {
 	pending        map[string][]rollup.Window
 	calls          []string
 	failEdge       string
 	cleanupResult  storage.CleanupResult
 	cleanupCutoffs storage.RetentionCutoffs
+	qualityBefore  int64
 	runs           []storage.MaintenanceRun
 	capacity       storage.CapacityStatus
 	maintenance    map[string]storage.MaintenanceRun
 	checkpoints    []bool
 	optimizeCalls  int
 	vacuumPages    []int64
+	failRecordOnce string
 }
 
 func (s *recordingRollupStore) CleanupTraffic(
@@ -255,12 +311,22 @@ func (s *recordingRollupStore) CleanupMaintenance(context.Context, int64) (int64
 	return 0, nil
 }
 
+func (s *recordingRollupStore) CleanupQualityEvents(_ context.Context, before int64) (int64, error) {
+	s.calls = append(s.calls, "quality_cleanup")
+	s.qualityBefore = before
+	return 0, nil
+}
+
 func (s *recordingRollupStore) RecordMaintenance(
 	ctx context.Context,
 	run storage.MaintenanceRun,
 ) error {
 	s.calls = append(s.calls, "record")
 	s.runs = append(s.runs, run)
+	if s.failRecordOnce == run.Operation {
+		s.failRecordOnce = ""
+		return errors.New("fixture maintenance record failure")
+	}
 	if s.maintenance != nil {
 		s.maintenance[run.Operation] = run
 	}

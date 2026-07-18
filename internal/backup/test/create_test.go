@@ -71,6 +71,49 @@ func TestCreateCommitsCompressedSnapshotThenManifest(t *testing.T) {
 	}
 }
 
+func TestHasCommittedForDayRecognizesOnlyValidatedArtifact(t *testing.T) {
+	options := backupOptions(t)
+	createdAt := time.Date(2026, time.July, 18, 20, 30, 0, 0, time.UTC)
+	artifact, err := backup.Create(context.Background(), options, createdAt)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	committed, err := backup.HasCommittedForDay(
+		context.Background(), options.Directory, createdAt.Add(30*time.Minute), options.BucketTimezone,
+	)
+	if err != nil {
+		t.Fatalf("HasCommittedForDay() error = %v", err)
+	}
+	if !committed {
+		t.Fatal("HasCommittedForDay() = false on the same configured natural day")
+	}
+
+	committed, err = backup.HasCommittedForDay(
+		context.Background(), options.Directory, createdAt.Add(24*time.Hour), options.BucketTimezone,
+	)
+	if err != nil {
+		t.Fatalf("next-day HasCommittedForDay() error = %v", err)
+	}
+	if committed {
+		t.Fatal("next-day HasCommittedForDay() = true")
+	}
+
+	missingData := artifact.DataPath + ".missing"
+	if err := os.Rename(artifact.DataPath, missingData); err != nil {
+		t.Fatalf("hide backup data: %v", err)
+	}
+	committed, err = backup.HasCommittedForDay(
+		context.Background(), options.Directory, createdAt, options.BucketTimezone,
+	)
+	if err != nil {
+		t.Fatalf("missing-data HasCommittedForDay() error = %v", err)
+	}
+	if committed {
+		t.Fatal("missing-data HasCommittedForDay() = true")
+	}
+}
+
 func TestCreateDoesNotCommitManifestWhenDataDestinationExists(t *testing.T) {
 	options := backupOptions(t)
 	createdAt := time.Date(2026, time.July, 18, 4, 0, 0, 0, time.UTC)

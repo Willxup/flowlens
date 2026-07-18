@@ -79,6 +79,7 @@ func New(options Options) (*Client, error) {
 			return nil, errors.New("default HTTP transport is unavailable")
 		}
 		clonedTransport := transport.Clone()
+		clonedTransport.Proxy = nil
 		clonedTransport.ResponseHeaderTimeout = options.RequestTimeout
 		httpClient = &http.Client{Transport: clonedTransport}
 	}

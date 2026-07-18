@@ -26,7 +26,10 @@ func (r *Runtime) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return nil
+			sealContext, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			err := r.Seal(sealContext, time.Now())
+			cancel()
+			return err
 		case event := <-traffic:
 			if event.err != nil {
 				_ = r.status.Set(flowstatus.LevelDegraded, "clash_unavailable", true)

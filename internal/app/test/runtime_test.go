@@ -123,6 +123,151 @@ func TestRuntimePersistsResetBeforeInitialBucketSealWithoutLosingBytes(t *testin
 	}
 }
 
+func TestRuntimeDoesNotAdvanceCounterWhenWallClockMovesBeforeCurrentBucket(t *testing.T) {
+	client, closeServer := runtimeClient(t, []clashapi.ConnectionsSnapshot{
+		{UploadTotal: 1000, DownloadTotal: 4000},
+		{UploadTotal: 1100, DownloadTotal: 4300},
+		{UploadTotal: 1200, DownloadTotal: 4500},
+	})
+	defer closeServer()
+	store, _ := runtimeStore(t)
+	ring, _ := collector.NewRing(collector.DefaultRingCapacity)
+	runtime := newRuntime(t, client, store, ring, flowstatus.NewTracker())
+
+	if err := runtime.ObserveConnections(
+		context.Background(), time.Unix(runtimeBucketStart+11, 0), false,
+	); err != nil {
+		t.Fatalf("baseline ObserveConnections() error = %v", err)
+	}
+	if err := runtime.ObserveConnections(
+		context.Background(), time.Unix(runtimeBucketStart+1, 0), false,
+	); err == nil {
+		t.Fatal("backward-clock ObserveConnections() error = nil")
+	}
+	if err := runtime.ObserveConnections(
+		context.Background(), time.Unix(runtimeBucketStart+12, 0), true,
+	); err != nil {
+		t.Fatalf("recovered ObserveConnections() error = %v", err)
+	}
+	if err := runtime.Seal(context.Background(), time.Unix(runtimeBucketStart+20, 0)); err != nil {
+		t.Fatalf("Seal() error = %v", err)
+	}
+
+	rollup := mustRollup(t, store, runtimeBucketStart+10)
+	if rollup.UploadBytes != 200 || rollup.DownloadBytes != 500 ||
+		rollup.RecoveredUploadBytes != 200 || rollup.RecoveredDownloadBytes != 500 {
+		t.Fatalf("recovered rollup = %#v", rollup)
+	}
+	state := mustState(t, store)
+	if state.LastTotals != (storage.ByteTotals{Upload: 1200, Download: 4500}) {
+		t.Fatalf("collector state = %#v", state)
+	}
+}
+
+func TestRuntimeRetainsTrafficSampleUntilMatchingCounterBucketExists(t *testing.T) {
+	client, closeServer := runtimeClient(t, []clashapi.ConnectionsSnapshot{
+		{UploadTotal: 1000, DownloadTotal: 4000},
+		{UploadTotal: 1100, DownloadTotal: 4300},
+	})
+	defer closeServer()
+	store, _ := runtimeStore(t)
+	ring, _ := collector.NewRing(collector.DefaultRingCapacity)
+	runtime := newRuntime(t, client, store, ring, flowstatus.NewTracker())
+
+	if err := runtime.ObserveConnections(
+		context.Background(), time.Unix(runtimeBucketStart+1, 0), false,
+	); err != nil {
+		t.Fatalf("baseline ObserveConnections() error = %v", err)
+	}
+	if err := runtime.ObserveTraffic(time.Unix(runtimeBucketStart+11, 0), clashapi.TrafficSample{
+		Up: 30, Down: 40,
+	}); err != nil {
+		t.Fatalf("boundary ObserveTraffic() error = %v", err)
+	}
+	if err := runtime.ObserveConnections(
+		context.Background(), time.Unix(runtimeBucketStart+11, 0), false,
+	); err != nil {
+		t.Fatalf("next-bucket ObserveConnections() error = %v", err)
+	}
+	if err := runtime.Seal(context.Background(), time.Unix(runtimeBucketStart+20, 0)); err != nil {
+		t.Fatalf("Seal() error = %v", err)
+	}
+
+	rollup := mustRollup(t, store, runtimeBucketStart+10)
+	if rollup.SpeedSampleCount != 1 || rollup.SpeedUploadSampleSum != 30 ||
+		rollup.SpeedDownloadSampleSum != 40 || rollup.PeakUploadBytesPerSecond != 30 ||
+		rollup.PeakDownloadBytesPerSecond != 40 {
+		t.Fatalf("boundary speed rollup = %#v", rollup)
+	}
+}
+
+func TestRuntimeRunCommitsAlreadyCompleteBucketOnCancellation(t *testing.T) {
+	client, closeServer := runtimeClient(t, []clashapi.ConnectionsSnapshot{
+		{UploadTotal: 1000, DownloadTotal: 4000},
+	})
+	defer closeServer()
+	store, _ := runtimeStore(t)
+	ring, _ := collector.NewRing(collector.DefaultRingCapacity)
+	runtime := newRuntime(t, client, store, ring, flowstatus.NewTracker())
+
+	if err := runtime.ObserveConnections(
+		context.Background(), time.Unix(runtimeBucketStart+1, 0), false,
+	); err != nil {
+		t.Fatalf("ObserveConnections() error = %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := runtime.Run(ctx); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	rollup := mustRollup(t, store, runtimeBucketStart)
+	if rollup.UploadBytes != 0 || rollup.DownloadBytes != 0 {
+		t.Fatalf("shutdown rollup = %#v", rollup)
+	}
+}
+
+func TestRuntimePersistsOnlyExceptionalQualityEvents(t *testing.T) {
+	client, closeServer := runtimeClient(t, []clashapi.ConnectionsSnapshot{
+		{UploadTotal: 1000, DownloadTotal: 4000},
+		{UploadTotal: 1100, DownloadTotal: 4300},
+		{UploadTotal: 1200, DownloadTotal: 4600},
+	})
+	defer closeServer()
+	store, _ := runtimeStore(t)
+	ring, _ := collector.NewRing(collector.DefaultRingCapacity)
+	runtime := newRuntime(t, client, store, ring, flowstatus.NewTracker())
+
+	observeAndSeal(t, runtime, runtimeBucketStart+1)
+	observeAndSeal(t, runtime, runtimeBucketStart+11)
+	ordinary, err := store.QualityEvents(
+		context.Background(), runtimeBucketStart+10, runtimeBucketStart+20,
+	)
+	if err != nil {
+		t.Fatalf("ordinary QualityEvents() error = %v", err)
+	}
+	if len(ordinary) != 0 {
+		t.Fatalf("ordinary QualityEvents() = %#v", ordinary)
+	}
+
+	if err := runtime.ObserveConnections(
+		context.Background(), time.Unix(runtimeBucketStart+21, 0), true,
+	); err != nil {
+		t.Fatalf("gap ObserveConnections() error = %v", err)
+	}
+	if err := runtime.Seal(context.Background(), time.Unix(runtimeBucketStart+30, 0)); err != nil {
+		t.Fatalf("gap Seal() error = %v", err)
+	}
+	exceptional, err := store.QualityEvents(
+		context.Background(), runtimeBucketStart+20, runtimeBucketStart+30,
+	)
+	if err != nil {
+		t.Fatalf("exceptional QualityEvents() error = %v", err)
+	}
+	if len(exceptional) != 1 || exceptional[0].Flags&collector.QualityFlagGap == 0 {
+		t.Fatalf("exceptional QualityEvents() = %#v", exceptional)
+	}
+}
+
 func TestRuntimeRunMarksFirstPersistedObservationAsGap(t *testing.T) {
 	seedClient, closeSeedServer := runtimeClient(t, []clashapi.ConnectionsSnapshot{
 		{UploadTotal: 1000, DownloadTotal: 4000},

@@ -48,3 +48,15 @@ func (s *Store) QualityEvents(
 	}
 	return result, nil
 }
+
+// CleanupQualityEvents removes durable quality events older than the exclusive cutoff.
+func (s *Store) CleanupQualityEvents(ctx context.Context, before int64) (int64, error) {
+	if before <= 0 {
+		return 0, ErrInvalidMaintenance
+	}
+	result, err := s.db.ExecContext(ctx, `DELETE FROM quality_event WHERE started_at < ?`, before)
+	if err != nil {
+		return 0, errors.New("cannot clean FlowLens quality events")
+	}
+	return affectedRows(result)
+}

@@ -36,6 +36,7 @@ type MaintenanceStore interface {
 	RollupStore
 	CleanupTraffic(context.Context, storage.RetentionCutoffs, *time.Location) (storage.CleanupResult, error)
 	CleanupMaintenance(context.Context, int64) (int64, error)
+	CleanupQualityEvents(context.Context, int64) (int64, error)
 	RecordMaintenance(context.Context, storage.MaintenanceRun) error
 }
 
@@ -52,6 +53,9 @@ type LifecycleStore interface {
 // BackupCreator is injectable only to keep lifecycle tests deterministic.
 type BackupCreator func(context.Context, backup.Options, time.Time) (backup.Artifact, error)
 
+// BackupFinder is injectable only to keep lifecycle tests deterministic.
+type BackupFinder func(context.Context, string, time.Time, string) (bool, error)
+
 // Options configures serial rollup catch-up.
 type Options struct {
 	Store        LifecycleStore
@@ -59,6 +63,7 @@ type Options struct {
 	Retention    config.Retention
 	Backup       backup.Options
 	BackupTime   config.ClockTime
+	FindBackup   BackupFinder
 	CreateBackup BackupCreator
 }
 
@@ -69,6 +74,7 @@ type Runner struct {
 	retention    config.Retention
 	backup       backup.Options
 	backupTime   config.ClockTime
+	findBackup   BackupFinder
 	createBackup BackupCreator
 }
 
@@ -93,10 +99,14 @@ func New(options Options) (*Runner, error) {
 	if creator == nil {
 		creator = backup.Create
 	}
+	finder := options.FindBackup
+	if finder == nil {
+		finder = backup.HasCommittedForDay
+	}
 	return &Runner{
 		store: options.Store, location: options.Location,
 		retention: options.Retention, backup: options.Backup,
-		backupTime: options.BackupTime, createBackup: creator,
+		backupTime: options.BackupTime, findBackup: finder, createBackup: creator,
 	}, nil
 }
 
@@ -146,6 +156,12 @@ func (r *Runner) RunOnce(ctx context.Context, now time.Time, retention config.Re
 	}
 	localNow := now.In(r.location)
 	if _, err := r.store.CleanupMaintenance(ctx, localNow.AddDate(0, 0, -90).Unix()); err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return ErrRetentionMaintenance
+	}
+	if _, err := r.store.CleanupQualityEvents(ctx, localNow.AddDate(-3, 0, 0).Unix()); err != nil {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -234,14 +250,20 @@ func (r *Runner) runBackup(ctx context.Context, now time.Time) error {
 		return ErrScheduledMaintenance
 	}
 	if backupDue(now, r.location, r.backupTime, latest, found) {
-		if err := r.store.Optimize(ctx); err != nil {
-			return r.recordScheduledFailure(ctx, now, "backup", "optimize_failed")
+		committed, err := r.findBackup(ctx, r.backup.Directory, now, r.backup.BucketTimezone)
+		if err != nil {
+			return r.recordScheduledFailure(ctx, now, "backup", "backup_lookup_failed")
 		}
-		if err := r.store.IncrementalVacuum(ctx, 1024); err != nil {
-			return r.recordScheduledFailure(ctx, now, "backup", "vacuum_failed")
-		}
-		if _, err := r.createBackup(ctx, r.backup, now); err != nil {
-			return r.recordScheduledFailure(ctx, now, "backup", "backup_failed")
+		if !committed {
+			if err := r.store.Optimize(ctx); err != nil {
+				return r.recordScheduledFailure(ctx, now, "backup", "optimize_failed")
+			}
+			if err := r.store.IncrementalVacuum(ctx, 1024); err != nil {
+				return r.recordScheduledFailure(ctx, now, "backup", "vacuum_failed")
+			}
+			if _, err := r.createBackup(ctx, r.backup, now); err != nil {
+				return r.recordScheduledFailure(ctx, now, "backup", "backup_failed")
+			}
 		}
 		capacity, err := r.store.CapacityStatus(ctx)
 		if err != nil {

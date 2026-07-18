@@ -48,7 +48,15 @@ type Runtime struct {
 	newSession   *storage.RuntimeSessionStart
 	endSession   *storage.RuntimeSessionEnd
 	pending      *storage.Batch
+	trafficQueue []deferredTrafficSample
 }
+
+type deferredTrafficSample struct {
+	at     int64
+	sample clashapi.TrafficSample
+}
+
+const maxDeferredTrafficSamples = 16
 
 // NewRuntime loads the durable cursor without advancing it.
 func NewRuntime(ctx context.Context, options RuntimeOptions) (*Runtime, error) {
@@ -79,6 +87,7 @@ func NewRuntime(ctx context.Context, options RuntimeOptions) (*Runtime, error) {
 		client: options.Client, store: options.Store, ring: options.Ring, status: options.Status,
 		timezone: options.BucketTimezone, interval: options.ConnectionsInterval, version: version.Version,
 		counter: counter, durable: state, hasDurable: found, sessionID: state.RuntimeSessionID,
+		lastSampleAt: state.LastSampleAt,
 	}, nil
 }
 
@@ -95,6 +104,10 @@ func (r *Runtime) ObserveConnections(ctx context.Context, at time.Time, afterGap
 	seconds := at.UTC().Unix()
 	start := seconds / 10 * 10
 	if start <= 0 {
+		return ErrRuntimeState
+	}
+	if r.lastSampleAt > 0 && seconds < r.lastSampleAt {
+		_ = r.status.Set(flowstatus.LevelDegraded, "clock_unstable", true)
 		return ErrRuntimeState
 	}
 	if r.bucket != nil && start > r.bucket.Rollup().BucketStart {
@@ -146,6 +159,9 @@ func (r *Runtime) ObserveConnections(ctx context.Context, at time.Time, afterGap
 	if err := r.bucket.ObserveCounter(seconds, observation, int64(len(snapshot.Connections))); err != nil {
 		return err
 	}
+	if err := r.flushDeferredTraffic(); err != nil {
+		return err
+	}
 	r.lastSampleAt = seconds
 	_ = r.status.Set(flowstatus.LevelOK, "ready", true)
 	return nil
@@ -163,15 +179,57 @@ func (r *Runtime) ObserveTraffic(at time.Time, sample clashapi.TrafficSample) er
 	}); err != nil {
 		return err
 	}
+	seconds := at.UTC().Unix()
 	if r.bucket == nil {
+		r.deferTraffic(seconds, sample)
 		return nil
 	}
-	seconds := at.UTC().Unix()
 	rollup := r.bucket.Rollup()
-	if seconds < rollup.BucketStart || seconds >= rollup.BucketEnd {
+	if seconds < rollup.BucketStart {
+		return nil
+	}
+	if seconds >= rollup.BucketEnd {
+		r.deferTraffic(seconds, sample)
 		return nil
 	}
 	return r.bucket.ObserveTraffic(seconds, sample)
+}
+
+func (r *Runtime) deferTraffic(at int64, sample clashapi.TrafficSample) {
+	start := at / 10 * 10
+	if start <= 0 {
+		return
+	}
+	if len(r.trafficQueue) > 0 && r.trafficQueue[0].at/10*10 != start {
+		r.trafficQueue = r.trafficQueue[:0]
+	}
+	if len(r.trafficQueue) == maxDeferredTrafficSamples {
+		copy(r.trafficQueue, r.trafficQueue[1:])
+		r.trafficQueue = r.trafficQueue[:len(r.trafficQueue)-1]
+	}
+	r.trafficQueue = append(r.trafficQueue, deferredTrafficSample{at: at, sample: sample})
+}
+
+func (r *Runtime) flushDeferredTraffic() error {
+	if r.bucket == nil || len(r.trafficQueue) == 0 {
+		return nil
+	}
+	rollup := r.bucket.Rollup()
+	remaining := r.trafficQueue[:0]
+	for _, queued := range r.trafficQueue {
+		switch {
+		case queued.at < rollup.BucketStart:
+			continue
+		case queued.at >= rollup.BucketEnd:
+			remaining = append(remaining, queued)
+		default:
+			if err := r.bucket.ObserveTraffic(queued.at, queued.sample); err != nil {
+				return err
+			}
+		}
+	}
+	r.trafficQueue = remaining
+	return nil
 }
 
 // Seal commits the current or previously failed immutable batch.
@@ -198,7 +256,7 @@ func (r *Runtime) Seal(ctx context.Context, at time.Time) error {
 			expected := r.durable.LastTotals
 			batch.ExpectedOldTotals = &expected
 		}
-		if rollup.QualityFlags != 0 {
+		if rollup.QualityFlags&^collector.QualityFlagAttributionIncomplete != 0 {
 			batch.QualityEvents = []storage.QualityEvent{{
 				Code: "collector_quality", StartedAt: rollup.BucketStart, Flags: rollup.QualityFlags,
 			}}
