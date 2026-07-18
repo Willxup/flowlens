@@ -64,6 +64,9 @@ func NewRuntime(ctx context.Context, options RuntimeOptions) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
+	if found && state.BucketTimezone != options.BucketTimezone {
+		return nil, storage.ErrTimezoneMismatch
+	}
 	var persisted *collector.ByteTotals
 	if found {
 		persisted = &collector.ByteTotals{Upload: state.LastTotals.Upload, Download: state.LastTotals.Download}

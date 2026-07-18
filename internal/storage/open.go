@@ -14,7 +14,8 @@ import (
 
 // Options configures the SQLite storage location.
 type Options struct {
-	DatabasePath string
+	DatabasePath   string
+	SoftLimitBytes int64
 }
 
 // String prevents database path disclosure through ordinary formatting.
@@ -29,8 +30,12 @@ func (options Options) GoString() string {
 
 // Store owns one SQLite pool and its exclusive data-directory lock.
 type Store struct {
-	db   *sql.DB
-	lock *directoryLock
+	db             *sql.DB
+	lock           *directoryLock
+	databasePath   string
+	softLimitBytes int64
+	capacityMu     sync.Mutex
+	protecting     bool
 
 	closeOnce sync.Once
 	closeErr  error
@@ -49,6 +54,9 @@ func (s *Store) GoString() string {
 // Open acquires the data-directory lock and opens a policy-constrained SQLite
 // pool. It does not apply application migrations.
 func Open(ctx context.Context, options Options) (*Store, error) {
+	if options.SoftLimitBytes < 0 {
+		return nil, errors.New("SQLite soft limit must not be negative")
+	}
 	if err := validateDatabasePath(options.DatabasePath); err != nil {
 		return nil, err
 	}
@@ -64,7 +72,9 @@ func Open(ctx context.Context, options Options) (*Store, error) {
 	}
 	database.SetMaxOpenConns(4)
 	database.SetMaxIdleConns(4)
-	store := &Store{db: database, lock: lock}
+	store := &Store{
+		db: database, lock: lock, databasePath: options.DatabasePath, softLimitBytes: options.SoftLimitBytes,
+	}
 	if err := database.PingContext(ctx); err != nil {
 		_ = store.Close()
 		return nil, errors.New("cannot connect to FlowLens SQLite database")

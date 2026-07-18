@@ -41,6 +41,24 @@ func (s *Store) CommitBatch(ctx context.Context, batch Batch) (CommitResult, err
 	if hasState && state.LastTotals != *batch.ExpectedOldTotals {
 		return CommitResult{}, ErrStateConflict
 	}
+	capacityBefore, capacityAfter, err := s.beginCapacityTransition()
+	if err != nil {
+		return CommitResult{}, err
+	}
+	defer s.capacityMu.Unlock()
+	flows := batch.Flows
+	if capacityAfter {
+		flows, err = applyCapacityPolicy(ctx, transaction, batch.Global, flows)
+		if err != nil {
+			return CommitResult{}, err
+		}
+	}
+	qualityEvents := batch.QualityEvents
+	if capacityBefore.Protecting && !capacityAfter {
+		qualityEvents = append(append([]QualityEvent(nil), qualityEvents...), QualityEvent{
+			Code: "storage_capacity_recovered", StartedAt: batch.Global.BucketStart,
+		})
+	}
 
 	if batch.EndRuntimeSession != nil {
 		result, err := transaction.ExecContext(ctx, `
@@ -77,10 +95,10 @@ func (s *Store) CommitBatch(ctx context.Context, batch Batch) (CommitResult, err
 	if err := upsertTrafficRollup(ctx, transaction, batch.Global); err != nil {
 		return CommitResult{}, err
 	}
-	if err := replaceFlowRollups(ctx, transaction, batch.Global, batch.Flows); err != nil {
+	if err := replaceFlowRollups(ctx, transaction, batch.Global, flows); err != nil {
 		return CommitResult{}, err
 	}
-	for _, event := range batch.QualityEvents {
+	for _, event := range qualityEvents {
 		if _, err := transaction.ExecContext(ctx, `
 			INSERT INTO quality_event(batch_id, code, started_at, ended_at, flags, detail)
 			VALUES (?, ?, ?, ?, ?, ?)
@@ -139,7 +157,89 @@ func (s *Store) CommitBatch(ctx context.Context, batch Batch) (CommitResult, err
 	if err := transaction.Commit(); err != nil {
 		return CommitResult{}, errors.New("cannot commit FlowLens storage batch")
 	}
+	s.protecting = capacityAfter
 	return CommitResult{}, nil
+}
+
+func applyCapacityPolicy(
+	ctx context.Context,
+	transaction *sql.Tx,
+	global TrafficRollup,
+	flows []FlowRollup,
+) ([]FlowRollup, error) {
+	transformed := make([]FlowRollup, 0, len(flows))
+	var redirected FlowRollup
+	redirected.Dimension = FlowDimension{
+		SourceNetwork: []byte{}, DestinationIP: []byte{}, DestinationPort: -1, ClassificationCode: 2,
+	}
+	for _, flow := range flows {
+		if flow.Dimension.ClassificationCode != 1 {
+			transformed = append(transformed, flow)
+			continue
+		}
+		exists, err := concreteDimensionExists(ctx, transaction, flow.Dimension)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			transformed = append(transformed, flow)
+			continue
+		}
+		if !safeAdd(&redirected.UploadBytes, flow.UploadBytes) ||
+			!safeAdd(&redirected.DownloadBytes, flow.DownloadBytes) ||
+			!safeAdd(&redirected.FlowObservationCount, flow.FlowObservationCount) {
+			return nil, ErrInvalidBatch
+		}
+	}
+	if redirected.UploadBytes != 0 || redirected.DownloadBytes != 0 || redirected.FlowObservationCount != 0 {
+		otherIndex := -1
+		for index := range transformed {
+			if transformed[index].Dimension.ClassificationCode == 2 {
+				otherIndex = index
+				break
+			}
+		}
+		if otherIndex < 0 {
+			transformed = append(transformed, redirected)
+		} else if !safeAdd(&transformed[otherIndex].UploadBytes, redirected.UploadBytes) ||
+			!safeAdd(&transformed[otherIndex].DownloadBytes, redirected.DownloadBytes) ||
+			!safeAdd(&transformed[otherIndex].FlowObservationCount, redirected.FlowObservationCount) {
+			return nil, ErrInvalidBatch
+		}
+	}
+	if err := validateFlows(global, transformed); err != nil {
+		return nil, err
+	}
+	return transformed, nil
+}
+
+func concreteDimensionExists(
+	ctx context.Context,
+	transaction *sql.Tx,
+	dimension FlowDimension,
+) (bool, error) {
+	var exists int
+	if err := transaction.QueryRowContext(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM flow_dimension
+			WHERE source_family = ? AND source_network = ? AND source_prefix_len = ?
+				AND destination_family = ? AND destination_ip = ? AND destination_port = ?
+				AND host = ? AND network_code = ? AND classification_code = ?
+		)
+	`,
+		dimension.SourceFamily,
+		normalizedBlob(dimension.SourceNetwork),
+		dimension.SourcePrefixLen,
+		dimension.DestinationFamily,
+		normalizedBlob(dimension.DestinationIP),
+		dimension.DestinationPort,
+		dimension.Host,
+		dimension.NetworkCode,
+		dimension.ClassificationCode,
+	).Scan(&exists); err != nil {
+		return false, errors.New("cannot inspect FlowLens dimension capacity")
+	}
+	return exists != 0, nil
 }
 
 func upsertTrafficRollup(ctx context.Context, transaction *sql.Tx, rollup TrafficRollup) error {

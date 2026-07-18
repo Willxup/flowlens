@@ -29,6 +29,41 @@ func TestTrackerAcceptsValidTransitionsAndReturnsCopies(t *testing.T) {
 	}
 }
 
+func TestTrackerKeepsComponentFailuresIndependent(t *testing.T) {
+	tracker := status.NewTracker()
+	setter, ok := any(tracker).(interface {
+		SetComponent(string, status.Level, string, bool) error
+	})
+	if !ok {
+		t.Fatal("Tracker does not support component status")
+	}
+	if err := setter.SetComponent("runtime", status.LevelOK, "ready", true); err != nil {
+		t.Fatalf("runtime ready error = %v", err)
+	}
+	if err := setter.SetComponent("maintenance", status.LevelDegraded, "maintenance_failed", true); err != nil {
+		t.Fatalf("maintenance failure error = %v", err)
+	}
+	if err := setter.SetComponent("runtime", status.LevelOK, "ready", true); err != nil {
+		t.Fatalf("runtime recovery error = %v", err)
+	}
+	if got := tracker.Snapshot(); got != (status.Snapshot{
+		Level: status.LevelDegraded, Reason: "maintenance_failed", Ready: true,
+	}) {
+		t.Fatalf("Snapshot() after runtime recovery = %#v", got)
+	}
+	if err := setter.SetComponent("runtime", status.LevelDegraded, "clash_unavailable", true); err != nil {
+		t.Fatalf("runtime failure error = %v", err)
+	}
+	if err := setter.SetComponent("maintenance", status.LevelOK, "ready", true); err != nil {
+		t.Fatalf("maintenance recovery error = %v", err)
+	}
+	if got := tracker.Snapshot(); got != (status.Snapshot{
+		Level: status.LevelDegraded, Reason: "clash_unavailable", Ready: true,
+	}) {
+		t.Fatalf("Snapshot() after maintenance recovery = %#v", got)
+	}
+}
+
 func TestTrackerRejectsInvalidSnapshotWithoutChangingState(t *testing.T) {
 	tracker := status.NewTracker()
 	want := tracker.Snapshot()

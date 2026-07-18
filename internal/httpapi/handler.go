@@ -20,6 +20,7 @@ type Options struct {
 	AccessKey  string
 	SessionTTL time.Duration
 	Status     *flowstatus.Tracker
+	Queries    StatisticsQueries
 }
 
 // String prevents access-key disclosure through formatting.
@@ -32,6 +33,7 @@ type handler struct {
 	accessKey []byte
 	sessions  *SessionStore
 	status    *flowstatus.Tracker
+	queries   StatisticsQueries
 }
 
 // String prevents internal HTTP state disclosure through formatting.
@@ -42,14 +44,16 @@ func (h *handler) GoString() string { return h.String() }
 
 // New builds the complete minimal Stage 1 handler.
 func New(options Options) (http.Handler, error) {
-	if options.AccessKey == "" || options.Status == nil {
+	if options.AccessKey == "" || options.Status == nil || options.Queries == nil {
 		return nil, errors.New("invalid FlowLens HTTP configuration")
 	}
 	sessions, err := NewSessionStore(options.SessionTTL)
 	if err != nil {
 		return nil, errors.New("invalid FlowLens HTTP configuration")
 	}
-	return &handler{accessKey: []byte(options.AccessKey), sessions: sessions, status: options.Status}, nil
+	return &handler{
+		accessKey: []byte(options.AccessKey), sessions: sessions, status: options.Status, queries: options.Queries,
+	}, nil
 }
 
 func (h *handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -64,6 +68,22 @@ func (h *handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	case "/api/v1/status":
 		if h.requireSession(writer, request) {
 			h.statusResponse(writer, request)
+		}
+	case "/api/v1/overview":
+		if h.requireSession(writer, request) {
+			h.overviewResponse(writer, request)
+		}
+	case "/api/v1/series":
+		if h.requireSession(writer, request) {
+			h.seriesResponse(writer, request)
+		}
+	case "/api/v1/quality":
+		if h.requireSession(writer, request) {
+			h.qualityResponse(writer, request)
+		}
+	case "/api/v1/storage":
+		if h.requireSession(writer, request) {
+			h.storageResponse(writer, request)
 		}
 	default:
 		if len(request.URL.Path) >= len("/api/") && request.URL.Path[:len("/api/")] == "/api/" {

@@ -140,6 +140,7 @@ func newClashFixture(t *testing.T) *httptest.Server {
 }
 
 func integrationConfig(clashURL, databasePath string) config.Config {
+	backupDirectory := filepath.Join(filepath.Dir(databasePath), "backups")
 	return config.Config{
 		SchemaVersion: 1,
 		Server:        config.Server{Listen: "127.0.0.1:0"},
@@ -155,6 +156,12 @@ func integrationConfig(clashURL, databasePath string) config.Config {
 		},
 		Storage: config.Storage{DatabasePath: databasePath, SoftLimit: config.ByteSize(1 << 20)},
 		Time:    config.Time{Timezone: "Asia/Shanghai"},
+		Retention: config.Retention{
+			TenSecondDays: 1, MinuteDays: 7, HalfHourDays: 365, HourDays: 1095, TopK: 20,
+		},
+		Backup: config.Backup{
+			Directory: backupDirectory, LocalTime: config.ClockTime{Hour: 4}, DailyKeep: 3, MonthlyKeep: 3,
+		},
 	}
 }
 

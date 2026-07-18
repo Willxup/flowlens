@@ -140,7 +140,9 @@ func TestLoginRejectsUnsafeOrInvalidRequests(t *testing.T) {
 
 func TestHandlerAddsSecurityHeadersAndFormattingRedactsAccessKey(t *testing.T) {
 	tracker := flowstatus.NewTracker()
-	handler, err := httpapi.New(httpapi.Options{AccessKey: fixtureAccessKey, SessionTTL: time.Hour, Status: tracker})
+	handler, err := httpapi.New(httpapi.Options{
+		AccessKey: fixtureAccessKey, SessionTTL: time.Hour, Status: tracker, Queries: fixtureStatisticsQueries(),
+	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -154,7 +156,9 @@ func TestHandlerAddsSecurityHeadersAndFormattingRedactsAccessKey(t *testing.T) {
 			t.Errorf("%s = %q, want %q", header, got, want)
 		}
 	}
-	options := httpapi.Options{AccessKey: fixtureAccessKey, SessionTTL: time.Hour, Status: tracker}
+	options := httpapi.Options{
+		AccessKey: fixtureAccessKey, SessionTTL: time.Hour, Status: tracker, Queries: fixtureStatisticsQueries(),
+	}
 	for _, value := range []any{options, handler} {
 		for _, format := range []string{"%v", "%+v", "%#v"} {
 			if formatted := fmt.Sprintf(format, value); strings.Contains(formatted, fixtureAccessKey) {
@@ -166,7 +170,9 @@ func TestHandlerAddsSecurityHeadersAndFormattingRedactsAccessKey(t *testing.T) {
 
 func newHandler(t *testing.T, tracker *flowstatus.Tracker) http.Handler {
 	t.Helper()
-	handler, err := httpapi.New(httpapi.Options{AccessKey: fixtureAccessKey, SessionTTL: time.Hour, Status: tracker})
+	handler, err := httpapi.New(httpapi.Options{
+		AccessKey: fixtureAccessKey, SessionTTL: time.Hour, Status: tracker, Queries: fixtureStatisticsQueries(),
+	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}

@@ -27,25 +27,33 @@ type Snapshot struct {
 
 // Tracker stores one concurrency-safe process snapshot.
 type Tracker struct {
-	mutex    sync.RWMutex
-	snapshot Snapshot
+	mutex      sync.RWMutex
+	components map[string]Snapshot
+	snapshot   Snapshot
 }
 
 // NewTracker returns the fixed startup state.
 func NewTracker() *Tracker {
-	return &Tracker{snapshot: Snapshot{
-		Level:  LevelDegraded,
-		Reason: "starting",
-	}}
+	starting := Snapshot{Level: LevelDegraded, Reason: "starting"}
+	return &Tracker{
+		components: map[string]Snapshot{"runtime": starting},
+		snapshot:   starting,
+	}
 }
 
 // Set replaces the complete snapshot after validating its public values.
 func (t *Tracker) Set(level Level, reason string, ready bool) error {
-	if !validLevel(level) || !validReason(reason) {
+	return t.SetComponent("runtime", level, reason, ready)
+}
+
+// SetComponent replaces one component snapshot and derives the public process state.
+func (t *Tracker) SetComponent(component string, level Level, reason string, ready bool) error {
+	if !validReason(component) || !validLevel(level) || !validReason(reason) {
 		return ErrInvalidSnapshot
 	}
 	t.mutex.Lock()
-	t.snapshot = Snapshot{Level: level, Reason: reason, Ready: ready}
+	t.components[component] = Snapshot{Level: level, Reason: reason, Ready: ready}
+	t.snapshot = combinedSnapshot(t.components)
 	t.mutex.Unlock()
 	return nil
 }
@@ -60,6 +68,33 @@ func (t *Tracker) Snapshot() Snapshot {
 
 func validLevel(level Level) bool {
 	return level == LevelOK || level == LevelDegraded || level == LevelFailed
+}
+
+func combinedSnapshot(components map[string]Snapshot) Snapshot {
+	result := Snapshot{Level: LevelOK, Reason: "ready", Ready: true}
+	selectedPriority := 0
+	for _, snapshot := range components {
+		priority := levelPriority(snapshot.Level)
+		if priority > selectedPriority ||
+			(priority == selectedPriority && snapshot.Level != LevelOK && snapshot.Reason < result.Reason) {
+			result.Level = snapshot.Level
+			result.Reason = snapshot.Reason
+			selectedPriority = priority
+		}
+		result.Ready = result.Ready && snapshot.Ready
+	}
+	return result
+}
+
+func levelPriority(level Level) int {
+	switch level {
+	case LevelFailed:
+		return 2
+	case LevelDegraded:
+		return 1
+	default:
+		return 0
+	}
 }
 
 func validReason(reason string) bool {
