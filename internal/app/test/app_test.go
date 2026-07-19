@@ -188,6 +188,7 @@ func appConfig(clashURL, databasePath string) config.Config {
 		Retention: config.Retention{
 			TenSecondDays: 1, MinuteDays: 7, HalfHourDays: 365, HourDays: 1095, TopK: 20,
 		},
+		Privacy: config.Privacy{SourceMode: "prefix", SourceIPv4Prefix: 24, SourceIPv6Prefix: 64},
 		Backup: config.Backup{
 			Directory: backupDirectory, LocalTime: config.ClockTime{Hour: 4}, DailyKeep: 3, MonthlyKeep: 3,
 		},

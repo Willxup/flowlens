@@ -27,7 +27,7 @@ type RollupStore interface {
 		int64,
 		*time.Location,
 	) (rollup.Window, bool, error)
-	RollupTraffic(context.Context, int64, rollup.Window) (storage.TrafficRollup, error)
+	RollupTraffic(context.Context, int64, rollup.Window, ...int) (storage.TrafficRollup, error)
 }
 
 // MaintenanceStore extends rollup storage with the exact cleanup/audit calls
@@ -137,7 +137,7 @@ func (r *Runner) CatchUpRollups(ctx context.Context, completeBefore time.Time) e
 			if !found {
 				break
 			}
-			if _, err := r.store.RollupTraffic(ctx, edge.source, window); err != nil {
+			if _, err := r.store.RollupTraffic(ctx, edge.source, window, r.retention.TopK); err != nil {
 				if ctx.Err() != nil {
 					return ctx.Err()
 				}

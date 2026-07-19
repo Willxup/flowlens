@@ -32,13 +32,13 @@ func TestCreateCommitsCompressedSnapshotThenManifest(t *testing.T) {
 	}
 	validation, err := backup.Validate(context.Background(), artifact.ManifestPath, backup.ValidationPolicy{
 		ExpectedBucketTimezone: options.BucketTimezone,
-		MaximumSchemaVersion:   1,
+		MaximumSchemaVersion:   latestSchemaVersion(t),
 	})
 	if err != nil {
 		t.Fatalf("Validate() error = %v", err)
 	}
 	if validation.Manifest.FormatVersion != 1 || validation.Manifest.ApplicationVersion != options.ApplicationVersion ||
-		validation.Manifest.SchemaVersion != 1 || validation.Manifest.CreatedAt != createdAt.Unix() ||
+		validation.Manifest.SchemaVersion != latestSchemaVersion(t) || validation.Manifest.CreatedAt != createdAt.Unix() ||
 		validation.Manifest.OriginalSize <= 0 || len(validation.Manifest.DatabaseSHA256) != 64 ||
 		validation.Manifest.BucketTimezone != options.BucketTimezone {
 		t.Fatalf("validation manifest = %#v", validation.Manifest)

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Willxup/flowlens/internal/attribution"
 	"github.com/Willxup/flowlens/internal/config"
 	"github.com/Willxup/flowlens/internal/query"
 	"github.com/Willxup/flowlens/internal/rollup"
@@ -130,10 +131,87 @@ func TestServiceRejectsIntegerOverflow(t *testing.T) {
 type recordingQueryStore struct {
 	trafficResponses [][]storage.TrafficRollup
 	segmentCalls     [][]rollup.Segment
+	atomicTraffic    []storage.TrafficRollup
+	atomicFlows      []storage.FlowPoint
+	atomicCalls      int
+	flowSegmentCalls [][]rollup.Segment
 	qualityEvents    []storage.QualityEventRecord
 	capacity         storage.CapacityStatus
 	maintenance      storage.MaintenanceRun
 	hasMaintenance   bool
+	flowResponses    [][]storage.FlowPoint
+	sessions         []storage.RuntimeSession
+	labels           []storage.ServiceLabel
+	nextLabelID      int64
+}
+
+func (s *recordingQueryStore) BreakdownSeries(
+	ctx context.Context,
+	segments []rollup.Segment,
+) ([]storage.TrafficRollup, []storage.FlowPoint, error) {
+	s.atomicCalls++
+	s.segmentCalls = append(s.segmentCalls, append([]rollup.Segment(nil), segments...))
+	if s.atomicTraffic != nil || s.atomicFlows != nil {
+		return append([]storage.TrafficRollup(nil), s.atomicTraffic...),
+			append([]storage.FlowPoint(nil), s.atomicFlows...), nil
+	}
+	var traffic []storage.TrafficRollup
+	if len(s.trafficResponses) > 0 {
+		traffic = s.trafficResponses[0]
+		s.trafficResponses = s.trafficResponses[1:]
+	}
+	var flows []storage.FlowPoint
+	if len(s.flowResponses) > 0 {
+		flows = s.flowResponses[0]
+		s.flowResponses = s.flowResponses[1:]
+	}
+	return append([]storage.TrafficRollup(nil), traffic...), append([]storage.FlowPoint(nil), flows...), nil
+}
+
+func (s *recordingQueryStore) Labels(ctx context.Context) ([]storage.ServiceLabel, error) {
+	return append([]storage.ServiceLabel(nil), s.labels...), nil
+}
+
+func (s *recordingQueryStore) CreateLabel(ctx context.Context, value storage.ServiceLabel) (storage.ServiceLabel, error) {
+	s.nextLabelID++
+	value.ID = s.nextLabelID
+	s.labels = append(s.labels, value)
+	return value, nil
+}
+
+func (s *recordingQueryStore) UpdateLabel(ctx context.Context, id int64, displayName string, updatedAt int64) (storage.ServiceLabel, error) {
+	for index := range s.labels {
+		if s.labels[index].ID == id {
+			s.labels[index].DisplayName = displayName
+			s.labels[index].UpdatedAt = updatedAt
+			return s.labels[index], nil
+		}
+	}
+	return storage.ServiceLabel{}, storage.ErrLabelNotFound
+}
+
+func (s *recordingQueryStore) DeleteLabel(ctx context.Context, id int64) (bool, error) {
+	for index := range s.labels {
+		if s.labels[index].ID == id {
+			s.labels = append(s.labels[:index], s.labels[index+1:]...)
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s *recordingQueryStore) FlowSeries(ctx context.Context, segments []rollup.Segment) ([]storage.FlowPoint, error) {
+	s.flowSegmentCalls = append(s.flowSegmentCalls, append([]rollup.Segment(nil), segments...))
+	if len(s.flowResponses) == 0 {
+		return nil, nil
+	}
+	response := s.flowResponses[0]
+	s.flowResponses = s.flowResponses[1:]
+	return append([]storage.FlowPoint(nil), response...), nil
+}
+
+func (s *recordingQueryStore) RuntimeSessions(ctx context.Context, limit int) ([]storage.RuntimeSession, error) {
+	return append([]storage.RuntimeSession(nil), s.sessions...), nil
 }
 
 func (s *recordingQueryStore) TrafficSeries(
@@ -169,13 +247,16 @@ func (s *recordingQueryStore) LatestMaintenance(
 }
 
 func newService(t *testing.T, store query.Store, now time.Time) *query.Service {
+	return newServiceWith(t, store, fakeLiveSource{}, now, 20, attribution.SourcePrefix)
+}
+
+func newServiceWith(t *testing.T, store query.Store, live query.LiveSource, now time.Time, topK int, privacy attribution.SourceMode) *query.Service {
 	t.Helper()
-	service, err := query.NewService(
-		store,
-		func() time.Time { return now },
-		config.Retention{TenSecondDays: 1, MinuteDays: 7, HalfHourDays: 365, HourDays: 1095, TopK: 20},
-		time.UTC,
-	)
+	service, err := query.NewService(query.Options{
+		Store: store, Live: live, Now: func() time.Time { return now },
+		Retention: config.Retention{TenSecondDays: 1, MinuteDays: 7, HalfHourDays: 365, HourDays: 1095, TopK: topK},
+		Location:  time.UTC, PrivacyMode: privacy,
+	})
 	if err != nil {
 		t.Fatalf("NewService() error = %v", err)
 	}

@@ -24,7 +24,7 @@ func TestValidateRejectsCorruptionUnknownFieldsAndPolicyMismatch(t *testing.T) {
 					t.Fatalf("corrupt data: %v", err)
 				}
 			},
-			policy: backup.ValidationPolicy{ExpectedBucketTimezone: "Asia/Shanghai", MaximumSchemaVersion: 1},
+			policy: backup.ValidationPolicy{ExpectedBucketTimezone: "Asia/Shanghai", MaximumSchemaVersion: latestSchemaVersion(t)},
 		},
 		{
 			name: "unknown manifest field",
@@ -44,12 +44,12 @@ func TestValidateRejectsCorruptionUnknownFieldsAndPolicyMismatch(t *testing.T) {
 					t.Fatalf("rewrite manifest: %v", err)
 				}
 			},
-			policy: backup.ValidationPolicy{ExpectedBucketTimezone: "Asia/Shanghai", MaximumSchemaVersion: 1},
+			policy: backup.ValidationPolicy{ExpectedBucketTimezone: "Asia/Shanghai", MaximumSchemaVersion: latestSchemaVersion(t)},
 		},
 		{
 			name:   "timezone mismatch",
 			mutate: func(t *testing.T, artifact backup.Artifact) {},
-			policy: backup.ValidationPolicy{ExpectedBucketTimezone: "UTC", MaximumSchemaVersion: 1},
+			policy: backup.ValidationPolicy{ExpectedBucketTimezone: "UTC", MaximumSchemaVersion: latestSchemaVersion(t)},
 		},
 		{
 			name:   "schema too new",
@@ -81,7 +81,7 @@ func TestValidateHonorsCanceledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if _, err := backup.Validate(ctx, artifact.ManifestPath, backup.ValidationPolicy{
-		ExpectedBucketTimezone: options.BucketTimezone, MaximumSchemaVersion: 1,
+		ExpectedBucketTimezone: options.BucketTimezone, MaximumSchemaVersion: latestSchemaVersion(t),
 	}); err == nil {
 		t.Fatal("Validate() error = nil with canceled context")
 	}

@@ -381,6 +381,7 @@ func (s *recordingRollupStore) RollupTraffic(
 	ctx context.Context,
 	sourceResolutionSec int64,
 	window rollup.Window,
+	topK ...int,
 ) (storage.TrafficRollup, error) {
 	key := edgeKey(sourceResolutionSec, window.ResolutionSec)
 	s.calls = append(s.calls, fmt.Sprintf("%s:%d", key, window.BucketStart))

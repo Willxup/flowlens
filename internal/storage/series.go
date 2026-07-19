@@ -2,12 +2,17 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 
 	"github.com/Willxup/flowlens/internal/rollup"
 )
 
 var ErrInvalidQuery = errors.New("invalid FlowLens storage query")
+
+type seriesQuerier interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
 
 // TrafficSeries reads exact non-overlapping segments in chronological order.
 func (s *Store) TrafficSeries(
@@ -17,9 +22,45 @@ func (s *Store) TrafficSeries(
 	if !validSeriesSegments(segments) {
 		return nil, ErrInvalidQuery
 	}
+	return trafficSeries(ctx, s.db, segments)
+}
+
+// BreakdownSeries reads global and dimensional points from one SQLite
+// snapshot so a concurrent collector or maintenance commit cannot split them.
+func (s *Store) BreakdownSeries(
+	ctx context.Context,
+	segments []rollup.Segment,
+) ([]TrafficRollup, []FlowPoint, error) {
+	if !validSeriesSegments(segments) {
+		return nil, nil, ErrInvalidQuery
+	}
+	transaction, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, nil, errors.New("cannot begin FlowLens breakdown transaction")
+	}
+	defer transaction.Rollback()
+	traffic, err := trafficSeries(ctx, transaction, segments)
+	if err != nil {
+		return nil, nil, err
+	}
+	flows, err := flowSeries(ctx, transaction, segments)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := transaction.Commit(); err != nil {
+		return nil, nil, errors.New("cannot commit FlowLens breakdown transaction")
+	}
+	return traffic, flows, nil
+}
+
+func trafficSeries(
+	ctx context.Context,
+	queryer seriesQuerier,
+	segments []rollup.Segment,
+) ([]TrafficRollup, error) {
 	var result []TrafficRollup
 	for _, segment := range segments {
-		rows, err := s.db.QueryContext(ctx, `
+		rows, err := queryer.QueryContext(ctx, `
 			SELECT
 				resolution_sec, bucket_start, bucket_end,
 				upload_bytes, download_bytes,

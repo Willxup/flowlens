@@ -1,0 +1,31 @@
+{
+  "downloadTotal": 4000,
+  "uploadTotal": 1000,
+  "connections": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "upload": 100,
+      "download": 200,
+      "metadata": {
+        "network": "tcp",
+        "sourceIP": "192.0.2.10",
+        "destinationIP": "198.51.100.10",
+        "destinationPort": "443",
+        "host": "api.example.test"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "upload": 50,
+      "download": 50,
+      "metadata": {
+        "network": "udp",
+        "sourceIP": "2001:db8:1::10",
+        "destinationIP": "203.0.113.53",
+        "destinationPort": "53",
+        "host": "dns.example.test"
+      }
+    }
+  ],
+  "memory": 1048576
+}

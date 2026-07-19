@@ -6,20 +6,22 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/Willxup/flowlens/internal/attribution"
 	"github.com/Willxup/flowlens/internal/clashapi"
 	"github.com/Willxup/flowlens/internal/collector"
+	"github.com/Willxup/flowlens/internal/storage"
 )
 
 func TestNewGlobalBucketRequiresPositiveAlignedStart(t *testing.T) {
 	for _, start := range []int64{-10, 0, 1001} {
-		if bucket, err := collector.NewGlobalBucket(start); !errors.Is(err, collector.ErrInvalidBucket) || bucket != nil {
+		if bucket, err := collector.NewGlobalBucket(start, 20); !errors.Is(err, collector.ErrInvalidBucket) || bucket != nil {
 			t.Errorf("NewGlobalBucket(%d) = %#v, %v", start, bucket, err)
 		}
 	}
 }
 
 func TestGlobalBucketAggregatesCompleteGlobalValues(t *testing.T) {
-	bucket, err := collector.NewGlobalBucket(1000)
+	bucket, err := collector.NewGlobalBucket(1000, 20)
 	if err != nil {
 		t.Fatalf("NewGlobalBucket() error = %v", err)
 	}
@@ -67,15 +69,17 @@ func TestGlobalBucketAggregatesCompleteGlobalValues(t *testing.T) {
 	}
 
 	flows := bucket.Flows()
-	if len(flows) != 1 || flows[0].UploadBytes != 150 || flows[0].DownloadBytes != 500 ||
-		flows[0].Dimension.ClassificationCode != 3 || flows[0].Dimension.DestinationPort != -1 ||
-		len(flows[0].Dimension.SourceNetwork) != 0 || len(flows[0].Dimension.DestinationIP) != 0 {
+	if len(flows) != 2 || flows[0].Dimension.ClassificationCode != 2 ||
+		flows[0].UploadBytes != 0 || flows[0].DownloadBytes != 0 ||
+		flows[1].UploadBytes != 150 || flows[1].DownloadBytes != 500 ||
+		flows[1].Dimension.ClassificationCode != 3 || flows[1].Dimension.DestinationPort != -1 ||
+		len(flows[1].Dimension.SourceNetwork) != 0 || len(flows[1].Dimension.DestinationIP) != 0 {
 		t.Errorf("Flows() = %#v", flows)
 	}
 }
 
 func TestGlobalBucketMarksRecoveredResetBytes(t *testing.T) {
-	bucket, _ := collector.NewGlobalBucket(1000)
+	bucket, _ := collector.NewGlobalBucket(1000, 20)
 	observation := collector.CounterObservation{
 		Delta:           collector.ByteTotals{Upload: 25, Download: 50},
 		NewSession:      true,
@@ -95,7 +99,7 @@ func TestGlobalBucketMarksRecoveredResetBytes(t *testing.T) {
 }
 
 func TestGlobalBucketZeroBytesHaveNoFlowRows(t *testing.T) {
-	bucket, _ := collector.NewGlobalBucket(1000)
+	bucket, _ := collector.NewGlobalBucket(1000, 20)
 	if err := bucket.ObserveCounter(1001, collector.CounterObservation{}, 0); err != nil {
 		t.Fatalf("ObserveCounter() error = %v", err)
 	}
@@ -109,7 +113,7 @@ func TestGlobalBucketZeroBytesHaveNoFlowRows(t *testing.T) {
 }
 
 func TestGlobalBucketCountsObservedSecondsSeparatelyFromSubsecondSamples(t *testing.T) {
-	bucket, _ := collector.NewGlobalBucket(1000)
+	bucket, _ := collector.NewGlobalBucket(1000, 20)
 	for index := range 20 {
 		at := int64(1001 + index/10)
 		if err := bucket.ObserveCounter(at, collector.CounterObservation{}, 1); err != nil {
@@ -146,7 +150,7 @@ func TestGlobalBucketRejectsInvalidAndOverflowingSamplesWithoutMutation(t *testi
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			bucket, _ := collector.NewGlobalBucket(1000)
+			bucket, _ := collector.NewGlobalBucket(1000, 20)
 			if err := test.first(bucket); err != nil {
 				t.Fatalf("first sample error = %v", err)
 			}
@@ -160,7 +164,7 @@ func TestGlobalBucketRejectsInvalidAndOverflowingSamplesWithoutMutation(t *testi
 		})
 	}
 
-	bucket, _ := collector.NewGlobalBucket(1000)
+	bucket, _ := collector.NewGlobalBucket(1000, 20)
 	for name, fail := range map[string]func() error{
 		"negative active":        func() error { return bucket.ObserveCounter(1001, collector.CounterObservation{}, -1) },
 		"traffic outside bucket": func() error { return bucket.ObserveTraffic(1010, clashapi.TrafficSample{}) },
@@ -172,5 +176,64 @@ func TestGlobalBucketRejectsInvalidAndOverflowingSamplesWithoutMutation(t *testi
 				t.Errorf("error = %v, want ErrInvalidBucket", err)
 			}
 		})
+	}
+}
+
+func TestGlobalBucketConservesAttributionAndSelectsStableTopK(t *testing.T) {
+	bucket, err := collector.NewGlobalBucket(1000, 1)
+	if err != nil {
+		t.Fatalf("NewGlobalBucket() error = %v", err)
+	}
+	dimensionA := storage.FlowDimension{DestinationFamily: 4, DestinationIP: []byte{198, 51, 100, 1}, DestinationPort: 443, NetworkCode: 1, ClassificationCode: 1}
+	dimensionB := storage.FlowDimension{DestinationFamily: 4, DestinationIP: []byte{198, 51, 100, 2}, DestinationPort: 80, NetworkCode: 1, ClassificationCode: 1}
+	if err := bucket.ObserveConnections(1001,
+		collector.CounterObservation{Delta: collector.ByteTotals{Upload: 10, Download: 10}}, 2,
+		attribution.Contribution{
+			Flows: []storage.FlowRollup{
+				{Dimension: dimensionA, UploadBytes: 6, DownloadBytes: 3, FlowObservationCount: 1},
+				{Dimension: dimensionB, UploadBytes: 2, DownloadBytes: 5, FlowObservationCount: 1},
+			},
+			Unattributed: storage.ByteTotals{Upload: 2, Download: 2}, Observed: true,
+		},
+	); err != nil {
+		t.Fatalf("ObserveConnections() error = %v", err)
+	}
+	flows := bucket.Flows()
+	if len(flows) != 3 {
+		t.Fatalf("Flows() = %#v", flows)
+	}
+	if !reflect.DeepEqual(flows[0].Dimension, dimensionA) || flows[0].UploadBytes != 6 || flows[0].DownloadBytes != 3 ||
+		flows[1].Dimension.ClassificationCode != 2 || flows[1].UploadBytes != 2 || flows[1].DownloadBytes != 5 ||
+		flows[2].Dimension.ClassificationCode != 3 || flows[2].UploadBytes != 2 || flows[2].DownloadBytes != 2 {
+		t.Errorf("Flows() = %#v", flows)
+	}
+	rollup := bucket.Rollup()
+	if rollup.UploadBytes != 10 || rollup.DownloadBytes != 10 ||
+		rollup.UnattributedUploadBytes != 2 || rollup.UnattributedDownloadBytes != 2 ||
+		rollup.AttributionObservedSeconds != 1 || rollup.QualityFlags != collector.QualityFlagAttributionIncomplete {
+		t.Errorf("Rollup() = %#v", rollup)
+	}
+	flows[0].Dimension.DestinationIP[0] = 1
+	if reflect.DeepEqual(flows, bucket.Flows()) {
+		t.Fatal("Flows() exposed mutable bucket state")
+	}
+}
+
+func TestGlobalBucketRejectsInvalidContributionAtomically(t *testing.T) {
+	bucket, _ := collector.NewGlobalBucket(1000, 20)
+	beforeRollup := bucket.Rollup()
+	beforeFlows := bucket.Flows()
+	err := bucket.ObserveConnections(1001,
+		collector.CounterObservation{Delta: collector.ByteTotals{Upload: 5, Download: 5}}, 1,
+		attribution.Contribution{Flows: []storage.FlowRollup{{
+			Dimension:   storage.FlowDimension{DestinationPort: 443, ClassificationCode: 1},
+			UploadBytes: 6, DownloadBytes: 5,
+		}}},
+	)
+	if !errors.Is(err, collector.ErrInvalidBucket) {
+		t.Fatalf("ObserveConnections() error = %v", err)
+	}
+	if !reflect.DeepEqual(bucket.Rollup(), beforeRollup) || !reflect.DeepEqual(bucket.Flows(), beforeFlows) {
+		t.Fatal("bucket mutated after invalid contribution")
 	}
 }

@@ -96,9 +96,20 @@ func deleteFixedRollupSources(
 			FROM traffic_rollup AS source
 			WHERE source.resolution_sec = ? AND source.bucket_end <= ?
 				AND EXISTS (
-					SELECT 1 FROM traffic_rollup AS target
+					SELECT 1
+					FROM traffic_rollup AS target
 					WHERE target.resolution_sec = ?
 						AND target.bucket_start = source.bucket_start - (source.bucket_start % ?)
+						AND (SELECT COALESCE(SUM(f.upload_bytes), 0) FROM flow_rollup AS f
+							WHERE f.resolution_sec = target.resolution_sec AND f.bucket_start = target.bucket_start) = target.upload_bytes
+						AND (SELECT COALESCE(SUM(f.download_bytes), 0) FROM flow_rollup AS f
+							WHERE f.resolution_sec = target.resolution_sec AND f.bucket_start = target.bucket_start) = target.download_bytes
+						AND (SELECT COALESCE(SUM(CASE WHEN d.classification_code = 3 THEN f.upload_bytes ELSE 0 END), 0)
+							FROM flow_rollup AS f JOIN flow_dimension AS d ON d.id = f.dimension_id
+							WHERE f.resolution_sec = target.resolution_sec AND f.bucket_start = target.bucket_start) = target.unattributed_upload_bytes
+						AND (SELECT COALESCE(SUM(CASE WHEN d.classification_code = 3 THEN f.download_bytes ELSE 0 END), 0)
+							FROM flow_rollup AS f JOIN flow_dimension AS d ON d.id = f.dimension_id
+							WHERE f.resolution_sec = target.resolution_sec AND f.bucket_start = target.bucket_start) = target.unattributed_download_bytes
 				)
 		)
 	`,
@@ -114,9 +125,20 @@ func deleteFixedRollupSources(
 		DELETE FROM traffic_rollup
 		WHERE resolution_sec = ? AND bucket_end <= ?
 			AND EXISTS (
-				SELECT 1 FROM traffic_rollup AS target
+				SELECT 1
+				FROM traffic_rollup AS target
 				WHERE target.resolution_sec = ?
 					AND target.bucket_start = traffic_rollup.bucket_start - (traffic_rollup.bucket_start % ?)
+					AND (SELECT COALESCE(SUM(f.upload_bytes), 0) FROM flow_rollup AS f
+						WHERE f.resolution_sec = target.resolution_sec AND f.bucket_start = target.bucket_start) = target.upload_bytes
+					AND (SELECT COALESCE(SUM(f.download_bytes), 0) FROM flow_rollup AS f
+						WHERE f.resolution_sec = target.resolution_sec AND f.bucket_start = target.bucket_start) = target.download_bytes
+					AND (SELECT COALESCE(SUM(CASE WHEN d.classification_code = 3 THEN f.upload_bytes ELSE 0 END), 0)
+						FROM flow_rollup AS f JOIN flow_dimension AS d ON d.id = f.dimension_id
+						WHERE f.resolution_sec = target.resolution_sec AND f.bucket_start = target.bucket_start) = target.unattributed_upload_bytes
+					AND (SELECT COALESCE(SUM(CASE WHEN d.classification_code = 3 THEN f.download_bytes ELSE 0 END), 0)
+						FROM flow_rollup AS f JOIN flow_dimension AS d ON d.id = f.dimension_id
+						WHERE f.resolution_sec = target.resolution_sec AND f.bucket_start = target.bucket_start) = target.unattributed_download_bytes
 			)
 	`, sourceResolutionSec, cutoff, targetResolutionSec, targetResolutionSec)
 	if err != nil {
@@ -169,7 +191,7 @@ func deleteCalendarGuardedSources(
 		}
 		if fixedTargetResolutionSec != 0 {
 			fixedStart := bucketStart - bucketStart%fixedTargetResolutionSec
-			exists, err := trafficRollupExists(ctx, transaction, fixedTargetResolutionSec, fixedStart)
+			exists, err := trafficRollupConserves(ctx, transaction, fixedTargetResolutionSec, fixedStart)
 			if err != nil {
 				return 0, err
 			}
@@ -181,7 +203,7 @@ func deleteCalendarGuardedSources(
 		if err != nil {
 			return 0, ErrInvalidRetention
 		}
-		exists, err := trafficRollupExists(ctx, transaction, rollup.ResolutionDay, day.BucketStart)
+		exists, err := trafficRollupConserves(ctx, transaction, rollup.ResolutionDay, day.BucketStart)
 		if err != nil {
 			return 0, err
 		}
@@ -226,6 +248,35 @@ func trafficRollupExists(
 		return false, errors.New("cannot inspect FlowLens cleanup target")
 	}
 	return exists != 0, nil
+}
+
+func trafficRollupConserves(
+	ctx context.Context,
+	queryer rowQuerier,
+	resolutionSec int64,
+	bucketStart int64,
+) (bool, error) {
+	var conserving int
+	if err := queryer.QueryRowContext(ctx, `
+		SELECT EXISTS(
+			SELECT 1
+			FROM traffic_rollup AS target
+			WHERE target.resolution_sec = ? AND target.bucket_start = ?
+				AND (SELECT COALESCE(SUM(f.upload_bytes), 0) FROM flow_rollup AS f
+					WHERE f.resolution_sec = target.resolution_sec AND f.bucket_start = target.bucket_start) = target.upload_bytes
+				AND (SELECT COALESCE(SUM(f.download_bytes), 0) FROM flow_rollup AS f
+					WHERE f.resolution_sec = target.resolution_sec AND f.bucket_start = target.bucket_start) = target.download_bytes
+				AND (SELECT COALESCE(SUM(CASE WHEN d.classification_code = 3 THEN f.upload_bytes ELSE 0 END), 0)
+					FROM flow_rollup AS f JOIN flow_dimension AS d ON d.id = f.dimension_id
+					WHERE f.resolution_sec = target.resolution_sec AND f.bucket_start = target.bucket_start) = target.unattributed_upload_bytes
+				AND (SELECT COALESCE(SUM(CASE WHEN d.classification_code = 3 THEN f.download_bytes ELSE 0 END), 0)
+					FROM flow_rollup AS f JOIN flow_dimension AS d ON d.id = f.dimension_id
+					WHERE f.resolution_sec = target.resolution_sec AND f.bucket_start = target.bucket_start) = target.unattributed_download_bytes
+		)
+	`, resolutionSec, bucketStart).Scan(&conserving); err != nil {
+		return false, errors.New("cannot inspect FlowLens cleanup target conservation")
+	}
+	return conserving != 0, nil
 }
 
 func affectedRows(result sql.Result) (int64, error) {

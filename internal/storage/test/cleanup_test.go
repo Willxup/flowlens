@@ -121,6 +121,27 @@ func TestCleanupTrafficRollsBackAllSourceDeletionOnFailure(t *testing.T) {
 	}
 }
 
+func TestCleanupTrafficRequiresConservingTargetFlows(t *testing.T) {
+	store, databasePath := migratedTestStore(t)
+	seedTenSecondRollups(t, store)
+	minute := mustWindow(t, firstBucketAt+1, rollup.ResolutionMinute, time.UTC)
+	if _, err := store.RollupTraffic(context.Background(), rollup.ResolutionTenSeconds, minute); err != nil {
+		t.Fatalf("RollupTraffic() error = %v", err)
+	}
+	raw := openRawDatabase(t, databasePath)
+	if _, err := raw.Exec(`DELETE FROM flow_rollup WHERE resolution_sec = ? AND bucket_start = ?`, rollup.ResolutionMinute, firstBucketAt); err != nil {
+		t.Fatalf("delete target flows: %v", err)
+	}
+	result, err := store.CleanupTraffic(context.Background(), storage.RetentionCutoffs{TenSecondBefore: firstBucketAt + 60}, time.UTC)
+	if err != nil {
+		t.Fatalf("CleanupTraffic() error = %v", err)
+	}
+	if result.DeletedTenSecond != 0 {
+		t.Fatalf("CleanupTraffic() = %#v", result)
+	}
+	assertTrafficRollupExists(t, store, rollup.ResolutionTenSeconds, firstBucketAt, true)
+}
+
 func TestCleanupTrafficRejectsInvalidCutoffsAndTimezone(t *testing.T) {
 	store, _ := migratedTestStore(t)
 	if _, err := store.CleanupTraffic(context.Background(), storage.RetentionCutoffs{

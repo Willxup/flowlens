@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Willxup/flowlens/internal/clashapi"
 	"github.com/Willxup/flowlens/internal/httpapi"
 	flowstatus "github.com/Willxup/flowlens/internal/status"
 )
@@ -53,11 +54,15 @@ func TestLoginStatusAndLogoutFlow(t *testing.T) {
 	if statusResponse.Code != http.StatusOK {
 		t.Fatalf("status code = %d, body=%q", statusResponse.Code, statusResponse.Body.String())
 	}
-	var body map[string]string
+	var body struct {
+		Status       string          `json:"status"`
+		Reason       string          `json:"reason"`
+		Capabilities map[string]bool `json:"capabilities"`
+	}
 	if err := json.Unmarshal(statusResponse.Body.Bytes(), &body); err != nil {
 		t.Fatalf("status JSON: %v", err)
 	}
-	if len(body) != 2 || body["status"] != "ok" || body["reason"] != "ready" {
+	if body.Status != "ok" || body.Reason != "ready" || len(body.Capabilities) != 6 || !body.Capabilities["connection_id"] {
 		t.Errorf("status body = %#v", body)
 	}
 
@@ -142,6 +147,7 @@ func TestHandlerAddsSecurityHeadersAndFormattingRedactsAccessKey(t *testing.T) {
 	tracker := flowstatus.NewTracker()
 	handler, err := httpapi.New(httpapi.Options{
 		AccessKey: fixtureAccessKey, SessionTTL: time.Hour, Status: tracker, Queries: fixtureStatisticsQueries(),
+		CapabilitySource: fixtureCapabilitySource{},
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
@@ -158,6 +164,7 @@ func TestHandlerAddsSecurityHeadersAndFormattingRedactsAccessKey(t *testing.T) {
 	}
 	options := httpapi.Options{
 		AccessKey: fixtureAccessKey, SessionTTL: time.Hour, Status: tracker, Queries: fixtureStatisticsQueries(),
+		CapabilitySource: fixtureCapabilitySource{},
 	}
 	for _, value := range []any{options, handler} {
 		for _, format := range []string{"%v", "%+v", "%#v"} {
@@ -172,11 +179,21 @@ func newHandler(t *testing.T, tracker *flowstatus.Tracker) http.Handler {
 	t.Helper()
 	handler, err := httpapi.New(httpapi.Options{
 		AccessKey: fixtureAccessKey, SessionTTL: time.Hour, Status: tracker, Queries: fixtureStatisticsQueries(),
+		CapabilitySource: fixtureCapabilitySource{},
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
 	return handler
+}
+
+type fixtureCapabilitySource struct{}
+
+func (fixtureCapabilitySource) Capabilities() clashapi.DimensionCapabilities {
+	return clashapi.DimensionCapabilities{
+		ConnectionID: true, SourceIP: true, DestinationIP: true,
+		DestinationPort: true, Network: true, Host: true,
+	}
 }
 
 func loginCookie(t *testing.T, handler http.Handler) *http.Cookie {

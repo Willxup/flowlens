@@ -6,6 +6,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/Willxup/flowlens/internal/attribution"
 	"github.com/Willxup/flowlens/internal/config"
 	"github.com/Willxup/flowlens/internal/rollup"
 	"github.com/Willxup/flowlens/internal/storage"
@@ -16,6 +17,13 @@ var ErrQuery = errors.New("FlowLens historical query failed")
 // Store is the exact read-only storage boundary used by historical queries.
 type Store interface {
 	TrafficSeries(context.Context, []rollup.Segment) ([]storage.TrafficRollup, error)
+	FlowSeries(context.Context, []rollup.Segment) ([]storage.FlowPoint, error)
+	BreakdownSeries(context.Context, []rollup.Segment) ([]storage.TrafficRollup, []storage.FlowPoint, error)
+	RuntimeSessions(context.Context, int) ([]storage.RuntimeSession, error)
+	Labels(context.Context) ([]storage.ServiceLabel, error)
+	CreateLabel(context.Context, storage.ServiceLabel) (storage.ServiceLabel, error)
+	UpdateLabel(context.Context, int64, string, int64) (storage.ServiceLabel, error)
+	DeleteLabel(context.Context, int64) (bool, error)
 	QualityEvents(context.Context, int64, int64) ([]storage.QualityEventRecord, error)
 	CapacityStatus(context.Context) (storage.CapacityStatus, error)
 	LatestMaintenance(context.Context, string) (storage.MaintenanceRun, bool, error)
@@ -27,20 +35,35 @@ type Service struct {
 	now       func() time.Time
 	retention config.Retention
 	location  *time.Location
+	live      LiveSource
+	privacy   attribution.SourceMode
+}
+
+// Options binds the complete Stage 3 query dependencies without positional
+// constructor growth.
+type Options struct {
+	Store       Store
+	Live        LiveSource
+	Now         func() time.Time
+	Retention   config.Retention
+	Location    *time.Location
+	PrivacyMode attribution.SourceMode
 }
 
 // NewService validates the minimal query dependencies.
-func NewService(
-	store Store,
-	now func() time.Time,
-	retention config.Retention,
-	location *time.Location,
-) (*Service, error) {
-	if store == nil || now == nil || location == nil || retention.TenSecondDays <= 0 ||
-		retention.MinuteDays <= 0 || retention.HalfHourDays <= 0 || retention.HourDays <= 0 {
+func NewService(options Options) (*Service, error) {
+	retention := options.Retention
+	if options.Store == nil || options.Live == nil || options.Now == nil || options.Location == nil ||
+		retention.TenSecondDays <= 0 || retention.MinuteDays <= 0 || retention.HalfHourDays <= 0 ||
+		retention.HourDays <= 0 || retention.TopK < 1 || retention.TopK > 100 ||
+		(options.PrivacyMode != attribution.SourceFull && options.PrivacyMode != attribution.SourcePrefix &&
+			options.PrivacyMode != attribution.SourceDisabled) {
 		return nil, ErrQuery
 	}
-	return &Service{store: store, now: now, retention: retention, location: location}, nil
+	return &Service{
+		store: options.Store, live: options.Live, now: options.Now, retention: retention,
+		location: options.Location, privacy: options.PrivacyMode,
+	}, nil
 }
 
 // Series returns the planned non-overlapping exact storage points.

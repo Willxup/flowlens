@@ -104,11 +104,72 @@ func TestStage2StatisticsRoutesRedactInternalErrors(t *testing.T) {
 }
 
 type statisticsQueries struct {
-	overview query.Overview
-	series   query.Series
-	quality  query.Quality
-	storage  query.Storage
-	fail     bool
+	overview   query.Overview
+	series     query.Series
+	quality    query.Quality
+	storage    query.Storage
+	fail       bool
+	breakdown  query.Breakdown
+	live       query.LiveTargets
+	sessions   []query.RuntimeSessionRecord
+	labels     []query.Label
+	candidates []query.LabelCandidate
+}
+
+func (q *statisticsQueries) Breakdown(context.Context, rollup.Range, query.BreakdownBy) (query.Breakdown, error) {
+	if q.fail {
+		return query.Breakdown{}, errors.New("fixture internal failure")
+	}
+	return q.breakdown, nil
+}
+
+func (q *statisticsQueries) LiveTargets(context.Context) (query.LiveTargets, error) {
+	if q.fail {
+		return query.LiveTargets{}, errors.New("fixture internal failure")
+	}
+	return q.live, nil
+}
+
+func (q *statisticsQueries) RuntimeSessions(context.Context) ([]query.RuntimeSessionRecord, error) {
+	if q.fail {
+		return nil, errors.New("fixture internal failure")
+	}
+	return append([]query.RuntimeSessionRecord(nil), q.sessions...), nil
+}
+
+func (q *statisticsQueries) Labels(context.Context) ([]query.Label, error) {
+	if q.fail {
+		return nil, errors.New("fixture internal failure")
+	}
+	return append([]query.Label(nil), q.labels...), nil
+}
+
+func (q *statisticsQueries) LabelCandidates(context.Context) ([]query.LabelCandidate, error) {
+	if q.fail {
+		return nil, errors.New("fixture internal failure")
+	}
+	return append([]query.LabelCandidate(nil), q.candidates...), nil
+}
+
+func (q *statisticsQueries) CreateLabel(_ context.Context, input query.CreateLabel) (query.Label, error) {
+	if q.fail {
+		return query.Label{}, errors.New("fixture internal failure")
+	}
+	return query.Label{ID: 7, LabelType: input.LabelType, MatchValue: input.MatchValue, DisplayName: input.DisplayName, CreatedAt: 100, UpdatedAt: 100}, nil
+}
+
+func (q *statisticsQueries) UpdateLabel(_ context.Context, id int64, displayName string) (query.Label, error) {
+	if q.fail {
+		return query.Label{}, errors.New("fixture internal failure")
+	}
+	return query.Label{ID: id, LabelType: "endpoint", MatchValue: "198.51.100.1:443", DisplayName: displayName, CreatedAt: 100, UpdatedAt: 110}, nil
+}
+
+func (q *statisticsQueries) DeleteLabel(context.Context, int64) (bool, error) {
+	if q.fail {
+		return false, errors.New("fixture internal failure")
+	}
+	return true, nil
 }
 
 func (q *statisticsQueries) Overview(context.Context, rollup.Range) (query.Overview, error) {
@@ -176,6 +237,7 @@ func statsHandler(t *testing.T, queries httpapi.StatisticsQueries) http.Handler 
 	tracker := flowstatus.NewTracker()
 	handler, err := httpapi.New(httpapi.Options{
 		AccessKey: fixtureAccessKey, SessionTTL: time.Hour, Status: tracker, Queries: queries,
+		CapabilitySource: fixtureCapabilitySource{},
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)

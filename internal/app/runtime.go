@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Willxup/flowlens/internal/attribution"
 	"github.com/Willxup/flowlens/internal/clashapi"
 	"github.com/Willxup/flowlens/internal/collector"
 	flowstatus "github.com/Willxup/flowlens/internal/status"
@@ -27,17 +28,21 @@ type RuntimeOptions struct {
 	Status              *flowstatus.Tracker
 	BucketTimezone      string
 	ConnectionsInterval time.Duration
+	Attribution         *attribution.Tracker
+	TopK                int
 }
 
 // Runtime owns the single-source global collector state machine.
 type Runtime struct {
-	client   *clashapi.Client
-	store    *storage.Store
-	ring     *collector.Ring
-	status   *flowstatus.Tracker
-	timezone string
-	interval time.Duration
-	version  string
+	client      *clashapi.Client
+	store       *storage.Store
+	ring        *collector.Ring
+	status      *flowstatus.Tracker
+	timezone    string
+	interval    time.Duration
+	version     string
+	attribution *attribution.Tracker
+	topK        int
 
 	counter      *collector.CounterTracker
 	durable      storage.CollectorState
@@ -61,7 +66,8 @@ const maxDeferredTrafficSamples = 16
 // NewRuntime loads the durable cursor without advancing it.
 func NewRuntime(ctx context.Context, options RuntimeOptions) (*Runtime, error) {
 	if options.Client == nil || options.Store == nil || options.Ring == nil || options.Status == nil ||
-		options.BucketTimezone == "" || options.ConnectionsInterval <= 0 {
+		options.Attribution == nil || options.BucketTimezone == "" || options.ConnectionsInterval <= 0 ||
+		options.TopK < 1 || options.TopK > 100 {
 		return nil, ErrRuntimeState
 	}
 	version, err := options.Client.Version(ctx)
@@ -86,6 +92,7 @@ func NewRuntime(ctx context.Context, options RuntimeOptions) (*Runtime, error) {
 	return &Runtime{
 		client: options.Client, store: options.Store, ring: options.Ring, status: options.Status,
 		timezone: options.BucketTimezone, interval: options.ConnectionsInterval, version: version.Version,
+		attribution: options.Attribution, topK: options.TopK,
 		counter: counter, durable: state, hasDurable: found, sessionID: state.RuntimeSessionID,
 		lastSampleAt: state.LastSampleAt,
 	}, nil
@@ -115,8 +122,9 @@ func (r *Runtime) ObserveConnections(ctx context.Context, at time.Time, afterGap
 			return err
 		}
 	}
-	if r.bucket == nil {
-		r.bucket, err = collector.NewGlobalBucket(start)
+	bucket := r.bucket
+	if bucket == nil {
+		bucket, err = collector.NewGlobalBucket(start, r.topK)
 		if err != nil {
 			return ErrRuntimeState
 		}
@@ -130,17 +138,30 @@ func (r *Runtime) ObserveConnections(ctx context.Context, at time.Time, afterGap
 	if willReset && r.endSession != nil {
 		return ErrRuntimeState
 	}
-	observation, err := r.counter.Observe(currentTotals, afterGap)
+	observation, err := r.counter.Preview(currentTotals, afterGap)
 	if err != nil {
 		return ErrRuntimeState
 	}
-	if r.sessionID == "" {
+	preparedAttribution, err := r.attribution.Prepare(
+		at,
+		snapshot.Connections,
+		storage.ByteTotals{Upload: observation.Delta.Upload, Download: observation.Delta.Download},
+		observation.Baseline || afterGap || observation.NewSession,
+	)
+	if err != nil {
+		_ = r.status.Set(flowstatus.LevelDegraded, "attribution_unavailable", true)
+		return ErrRuntimeState
+	}
+	nextSessionID := r.sessionID
+	nextNewSession := r.newSession
+	nextEndSession := r.endSession
+	if nextSessionID == "" {
 		id, err := randomID()
 		if err != nil {
 			return err
 		}
-		r.sessionID = id
-		r.newSession = &storage.RuntimeSessionStart{
+		nextSessionID = id
+		nextNewSession = &storage.RuntimeSessionStart{
 			ID: id, StartedAt: seconds, StartReason: "startup", SingBoxVersion: r.version,
 		}
 	} else if observation.NewSession {
@@ -148,17 +169,25 @@ func (r *Runtime) ObserveConnections(ctx context.Context, at time.Time, afterGap
 		if err != nil {
 			return err
 		}
-		if r.newSession == nil {
-			r.endSession = &storage.RuntimeSessionEnd{ID: r.sessionID, EndedAt: seconds, EndReason: "counter_reset"}
+		if nextNewSession == nil {
+			nextEndSession = &storage.RuntimeSessionEnd{ID: nextSessionID, EndedAt: seconds, EndReason: "counter_reset"}
 		}
-		r.newSession = &storage.RuntimeSessionStart{
+		nextNewSession = &storage.RuntimeSessionStart{
 			ID: id, StartedAt: seconds, StartReason: "counter_reset", SingBoxVersion: r.version,
 		}
-		r.sessionID = id
+		nextSessionID = id
 	}
-	if err := r.bucket.ObserveCounter(seconds, observation, int64(len(snapshot.Connections))); err != nil {
+	if err := bucket.ObserveConnections(
+		seconds, observation, int64(len(snapshot.Connections)), preparedAttribution.Contribution(),
+	); err != nil {
 		return err
 	}
+	r.bucket = bucket
+	r.counter.Commit(observation)
+	r.attribution.Commit(preparedAttribution)
+	r.sessionID = nextSessionID
+	r.newSession = nextNewSession
+	r.endSession = nextEndSession
 	if err := r.flushDeferredTraffic(); err != nil {
 		return err
 	}

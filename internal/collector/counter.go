@@ -40,15 +40,13 @@ func NewCounterTracker(persisted *ByteTotals) (*CounterTracker, error) {
 	return tracker, nil
 }
 
-// Observe accepts one nonnegative cumulative total and computes its exact
-// transition from the previous accepted value.
-func (t *CounterTracker) Observe(current ByteTotals, afterGap bool) (CounterObservation, error) {
+// Preview computes one transition without advancing the accepted cumulative
+// cursor. Call Commit only after every consumer accepts the observation.
+func (t *CounterTracker) Preview(current ByteTotals, afterGap bool) (CounterObservation, error) {
 	if err := validateByteTotals(current); err != nil {
 		return CounterObservation{}, err
 	}
 	if !t.hasLast {
-		t.last = current
-		t.hasLast = true
 		return CounterObservation{
 			Current:  current,
 			Baseline: true,
@@ -72,7 +70,23 @@ func (t *CounterTracker) Observe(current ByteTotals, afterGap bool) (CounterObse
 	observation.TimeApproximate = afterGap &&
 		(observation.Delta.Upload > 0 || observation.Delta.Download > 0)
 
-	t.last = current
+	return observation, nil
+}
+
+// Commit advances the cumulative cursor to a previously accepted preview.
+func (t *CounterTracker) Commit(observation CounterObservation) {
+	t.last = observation.Current
+	t.hasLast = true
+}
+
+// Observe is the compatibility wrapper for callers that do not need atomic
+// coordination with another state machine.
+func (t *CounterTracker) Observe(current ByteTotals, afterGap bool) (CounterObservation, error) {
+	observation, err := t.Preview(current, afterGap)
+	if err != nil {
+		return CounterObservation{}, err
+	}
+	t.Commit(observation)
 	return observation, nil
 }
 

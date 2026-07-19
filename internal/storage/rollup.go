@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"sort"
 
 	"github.com/Willxup/flowlens/internal/rollup"
 )
@@ -23,8 +24,13 @@ func (s *Store) RollupTraffic(
 	ctx context.Context,
 	sourceResolutionSec int64,
 	window rollup.Window,
+	topKValues ...int,
 ) (TrafficRollup, error) {
-	if !validRollupEdge(sourceResolutionSec, window) {
+	topK := 20
+	if len(topKValues) == 1 {
+		topK = topKValues[0]
+	}
+	if len(topKValues) > 1 || topK < 1 || topK > 100 || !validRollupEdge(sourceResolutionSec, window) {
 		return TrafficRollup{}, ErrInvalidRollup
 	}
 	transaction, err := s.db.BeginTx(ctx, nil)
@@ -81,13 +87,131 @@ func (s *Store) RollupTraffic(
 	if !found {
 		return TrafficRollup{}, ErrNoSourceRollups
 	}
+	flows, err := recomputeFlowRollup(ctx, transaction, sourceResolutionSec, window, target, topK)
+	if err != nil {
+		return TrafficRollup{}, err
+	}
 	if err := upsertTrafficRollup(ctx, transaction, target); err != nil {
+		return TrafficRollup{}, err
+	}
+	if err := replaceFlowRollups(ctx, transaction, target, flows); err != nil {
 		return TrafficRollup{}, err
 	}
 	if err := transaction.Commit(); err != nil {
 		return TrafficRollup{}, errors.New("cannot commit FlowLens rollup transaction")
 	}
 	return target, nil
+}
+
+func recomputeFlowRollup(
+	ctx context.Context,
+	transaction *sql.Tx,
+	sourceResolutionSec int64,
+	window rollup.Window,
+	target TrafficRollup,
+	topK int,
+) ([]FlowRollup, error) {
+	rows, err := transaction.QueryContext(ctx, `
+		SELECT
+			d.source_family, d.source_network, d.source_prefix_len,
+			d.destination_family, d.destination_ip, d.destination_port,
+			d.host, d.network_code, d.classification_code,
+			f.upload_bytes, f.download_bytes, f.flow_observation_count
+		FROM flow_rollup AS f
+		JOIN flow_dimension AS d ON d.id = f.dimension_id
+		WHERE f.resolution_sec = ? AND f.bucket_start >= ? AND f.bucket_start < ?
+	`, sourceResolutionSec, window.BucketStart, window.BucketEnd)
+	if err != nil {
+		return nil, errors.New("cannot read FlowLens source dimensional rollups")
+	}
+	defer rows.Close()
+	concrete := make(map[string]FlowRollup)
+	other := FlowRollup{Dimension: specialFlowDimension(2)}
+	unattributed := FlowRollup{Dimension: specialFlowDimension(3)}
+	for rows.Next() {
+		var flow FlowRollup
+		if err := rows.Scan(
+			&flow.Dimension.SourceFamily, &flow.Dimension.SourceNetwork, &flow.Dimension.SourcePrefixLen,
+			&flow.Dimension.DestinationFamily, &flow.Dimension.DestinationIP, &flow.Dimension.DestinationPort,
+			&flow.Dimension.Host, &flow.Dimension.NetworkCode, &flow.Dimension.ClassificationCode,
+			&flow.UploadBytes, &flow.DownloadBytes, &flow.FlowObservationCount,
+		); err != nil {
+			return nil, errors.New("cannot read FlowLens source dimensional rollup")
+		}
+		var destination *FlowRollup
+		switch flow.Dimension.ClassificationCode {
+		case 1:
+			key := dimensionKey(flow.Dimension)
+			merged := concrete[key]
+			if merged.Dimension.ClassificationCode == 0 {
+				merged.Dimension = cloneStoredDimension(flow.Dimension)
+			}
+			destination = &merged
+			if !safeAdd(&destination.UploadBytes, flow.UploadBytes) || !safeAdd(&destination.DownloadBytes, flow.DownloadBytes) ||
+				!safeAdd(&destination.FlowObservationCount, flow.FlowObservationCount) {
+				return nil, ErrInvalidRollup
+			}
+			concrete[key] = *destination
+			continue
+		case 2:
+			destination = &other
+		case 3:
+			destination = &unattributed
+		default:
+			return nil, ErrInvalidRollup
+		}
+		if !safeAdd(&destination.UploadBytes, flow.UploadBytes) || !safeAdd(&destination.DownloadBytes, flow.DownloadBytes) ||
+			!safeAdd(&destination.FlowObservationCount, flow.FlowObservationCount) {
+			return nil, ErrInvalidRollup
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, errors.New("cannot iterate FlowLens source dimensional rollups")
+	}
+	if target.UploadBytes == 0 && target.DownloadBytes == 0 {
+		return nil, nil
+	}
+	values := make([]FlowRollup, 0, len(concrete))
+	for _, flow := range concrete {
+		values = append(values, flow)
+	}
+	sort.Slice(values, func(left, right int) bool {
+		leftTotal := uint64(values[left].UploadBytes) + uint64(values[left].DownloadBytes)
+		rightTotal := uint64(values[right].UploadBytes) + uint64(values[right].DownloadBytes)
+		if leftTotal != rightTotal {
+			return leftTotal > rightTotal
+		}
+		return dimensionKey(values[left].Dimension) < dimensionKey(values[right].Dimension)
+	})
+	keep := len(values)
+	if keep > topK {
+		keep = topK
+	}
+	for _, flow := range values[keep:] {
+		if !safeAdd(&other.UploadBytes, flow.UploadBytes) || !safeAdd(&other.DownloadBytes, flow.DownloadBytes) ||
+			!safeAdd(&other.FlowObservationCount, flow.FlowObservationCount) {
+			return nil, ErrInvalidRollup
+		}
+	}
+	result := append([]FlowRollup(nil), values[:keep]...)
+	result = append(result, other, unattributed)
+	if err := validateFlows(target, result); err != nil {
+		return nil, ErrInvalidRollup
+	}
+	return result, nil
+}
+
+func specialFlowDimension(classification int64) FlowDimension {
+	return FlowDimension{
+		SourceNetwork: []byte{}, DestinationIP: []byte{}, DestinationPort: -1,
+		ClassificationCode: classification,
+	}
+}
+
+func cloneStoredDimension(value FlowDimension) FlowDimension {
+	value.SourceNetwork = append([]byte(nil), value.SourceNetwork...)
+	value.DestinationIP = append([]byte(nil), value.DestinationIP...)
+	return value
 }
 
 func validRollupEdge(sourceResolutionSec int64, window rollup.Window) bool {

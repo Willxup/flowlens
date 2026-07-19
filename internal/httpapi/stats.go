@@ -18,6 +18,14 @@ type StatisticsQueries interface {
 	Series(context.Context, rollup.Range) (query.Series, error)
 	Quality(context.Context, rollup.Range) (query.Quality, error)
 	Storage(context.Context) (query.Storage, error)
+	Breakdown(context.Context, rollup.Range, query.BreakdownBy) (query.Breakdown, error)
+	LiveTargets(context.Context) (query.LiveTargets, error)
+	RuntimeSessions(context.Context) ([]query.RuntimeSessionRecord, error)
+	Labels(context.Context) ([]query.Label, error)
+	LabelCandidates(context.Context) ([]query.LabelCandidate, error)
+	CreateLabel(context.Context, query.CreateLabel) (query.Label, error)
+	UpdateLabel(context.Context, int64, string) (query.Label, error)
+	DeleteLabel(context.Context, int64) (bool, error)
 }
 
 type totalsResponse struct {
@@ -259,7 +267,11 @@ func totalsDTO(value query.Totals) (totalsResponse, error) {
 }
 
 func writeJSON(writer http.ResponseWriter, value any) {
+	writeJSONStatus(writer, http.StatusOK, value)
+}
+
+func writeJSONStatus(writer http.ResponseWriter, status int, value any) {
 	writer.Header().Set("Content-Type", "application/json")
-	writer.WriteHeader(http.StatusOK)
+	writer.WriteHeader(status)
 	_ = json.NewEncoder(writer).Encode(value)
 }

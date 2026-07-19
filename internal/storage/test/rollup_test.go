@@ -73,6 +73,76 @@ func TestRollupTrafficRecomputesMinuteFromCompleteTenSecondValues(t *testing.T) 
 	}
 }
 
+func TestRollupTrafficRecomputesMultidimensionalTopK(t *testing.T) {
+	store, _ := migratedTestStore(t)
+	dimensionA := storage.FlowDimension{DestinationFamily: 4, DestinationIP: []byte{198, 51, 100, 1}, DestinationPort: 443, NetworkCode: 1, ClassificationCode: 1}
+	dimensionB := storage.FlowDimension{DestinationFamily: 4, DestinationIP: []byte{198, 51, 100, 2}, DestinationPort: 80, NetworkCode: 1, ClassificationCode: 1}
+	sessionID := "stage3-rollup-session"
+	previous := storage.ByteTotals{Upload: 100, Download: 100}
+	for index, flows := range [][]storage.FlowRollup{
+		{
+			{Dimension: dimensionA, UploadBytes: 6, DownloadBytes: 2, FlowObservationCount: 1},
+			{Dimension: dimensionB, UploadBytes: 4, DownloadBytes: 8, FlowObservationCount: 1},
+			{Dimension: specialDimension(2)}, {Dimension: specialDimension(3)},
+		},
+		{
+			{Dimension: dimensionA, UploadBytes: 1, DownloadBytes: 2, FlowObservationCount: 1},
+			{Dimension: dimensionB, UploadBytes: 9, DownloadBytes: 8, FlowObservationCount: 1},
+			{Dimension: specialDimension(2)}, {Dimension: specialDimension(3)},
+		},
+	} {
+		start := firstBucketAt + int64(index)*10
+		current := storage.ByteTotals{Upload: previous.Upload + 10, Download: previous.Download + 10}
+		batch := storage.Batch{
+			BatchID:  fmt.Sprintf("stage3-rollup-%d", index),
+			NewState: storage.CollectorCursor{RuntimeSessionID: sessionID, LastTotals: current, LastSampleAt: start + 9, BucketTimezone: "UTC"},
+			Global: storage.TrafficRollup{
+				ResolutionSec: 10, BucketStart: start, BucketEnd: start + 10,
+				UploadBytes: 10, DownloadBytes: 10, CounterObservedSeconds: 1, AttributionObservedSeconds: 1,
+			},
+			Flows: flows,
+		}
+		if index == 0 {
+			batch.NewRuntimeSession = &storage.RuntimeSessionStart{ID: sessionID, StartedAt: start, StartReason: "startup", SingBoxVersion: "fixture"}
+		} else {
+			expected := previous
+			batch.ExpectedOldTotals = &expected
+		}
+		commitBatch(t, store, batch)
+		previous = current
+	}
+	window := storageWindow(t, firstBucketAt, rollup.ResolutionMinute, time.UTC)
+	if _, err := store.RollupTraffic(context.Background(), rollup.ResolutionTenSeconds, window, 1); err != nil {
+		t.Fatalf("RollupTraffic() error = %v", err)
+	}
+	flows, err := store.FlowRollups(context.Background(), rollup.ResolutionMinute, firstBucketAt)
+	if err != nil {
+		t.Fatalf("FlowRollups() error = %v", err)
+	}
+	if len(flows) != 3 || !reflect.DeepEqual(flows[0].Dimension, dimensionB) ||
+		flows[0].UploadBytes != 13 || flows[0].DownloadBytes != 16 ||
+		flows[1].Dimension.ClassificationCode != 2 || flows[1].UploadBytes != 7 || flows[1].DownloadBytes != 4 ||
+		flows[2].Dimension.ClassificationCode != 3 || flows[2].UploadBytes != 0 || flows[2].DownloadBytes != 0 {
+		t.Fatalf("minute flows = %#v", flows)
+	}
+	if _, err := store.RollupTraffic(context.Background(), rollup.ResolutionTenSeconds, window, 1); err != nil {
+		t.Fatalf("second RollupTraffic() error = %v", err)
+	}
+	second, err := store.FlowRollups(context.Background(), rollup.ResolutionMinute, firstBucketAt)
+	if err != nil || !reflect.DeepEqual(second, flows) {
+		t.Fatalf("second flows = %#v, %v", second, err)
+	}
+}
+
+func storageWindow(t *testing.T, at, resolution int64, location *time.Location) rollup.Window {
+	t.Helper()
+	window, err := rollup.WindowAt(time.Unix(at, 0), resolution, location)
+	if err != nil {
+		t.Fatalf("WindowAt() error = %v", err)
+	}
+	return window
+}
+
 func TestRollupTrafficAcceptsOnlyPlannedResolutionEdges(t *testing.T) {
 	store, _ := migratedTestStore(t)
 	location, err := time.LoadLocation("Asia/Shanghai")

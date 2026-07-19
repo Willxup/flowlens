@@ -179,6 +179,46 @@ func (s *Store) RuntimeSession(ctx context.Context, id string) (RuntimeSession, 
 	return session, true, nil
 }
 
+// RuntimeSessions returns a bounded newest-first session list.
+func (s *Store) RuntimeSessions(ctx context.Context, limit int) ([]RuntimeSession, error) {
+	if limit < 1 || limit > 100 {
+		return nil, ErrInvalidQuery
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, started_at, ended_at, start_reason, end_reason,
+			last_upload_total, last_download_total, last_seen_at,
+			sing_box_version, host_boot_id, data_gap_before_seconds
+		FROM runtime_session
+		ORDER BY started_at DESC, id DESC
+		LIMIT ?
+	`, limit)
+	if err != nil {
+		return nil, errors.New("cannot read FlowLens runtime sessions")
+	}
+	defer rows.Close()
+	result := make([]RuntimeSession, 0, limit)
+	for rows.Next() {
+		var session RuntimeSession
+		var endedAt sql.NullInt64
+		var endReason, hostBootID sql.NullString
+		if err := rows.Scan(
+			&session.ID, &session.StartedAt, &endedAt, &session.StartReason, &endReason,
+			&session.LastTotals.Upload, &session.LastTotals.Download, &session.LastSeenAt,
+			&session.SingBoxVersion, &hostBootID, &session.DataGapBeforeSeconds,
+		); err != nil {
+			return nil, errors.New("cannot read FlowLens runtime session")
+		}
+		session.EndedAt = nullInt64Pointer(endedAt)
+		session.EndReason = nullStringPointer(endReason)
+		session.HostBootID = nullStringPointer(hostBootID)
+		result = append(result, session)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, errors.New("cannot read FlowLens runtime sessions")
+	}
+	return result, nil
+}
+
 // QualityEventCount returns the number of events committed by one stable batch.
 func (s *Store) QualityEventCount(ctx context.Context, batchID string) (int64, error) {
 	var count int64

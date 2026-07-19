@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Willxup/flowlens/internal/app"
+	"github.com/Willxup/flowlens/internal/attribution"
 	"github.com/Willxup/flowlens/internal/clashapi"
 	"github.com/Willxup/flowlens/internal/collector"
 	flowstatus "github.com/Willxup/flowlens/internal/status"
@@ -20,6 +21,62 @@ import (
 )
 
 const runtimeBucketStart = int64(1767225600)
+
+func TestRuntimeEnablesAttributionFromLaterCapabilities(t *testing.T) {
+	snapshots := []clashapi.ConnectionsSnapshot{
+		{UploadTotal: 1000, DownloadTotal: 4000, Connections: []clashapi.Connection{{
+			Upload: 100, Download: 200,
+			Metadata: clashapi.Metadata{DestinationIP: "198.51.100.1", DestinationPort: "443", Network: "tcp"},
+		}}},
+		{UploadTotal: 1005, DownloadTotal: 4005, Connections: []clashapi.Connection{{
+			ID: "fixture-runtime-id", Upload: 105, Download: 205,
+			Metadata: clashapi.Metadata{SourceIP: "192.0.2.10", DestinationIP: "198.51.100.1", DestinationPort: "443", Network: "tcp", Host: "api.example.test"},
+		}}},
+		{UploadTotal: 1015, DownloadTotal: 4025, Connections: []clashapi.Connection{{
+			ID: "fixture-runtime-id", Upload: 115, Download: 225,
+			Metadata: clashapi.Metadata{SourceIP: "192.0.2.10", DestinationIP: "198.51.100.1", DestinationPort: "443", Network: "tcp", Host: "api.example.test"},
+		}}},
+	}
+	client, closeServer := runtimeClient(t, snapshots)
+	defer closeServer()
+	store, _ := runtimeStore(t)
+	ring, _ := collector.NewRing(collector.DefaultRingCapacity)
+	flowStatus := flowstatus.NewTracker()
+	attributionTracker, err := attribution.NewTracker(attribution.Options{
+		TopK: 20, SourceMode: attribution.SourcePrefix, IPv4Prefix: 24, IPv6Prefix: 64,
+	})
+	if err != nil {
+		t.Fatalf("attribution.NewTracker() error = %v", err)
+	}
+	runtime, err := app.NewRuntime(context.Background(), app.RuntimeOptions{
+		Client: client, Store: store, Ring: ring, Status: flowStatus,
+		BucketTimezone: "Asia/Shanghai", ConnectionsInterval: time.Second,
+		Attribution: attributionTracker, TopK: 20,
+	})
+	if err != nil {
+		t.Fatalf("NewRuntime() error = %v", err)
+	}
+	for _, second := range []int64{1, 11, 21} {
+		observeAndSeal(t, runtime, runtimeBucketStart+second)
+	}
+	flows, err := store.FlowRollups(context.Background(), 10, runtimeBucketStart+20)
+	if err != nil {
+		t.Fatalf("FlowRollups() error = %v", err)
+	}
+	if len(flows) != 3 || flows[0].Dimension.ClassificationCode != 1 ||
+		flows[0].UploadBytes != 10 || flows[0].DownloadBytes != 20 {
+		t.Fatalf("attributed flows = %#v", flows)
+	}
+	capabilities := attributionTracker.Capabilities()
+	if !capabilities.ConnectionID || !capabilities.SourceIP || !capabilities.DestinationIP ||
+		!capabilities.DestinationPort || !capabilities.Network || !capabilities.Host {
+		t.Errorf("Capabilities() = %#v", capabilities)
+	}
+	live := attributionTracker.Snapshot()
+	if len(live.Targets) != 1 || live.Targets[0].RawEndpoint != "198.51.100.1:443" {
+		t.Errorf("Snapshot() = %#v", live)
+	}
+}
 
 func TestRuntimePersistsBaselineNormalGapAndResetTransitions(t *testing.T) {
 	snapshots := []clashapi.ConnectionsSnapshot{
@@ -548,9 +605,16 @@ func newRuntimeWithInterval(
 	interval time.Duration,
 ) *app.Runtime {
 	t.Helper()
+	attributionTracker, err := attribution.NewTracker(attribution.Options{
+		TopK: 20, SourceMode: attribution.SourcePrefix, IPv4Prefix: 24, IPv6Prefix: 64,
+	})
+	if err != nil {
+		t.Fatalf("attribution.NewTracker() error = %v", err)
+	}
 	runtime, err := app.NewRuntime(context.Background(), app.RuntimeOptions{
 		Client: client, Store: store, Ring: ring, Status: tracker,
 		BucketTimezone: "Asia/Shanghai", ConnectionsInterval: interval,
+		Attribution: attributionTracker, TopK: 20,
 	})
 	if err != nil {
 		t.Fatalf("NewRuntime() error = %v", err)

@@ -6,8 +6,18 @@ import (
 	"testing"
 
 	"github.com/Willxup/flowlens/internal/backup"
+	"github.com/Willxup/flowlens/internal/migrations"
 	"github.com/Willxup/flowlens/internal/storage"
 )
+
+func latestSchemaVersion(t *testing.T) int {
+	t.Helper()
+	version, err := migrations.LatestVersion()
+	if err != nil {
+		t.Fatalf("migrations.LatestVersion() error = %v", err)
+	}
+	return version
+}
 
 func backupOptions(t *testing.T) backup.Options {
 	t.Helper()

@@ -9,9 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Willxup/flowlens/internal/attribution"
 	"github.com/Willxup/flowlens/internal/backup"
 	"github.com/Willxup/flowlens/internal/config"
 	"github.com/Willxup/flowlens/internal/maintenance"
+	"github.com/Willxup/flowlens/internal/migrations"
 	"github.com/Willxup/flowlens/internal/query"
 	"github.com/Willxup/flowlens/internal/rollup"
 	"github.com/Willxup/flowlens/internal/storage"
@@ -63,7 +65,16 @@ func TestStage2RollupCleanupQueryAndBackupChain(t *testing.T) {
 	if err != nil || !found || minute.UploadBytes != 60 || minute.DownloadBytes != 120 {
 		t.Fatalf("minute rollup = %#v, found:%t error:%v", minute, found, err)
 	}
-	service, err := query.NewService(store, func() time.Time { return now }, retention, time.UTC)
+	live, err := attribution.NewTracker(attribution.Options{
+		TopK: retention.TopK, SourceMode: attribution.SourcePrefix, IPv4Prefix: 24, IPv6Prefix: 64,
+	})
+	if err != nil {
+		t.Fatalf("attribution.NewTracker() error = %v", err)
+	}
+	service, err := query.NewService(query.Options{
+		Store: store, Live: live, Now: func() time.Time { return now }, Retention: retention,
+		Location: time.UTC, PrivacyMode: attribution.SourcePrefix,
+	})
 	if err != nil {
 		t.Fatalf("query.NewService() error = %v", err)
 	}
@@ -72,8 +83,12 @@ func TestStage2RollupCleanupQueryAndBackupChain(t *testing.T) {
 		t.Fatalf("Series() = %#v, %v", series, err)
 	}
 	manifestPath := singleManifest(t, backupDirectory)
+	latestSchemaVersion, err := migrations.LatestVersion()
+	if err != nil {
+		t.Fatalf("migrations.LatestVersion() error = %v", err)
+	}
 	if _, err := backup.Validate(ctx, manifestPath, backup.ValidationPolicy{
-		ExpectedBucketTimezone: "UTC", MaximumSchemaVersion: 1,
+		ExpectedBucketTimezone: "UTC", MaximumSchemaVersion: latestSchemaVersion,
 	}); err != nil {
 		t.Fatalf("backup.Validate() error = %v", err)
 	}

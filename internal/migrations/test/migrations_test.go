@@ -24,23 +24,25 @@ func TestListReturnsDeterministicImmutableManifest(t *testing.T) {
 	if !reflect.DeepEqual(first, second) {
 		t.Fatalf("List() results differ:\nfirst: %#v\nsecond: %#v", first, second)
 	}
-	if len(first) != 1 {
+	if len(first) != 2 {
 		t.Fatalf("len(List()) = %d", len(first))
 	}
-	migration := first[0]
-	if migration.Version != 1 || migration.Name != "001_initial.sql" {
-		t.Errorf("migration identity = version:%d name:%q", migration.Version, migration.Name)
-	}
-	if strings.TrimSpace(migration.SQL) == "" {
-		t.Error("migration SQL is empty")
-	}
-	sum := sha256.Sum256([]byte(migration.SQL))
-	wantChecksum := hex.EncodeToString(sum[:])
-	if migration.Checksum != wantChecksum {
-		t.Errorf("migration checksum = %q, want %q", migration.Checksum, wantChecksum)
-	}
-	if matched, _ := regexp.MatchString(`^[0-9a-f]{64}$`, migration.Checksum); !matched {
-		t.Errorf("migration checksum format = %q", migration.Checksum)
+	wantNames := []string{"001_initial.sql", "002_stage3_unattributed_backfill.sql"}
+	for index, migration := range first {
+		if migration.Version != index+1 || migration.Name != wantNames[index] {
+			t.Errorf("migration[%d] identity = version:%d name:%q", index, migration.Version, migration.Name)
+		}
+		if strings.TrimSpace(migration.SQL) == "" {
+			t.Errorf("migration[%d] SQL is empty", index)
+		}
+		sum := sha256.Sum256([]byte(migration.SQL))
+		wantChecksum := hex.EncodeToString(sum[:])
+		if migration.Checksum != wantChecksum {
+			t.Errorf("migration[%d] checksum = %q, want %q", index, migration.Checksum, wantChecksum)
+		}
+		if matched, _ := regexp.MatchString(`^[0-9a-f]{64}$`, migration.Checksum); !matched {
+			t.Errorf("migration[%d] checksum format = %q", index, migration.Checksum)
+		}
 	}
 
 	first[0].Name = "mutated.sql"
@@ -53,12 +55,12 @@ func TestListReturnsDeterministicImmutableManifest(t *testing.T) {
 	}
 }
 
-func TestLatestVersionIsOne(t *testing.T) {
+func TestLatestVersionIsTwo(t *testing.T) {
 	version, err := migrations.LatestVersion()
 	if err != nil {
 		t.Fatalf("LatestVersion() error = %v", err)
 	}
-	if version != 1 {
+	if version != 2 {
 		t.Errorf("LatestVersion() = %d", version)
 	}
 }

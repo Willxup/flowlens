@@ -24,6 +24,26 @@ func TestCounterTrackerFirstObservationEstablishesBaseline(t *testing.T) {
 	assertLast(t, tracker, current, true)
 }
 
+func TestCounterTrackerPreviewIsPureUntilCommit(t *testing.T) {
+	previous := collector.ByteTotals{Upload: 100, Download: 400}
+	tracker := newCounterTracker(t, &previous)
+	current := collector.ByteTotals{Upload: 125, Download: 475}
+	preview, err := tracker.Preview(current, true)
+	if err != nil {
+		t.Fatalf("Preview() error = %v", err)
+	}
+	if preview.Delta != (collector.ByteTotals{Upload: 25, Download: 75}) || !preview.AfterGap || !preview.TimeApproximate {
+		t.Errorf("Preview() = %#v", preview)
+	}
+	assertLast(t, tracker, previous, true)
+	repeated, err := tracker.Preview(current, true)
+	if err != nil || repeated != preview {
+		t.Fatalf("repeated Preview() = %#v, %v", repeated, err)
+	}
+	tracker.Commit(preview)
+	assertLast(t, tracker, current, true)
+}
+
 func TestCounterTrackerFirstObservationDoesNotRetainGapFlag(t *testing.T) {
 	tracker := newCounterTracker(t, nil)
 

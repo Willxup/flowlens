@@ -4,11 +4,12 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/Willxup/flowlens/internal/clashapi"
 	flowstatus "github.com/Willxup/flowlens/internal/status"
 )
 
@@ -17,10 +18,16 @@ const SessionCookieName = "flowlens_session"
 
 // Options configures the minimal Stage 1 HTTP boundary.
 type Options struct {
-	AccessKey  string
-	SessionTTL time.Duration
-	Status     *flowstatus.Tracker
-	Queries    StatisticsQueries
+	AccessKey        string
+	SessionTTL       time.Duration
+	Status           *flowstatus.Tracker
+	Queries          StatisticsQueries
+	CapabilitySource CapabilitySource
+}
+
+// CapabilitySource exposes only the public optional dimension matrix.
+type CapabilitySource interface {
+	Capabilities() clashapi.DimensionCapabilities
 }
 
 // String prevents access-key disclosure through formatting.
@@ -30,10 +37,11 @@ func (Options) String() string { return "HTTPOptions{redacted}" }
 func (options Options) GoString() string { return options.String() }
 
 type handler struct {
-	accessKey []byte
-	sessions  *SessionStore
-	status    *flowstatus.Tracker
-	queries   StatisticsQueries
+	accessKey    []byte
+	sessions     *SessionStore
+	status       *flowstatus.Tracker
+	queries      StatisticsQueries
+	capabilities CapabilitySource
 }
 
 // String prevents internal HTTP state disclosure through formatting.
@@ -44,7 +52,7 @@ func (h *handler) GoString() string { return h.String() }
 
 // New builds the complete minimal Stage 1 handler.
 func New(options Options) (http.Handler, error) {
-	if options.AccessKey == "" || options.Status == nil || options.Queries == nil {
+	if options.AccessKey == "" || options.Status == nil || options.Queries == nil || options.CapabilitySource == nil {
 		return nil, errors.New("invalid FlowLens HTTP configuration")
 	}
 	sessions, err := NewSessionStore(options.SessionTTL)
@@ -53,11 +61,18 @@ func New(options Options) (http.Handler, error) {
 	}
 	return &handler{
 		accessKey: []byte(options.AccessKey), sessions: sessions, status: options.Status, queries: options.Queries,
+		capabilities: options.CapabilitySource,
 	}, nil
 }
 
 func (h *handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	setSecurityHeaders(writer.Header())
+	if strings.HasPrefix(request.URL.Path, "/api/v1/labels/") {
+		if h.requireSession(writer, request) {
+			h.labelItemResponse(writer, request)
+		}
+		return
+	}
 	switch request.URL.Path {
 	case "/healthz":
 		h.health(writer, request)
@@ -84,6 +99,26 @@ func (h *handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	case "/api/v1/storage":
 		if h.requireSession(writer, request) {
 			h.storageResponse(writer, request)
+		}
+	case "/api/v1/breakdown":
+		if h.requireSession(writer, request) {
+			h.breakdownResponse(writer, request)
+		}
+	case "/api/v1/connections/live":
+		if h.requireSession(writer, request) {
+			h.liveTargetsResponse(writer, request)
+		}
+	case "/api/v1/runtime-sessions":
+		if h.requireSession(writer, request) {
+			h.runtimeSessionsResponse(writer, request)
+		}
+	case "/api/v1/labels":
+		if h.requireSession(writer, request) {
+			h.labelsResponse(writer, request)
+		}
+	case "/api/v1/label-candidates":
+		if h.requireSession(writer, request) {
+			h.labelCandidatesResponse(writer, request)
 		}
 	default:
 		if len(request.URL.Path) >= len("/api/") && request.URL.Path[:len("/api/")] == "/api/" {
@@ -219,7 +254,31 @@ func (h *handler) statusResponse(writer http.ResponseWriter, request *http.Reque
 		return
 	}
 	snapshot := h.status.Snapshot()
-	writer.Header().Set("Content-Type", "application/json")
-	writer.WriteHeader(http.StatusOK)
-	_, _ = fmt.Fprintf(writer, `{"status":%q,"reason":%q}`, snapshot.Level, snapshot.Reason)
+	capabilities := h.capabilities.Capabilities()
+	writeJSON(writer, struct {
+		Status       flowstatus.Level `json:"status"`
+		Reason       string           `json:"reason"`
+		Capabilities struct {
+			ConnectionID bool `json:"connection_id"`
+			Source       bool `json:"source"`
+			Destination  bool `json:"destination"`
+			Port         bool `json:"port"`
+			Network      bool `json:"network"`
+			Domain       bool `json:"domain"`
+		} `json:"capabilities"`
+	}{
+		Status: snapshot.Level, Reason: snapshot.Reason,
+		Capabilities: struct {
+			ConnectionID bool `json:"connection_id"`
+			Source       bool `json:"source"`
+			Destination  bool `json:"destination"`
+			Port         bool `json:"port"`
+			Network      bool `json:"network"`
+			Domain       bool `json:"domain"`
+		}{
+			ConnectionID: capabilities.ConnectionID, Source: capabilities.SourceIP,
+			Destination: capabilities.DestinationIP, Port: capabilities.DestinationPort,
+			Network: capabilities.Network, Domain: capabilities.Host,
+		},
+	})
 }

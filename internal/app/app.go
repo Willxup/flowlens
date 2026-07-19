@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Willxup/flowlens/internal/attribution"
 	"github.com/Willxup/flowlens/internal/backup"
 	"github.com/Willxup/flowlens/internal/clashapi"
 	"github.com/Willxup/flowlens/internal/collector"
@@ -27,6 +28,7 @@ type App struct {
 	handler     http.Handler
 	status      *flowstatus.Tracker
 	maintenance *maintenance.Runner
+	attribution *attribution.Tracker
 
 	closeOnce sync.Once
 	closeErr  error
@@ -81,8 +83,19 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	if err != nil {
 		return fail(errors.New("cannot configure FlowLens Clash API client"))
 	}
-	if _, err := client.Probe(ctx); err != nil {
+	capabilities, err := client.Probe(ctx)
+	if err != nil {
 		return fail(errors.New("required FlowLens Clash API capability is unavailable"))
+	}
+	attributionTracker, err := attribution.NewTracker(attribution.Options{
+		TopK:         cfg.Retention.TopK,
+		SourceMode:   attribution.SourceMode(cfg.Privacy.SourceMode),
+		IPv4Prefix:   cfg.Privacy.SourceIPv4Prefix,
+		IPv6Prefix:   cfg.Privacy.SourceIPv6Prefix,
+		Capabilities: capabilities.Dimensions,
+	})
+	if err != nil {
+		return fail(errors.New("cannot configure FlowLens attribution"))
 	}
 	tracker := flowstatus.NewTracker()
 	ring, err := collector.NewRing(collector.DefaultRingCapacity)
@@ -92,6 +105,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	runtime, err := NewRuntime(ctx, RuntimeOptions{
 		Client: client, Store: store, Ring: ring, Status: tracker,
 		BucketTimezone: cfg.Time.Timezone, ConnectionsInterval: cfg.ClashAPI.ConnectionsInterval.Duration,
+		Attribution: attributionTracker, TopK: cfg.Retention.TopK,
 	})
 	if err != nil {
 		return fail(err)
@@ -100,13 +114,16 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	if err != nil {
 		return fail(errors.New("cannot load FlowLens bucket timezone"))
 	}
-	queries, err := query.NewService(store, time.Now, cfg.Retention, location)
+	queries, err := query.NewService(query.Options{
+		Store: store, Live: attributionTracker, Now: time.Now, Retention: cfg.Retention,
+		Location: location, PrivacyMode: attribution.SourceMode(cfg.Privacy.SourceMode),
+	})
 	if err != nil {
 		return fail(errors.New("cannot configure FlowLens historical queries"))
 	}
 	handler, err := httpapi.New(httpapi.Options{
 		AccessKey: cfg.Auth.AccessKey.Value(), SessionTTL: cfg.Auth.SessionTTL.Duration,
-		Status: tracker, Queries: queries,
+		Status: tracker, Queries: queries, CapabilitySource: attributionTracker,
 	})
 	if err != nil {
 		return fail(err)
@@ -126,7 +143,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	_ = tracker.Set(flowstatus.LevelOK, "ready", true)
 	return &App{
 		listen: cfg.Server.Listen, store: store, runtime: runtime, handler: handler,
-		status: tracker, maintenance: maintenanceRunner,
+		status: tracker, maintenance: maintenanceRunner, attribution: attributionTracker,
 	}, nil
 }
 

@@ -54,27 +54,30 @@ func TestStage1StartupAuthenticationCollectionPersistenceAndShutdown(t *testing.
 	}
 	defer database.Close()
 	deadline := time.Now().Add(12 * time.Second)
-	var rollups, sessions, states int64
+	var rollups, nonzeroRollups, sessions, states int64
 	for time.Now().Before(deadline) {
 		err = database.QueryRow(`
 			SELECT
 				(SELECT COUNT(*) FROM traffic_rollup),
+				(SELECT COUNT(*) FROM traffic_rollup WHERE upload_bytes > 0 OR download_bytes > 0),
 				(SELECT COUNT(*) FROM runtime_session),
 				(SELECT COUNT(*) FROM collector_state)
-		`).Scan(&rollups, &sessions, &states)
-		if err == nil && rollups > 0 && sessions == 1 && states == 1 {
+		`).Scan(&rollups, &nonzeroRollups, &sessions, &states)
+		if err == nil && rollups > 0 && nonzeroRollups > 0 && sessions == 1 && states == 1 {
 			break
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	if err != nil || rollups == 0 || sessions != 1 || states != 1 {
+	if err != nil || rollups == 0 || nonzeroRollups == 0 || sessions != 1 || states != 1 {
 		cancel()
-		t.Fatalf("durable Stage 1 state = rollups:%d sessions:%d states:%d err:%v", rollups, sessions, states, err)
+		t.Fatalf("durable Stage 1 state = rollups:%d nonzero:%d sessions:%d states:%d err:%v", rollups, nonzeroRollups, sessions, states, err)
 	}
 	var upload, download, unattributedUpload, unattributedDownload int64
 	if err := database.QueryRow(`
 		SELECT upload_bytes, download_bytes, unattributed_upload_bytes, unattributed_download_bytes
-		FROM traffic_rollup ORDER BY bucket_start DESC LIMIT 1
+		FROM traffic_rollup
+		WHERE upload_bytes > 0 OR download_bytes > 0
+		ORDER BY bucket_start DESC LIMIT 1
 	`).Scan(&upload, &download, &unattributedUpload, &unattributedDownload); err != nil {
 		cancel()
 		t.Fatalf("read traffic rollup: %v", err)
@@ -159,6 +162,7 @@ func integrationConfig(clashURL, databasePath string) config.Config {
 		Retention: config.Retention{
 			TenSecondDays: 1, MinuteDays: 7, HalfHourDays: 365, HourDays: 1095, TopK: 20,
 		},
+		Privacy: config.Privacy{SourceMode: "prefix", SourceIPv4Prefix: 24, SourceIPv6Prefix: 64},
 		Backup: config.Backup{
 			Directory: backupDirectory, LocalTime: config.ClockTime{Hour: 4}, DailyKeep: 3, MonthlyKeep: 3,
 		},
