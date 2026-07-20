@@ -100,14 +100,39 @@ func NewRuntime(ctx context.Context, options RuntimeOptions) (*Runtime, error) {
 
 // ObserveConnections fetches and applies one authoritative cumulative snapshot.
 func (r *Runtime) ObserveConnections(ctx context.Context, at time.Time, afterGap bool) error {
+	snapshot, err := r.fetchConnections(ctx)
+	if err != nil {
+		return err
+	}
+	return r.applyConnections(ctx, at, afterGap, snapshot)
+}
+
+func (r *Runtime) observeConnectionsNow(ctx context.Context, afterGap bool) error {
+	snapshot, err := r.fetchConnections(ctx)
+	if err != nil {
+		return err
+	}
+	return r.applyConnections(ctx, time.Now(), afterGap, snapshot)
+}
+
+func (r *Runtime) fetchConnections(ctx context.Context) (clashapi.ConnectionsSnapshot, error) {
 	if r.pending != nil {
-		return ErrRuntimeState
+		return clashapi.ConnectionsSnapshot{}, ErrRuntimeState
 	}
 	snapshot, err := r.client.Connections(ctx)
 	if err != nil {
 		_ = r.status.Set(flowstatus.LevelDegraded, "clash_unavailable", true)
-		return errors.New("cannot collect FlowLens connection snapshot")
+		return clashapi.ConnectionsSnapshot{}, errors.New("cannot collect FlowLens connection snapshot")
 	}
+	return snapshot, nil
+}
+
+func (r *Runtime) applyConnections(
+	ctx context.Context,
+	at time.Time,
+	afterGap bool,
+	snapshot clashapi.ConnectionsSnapshot,
+) error {
 	seconds := at.UTC().Unix()
 	start := seconds / 10 * 10
 	if start <= 0 {
@@ -123,6 +148,7 @@ func (r *Runtime) ObserveConnections(ctx context.Context, at time.Time, afterGap
 		}
 	}
 	bucket := r.bucket
+	var err error
 	if bucket == nil {
 		bucket, err = collector.NewGlobalBucket(start, r.topK)
 		if err != nil {

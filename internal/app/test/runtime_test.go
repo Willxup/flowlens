@@ -489,6 +489,116 @@ func TestRuntimeRunDoesNotTreatTrafficStreamErrorAsCounterGap(t *testing.T) {
 	}
 }
 
+func TestRuntimeRunUsesSuccessfulSnapshotTimeAfterDelayedResponse(t *testing.T) {
+	var mutex sync.Mutex
+	connectionsCall := 0
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Header.Get("Authorization") != "Bearer fixture-clash-secret" {
+			writer.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		switch request.URL.Path {
+		case "/version":
+			_ = json.NewEncoder(writer).Encode(map[string]any{"version": "sing-box 1.12.0-fixture"})
+		case "/connections":
+			mutex.Lock()
+			connectionsCall++
+			call := connectionsCall
+			mutex.Unlock()
+			if call > 2 {
+				<-request.Context().Done()
+				return
+			}
+			if call == 2 {
+				timer := time.NewTimer(120 * time.Millisecond)
+				defer timer.Stop()
+				select {
+				case <-timer.C:
+				case <-request.Context().Done():
+					return
+				}
+			}
+			delta := int64(call-1) * 100
+			_ = json.NewEncoder(writer).Encode(clashapi.ConnectionsSnapshot{
+				UploadTotal: 1000 + delta,
+				Connections: []clashapi.Connection{{
+					ID: "fixture-delayed-id", Upload: 100 + delta,
+					Metadata: clashapi.Metadata{
+						DestinationIP: "198.51.100.1", DestinationPort: "443", Network: "tcp",
+					},
+				}},
+			})
+		case "/traffic":
+			flusher, _ := writer.(http.Flusher)
+			ticker := time.NewTicker(10 * time.Millisecond)
+			defer ticker.Stop()
+			for {
+				_, _ = writer.Write([]byte("{\"up\":1,\"down\":2}\n"))
+				if flusher != nil {
+					flusher.Flush()
+				}
+				select {
+				case <-request.Context().Done():
+					return
+				case <-ticker.C:
+				}
+			}
+		default:
+			writer.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+	client, err := clashapi.New(clashapi.Options{
+		BaseURL: server.URL, Secret: "fixture-clash-secret", RequestTimeout: time.Second, MaxResponseSize: 1 << 20,
+	})
+	if err != nil {
+		t.Fatalf("clashapi.New() error = %v", err)
+	}
+	store, _ := runtimeStore(t)
+	ring, _ := collector.NewRing(collector.DefaultRingCapacity)
+	statusTracker := flowstatus.NewTracker()
+	attributionTracker, err := attribution.NewTracker(attribution.Options{
+		TopK: 20, SourceMode: attribution.SourcePrefix, IPv4Prefix: 24, IPv6Prefix: 64,
+	})
+	if err != nil {
+		t.Fatalf("attribution.NewTracker() error = %v", err)
+	}
+	runtime, err := app.NewRuntime(context.Background(), app.RuntimeOptions{
+		Client: client, Store: store, Ring: ring, Status: statusTracker,
+		BucketTimezone: "Asia/Shanghai", ConnectionsInterval: 20 * time.Millisecond,
+		Attribution: attributionTracker, TopK: 20,
+	})
+	if err != nil {
+		t.Fatalf("NewRuntime() error = %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	runResult := make(chan error, 1)
+	go func() { runResult <- runtime.Run(ctx) }()
+
+	deadline := time.Now().Add(time.Second)
+	var live attribution.LiveSnapshot
+	for time.Now().Before(deadline) {
+		live = attributionTracker.Snapshot()
+		if len(live.Targets) == 1 {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	cancel()
+	if err := <-runResult; err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if len(live.Targets) != 1 {
+		t.Fatalf("Snapshot() = %#v", live)
+	}
+	if live.IntervalMillis < 100 {
+		t.Errorf("Snapshot().IntervalMillis = %d, want delayed successful interval >= 100", live.IntervalMillis)
+	}
+	if live.Targets[0].UploadBytesPerSecond > 1000 {
+		t.Errorf("Snapshot().Targets[0].UploadBytesPerSecond = %d, want <= 1000", live.Targets[0].UploadBytesPerSecond)
+	}
+}
+
 func TestRuntimeRetriesIdenticalPendingBatchWithoutAdvancingCursor(t *testing.T) {
 	client, closeServer := runtimeClient(t, []clashapi.ConnectionsSnapshot{
 		{UploadTotal: 1000, DownloadTotal: 4000},

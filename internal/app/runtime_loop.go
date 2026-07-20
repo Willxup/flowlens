@@ -38,8 +38,8 @@ func (r *Runtime) Run(ctx context.Context) error {
 			if err := r.ObserveTraffic(event.at, event.sample); err != nil {
 				return err
 			}
-		case now := <-connectionTicker.C:
-			if err := r.ObserveConnections(ctx, now, afterGap); err != nil {
+		case <-connectionTicker.C:
+			if err := r.observeConnectionsNow(ctx, afterGap); err != nil {
 				afterGap = true
 				continue
 			}
