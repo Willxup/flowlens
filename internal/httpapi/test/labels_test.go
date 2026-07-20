@@ -1,11 +1,14 @@
 package httpapi_test
 
 import (
+	"errors"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/Willxup/flowlens/internal/query"
+	"github.com/Willxup/flowlens/internal/storage"
 )
 
 func TestStage3LabelRoutesUseStrictAuthenticatedContracts(t *testing.T) {
@@ -50,5 +53,129 @@ func TestStage3LabelWritesRejectMalformedBodiesAndIDs(t *testing.T) {
 		{http.MethodGet, "/api/v1/labels?extra=1", "", http.StatusBadRequest},
 	} {
 		assertResponse(t, handler, test.method, test.path, test.body, cookie, test.want)
+	}
+}
+
+func TestStage3LabelRoutesEnforceAuthenticationOriginAndJSON(t *testing.T) {
+	handler := statsHandler(t, fixtureStatisticsQueries())
+	assertResponse(
+		t, handler, http.MethodPost, "/api/v1/labels",
+		`{"label_type":"host","match_value":"198.51.100.1","display_name":"x"}`, nil,
+		http.StatusUnauthorized,
+	)
+	cookie := loginCookie(t, handler)
+	tests := []struct {
+		name        string
+		method      string
+		path        string
+		body        string
+		origin      string
+		contentType string
+		want        int
+	}{
+		{
+			name: "missing origin", method: http.MethodPost, path: "/api/v1/labels",
+			body:        `{"label_type":"host","match_value":"198.51.100.1","display_name":"x"}`,
+			contentType: "application/json", want: http.StatusForbidden,
+		},
+		{
+			name: "mismatched origin", method: http.MethodPost, path: "/api/v1/labels",
+			body:   `{"label_type":"host","match_value":"198.51.100.1","display_name":"x"}`,
+			origin: "http://other.example.test", contentType: "application/json", want: http.StatusForbidden,
+		},
+		{
+			name: "wrong content type", method: http.MethodPost, path: "/api/v1/labels",
+			body:   `{"label_type":"host","match_value":"198.51.100.1","display_name":"x"}`,
+			origin: "http://example.test", contentType: "text/plain", want: http.StatusUnsupportedMediaType,
+		},
+		{
+			name: "trailing JSON", method: http.MethodPost, path: "/api/v1/labels",
+			body:   `{"label_type":"host","match_value":"198.51.100.1","display_name":"x"}{}`,
+			origin: "http://example.test", contentType: "application/json", want: http.StatusBadRequest,
+		},
+		{
+			name: "delete missing origin", method: http.MethodDelete, path: "/api/v1/labels/7",
+			want: http.StatusForbidden,
+		},
+		{
+			name: "candidate rejects query", method: http.MethodGet, path: "/api/v1/label-candidates?limit=1",
+			want: http.StatusBadRequest,
+		},
+		{
+			name: "item rejects method", method: http.MethodGet, path: "/api/v1/labels/7",
+			want: http.StatusMethodNotAllowed,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(test.method, "http://example.test"+test.path, strings.NewReader(test.body))
+			request.Host = "example.test"
+			if test.origin != "" {
+				request.Header.Set("Origin", test.origin)
+			}
+			if test.contentType != "" {
+				request.Header.Set("Content-Type", test.contentType)
+			}
+			request.AddCookie(cookie)
+			handler.ServeHTTP(response, request)
+			if response.Code != test.want {
+				t.Fatalf("status = %d, want %d, body=%q", response.Code, test.want, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestStage3LabelRoutesMapPublicErrorsWithoutDetails(t *testing.T) {
+	falseValue := false
+	tests := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+		setup  func(*statisticsQueries)
+		want   int
+	}{
+		{
+			name: "invalid create", method: http.MethodPost, path: "/api/v1/labels",
+			body:  `{"label_type":"host","match_value":"198.51.100.1","display_name":"x"}`,
+			setup: func(queries *statisticsQueries) { queries.createLabelErr = storage.ErrInvalidLabel },
+			want:  http.StatusBadRequest,
+		},
+		{
+			name: "conflict create", method: http.MethodPost, path: "/api/v1/labels",
+			body:  `{"label_type":"host","match_value":"198.51.100.1","display_name":"x"}`,
+			setup: func(queries *statisticsQueries) { queries.createLabelErr = storage.ErrLabelConflict },
+			want:  http.StatusConflict,
+		},
+		{
+			name: "missing update", method: http.MethodPut, path: "/api/v1/labels/7",
+			body:  `{"display_name":"x"}`,
+			setup: func(queries *statisticsQueries) { queries.updateLabelErr = storage.ErrLabelNotFound },
+			want:  http.StatusNotFound,
+		},
+		{
+			name: "missing delete", method: http.MethodDelete, path: "/api/v1/labels/7",
+			setup: func(queries *statisticsQueries) { queries.deleteLabelFound = &falseValue },
+			want:  http.StatusNotFound,
+		},
+		{
+			name: "internal failure", method: http.MethodPost, path: "/api/v1/labels",
+			body:  `{"label_type":"host","match_value":"198.51.100.1","display_name":"x"}`,
+			setup: func(queries *statisticsQueries) { queries.createLabelErr = errors.New("fixture internal failure") },
+			want:  http.StatusServiceUnavailable,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			queries := fixtureStatisticsQueries()
+			test.setup(queries)
+			handler := statsHandler(t, queries)
+			cookie := loginCookie(t, handler)
+			response := request(t, handler, test.method, test.path, test.body, cookie)
+			if response.Code != test.want || strings.Contains(response.Body.String(), "fixture internal failure") {
+				t.Fatalf("response = status:%d body:%q, want %d", response.Code, response.Body.String(), test.want)
+			}
+		})
 	}
 }

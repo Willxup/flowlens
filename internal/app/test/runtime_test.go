@@ -325,6 +325,42 @@ func TestRuntimePersistsOnlyExceptionalQualityEvents(t *testing.T) {
 	}
 }
 
+func TestRuntimePersistsClippedAttributionQualityEvent(t *testing.T) {
+	connection := func(upload, download int64) clashapi.Connection {
+		return clashapi.Connection{
+			ID: "fixture-clipped-id", Upload: upload, Download: download,
+			Metadata: clashapi.Metadata{
+				DestinationIP: "198.51.100.1", DestinationPort: "443", Network: "tcp",
+			},
+		}
+	}
+	client, closeServer := runtimeClient(t, []clashapi.ConnectionsSnapshot{
+		{UploadTotal: 1000, DownloadTotal: 4000, Connections: []clashapi.Connection{connection(100, 200)}},
+		{UploadTotal: 1003, DownloadTotal: 4005, Connections: []clashapi.Connection{connection(110, 210)}},
+	})
+	defer closeServer()
+	store, _ := runtimeStore(t)
+	ring, _ := collector.NewRing(collector.DefaultRingCapacity)
+	runtime := newRuntime(t, client, store, ring, flowstatus.NewTracker())
+
+	observeAndSeal(t, runtime, runtimeBucketStart+1)
+	observeAndSeal(t, runtime, runtimeBucketStart+11)
+	rollup := mustRollup(t, store, runtimeBucketStart+10)
+	if rollup.UploadBytes != 3 || rollup.DownloadBytes != 5 ||
+		rollup.UnattributedUploadBytes != 0 || rollup.UnattributedDownloadBytes != 0 ||
+		rollup.QualityFlags != collector.QualityFlagAttributionClipped {
+		t.Fatalf("clipped rollup = %#v", rollup)
+	}
+	events, err := store.QualityEvents(context.Background(), runtimeBucketStart+10, runtimeBucketStart+20)
+	if err != nil {
+		t.Fatalf("QualityEvents() error = %v", err)
+	}
+	if len(events) != 1 || events[0].Code != "collector_quality" ||
+		events[0].Flags != collector.QualityFlagAttributionClipped {
+		t.Fatalf("clipped QualityEvents() = %#v", events)
+	}
+}
+
 func TestRuntimeRunMarksFirstPersistedObservationAsGap(t *testing.T) {
 	seedClient, closeSeedServer := runtimeClient(t, []clashapi.ConnectionsSnapshot{
 		{UploadTotal: 1000, DownloadTotal: 4000},

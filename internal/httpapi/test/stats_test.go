@@ -104,16 +104,20 @@ func TestStage2StatisticsRoutesRedactInternalErrors(t *testing.T) {
 }
 
 type statisticsQueries struct {
-	overview   query.Overview
-	series     query.Series
-	quality    query.Quality
-	storage    query.Storage
-	fail       bool
-	breakdown  query.Breakdown
-	live       query.LiveTargets
-	sessions   []query.RuntimeSessionRecord
-	labels     []query.Label
-	candidates []query.LabelCandidate
+	overview         query.Overview
+	series           query.Series
+	quality          query.Quality
+	storage          query.Storage
+	fail             bool
+	breakdown        query.Breakdown
+	live             query.LiveTargets
+	sessions         []query.RuntimeSessionRecord
+	labels           []query.Label
+	candidates       []query.LabelCandidate
+	createLabelErr   error
+	updateLabelErr   error
+	deleteLabelErr   error
+	deleteLabelFound *bool
 }
 
 func (q *statisticsQueries) Breakdown(context.Context, rollup.Range, query.BreakdownBy) (query.Breakdown, error) {
@@ -152,6 +156,9 @@ func (q *statisticsQueries) LabelCandidates(context.Context) ([]query.LabelCandi
 }
 
 func (q *statisticsQueries) CreateLabel(_ context.Context, input query.CreateLabel) (query.Label, error) {
+	if q.createLabelErr != nil {
+		return query.Label{}, q.createLabelErr
+	}
 	if q.fail {
 		return query.Label{}, errors.New("fixture internal failure")
 	}
@@ -159,6 +166,9 @@ func (q *statisticsQueries) CreateLabel(_ context.Context, input query.CreateLab
 }
 
 func (q *statisticsQueries) UpdateLabel(_ context.Context, id int64, displayName string) (query.Label, error) {
+	if q.updateLabelErr != nil {
+		return query.Label{}, q.updateLabelErr
+	}
 	if q.fail {
 		return query.Label{}, errors.New("fixture internal failure")
 	}
@@ -166,8 +176,14 @@ func (q *statisticsQueries) UpdateLabel(_ context.Context, id int64, displayName
 }
 
 func (q *statisticsQueries) DeleteLabel(context.Context, int64) (bool, error) {
+	if q.deleteLabelErr != nil {
+		return false, q.deleteLabelErr
+	}
 	if q.fail {
 		return false, errors.New("fixture internal failure")
+	}
+	if q.deleteLabelFound != nil {
+		return *q.deleteLabelFound, nil
 	}
 	return true, nil
 }

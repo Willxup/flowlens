@@ -102,6 +102,130 @@ func TestRuntimeSessionsOmitsInternalIdentifiers(t *testing.T) {
 	}
 }
 
+func TestBreakdownProjectsEveryStage3Dimension(t *testing.T) {
+	now := time.Date(2026, time.July, 19, 8, 0, 0, 0, time.UTC)
+	dimension := queryDimension(1)
+	dimension.Host = "api.example.test"
+	tests := []struct {
+		by      query.BreakdownBy
+		wantRaw string
+	}{
+		{by: query.ByTarget, wantRaw: "198.51.100.1"},
+		{by: query.ByEndpoint, wantRaw: "198.51.100.1:443"},
+		{by: query.ByPort, wantRaw: "443"},
+		{by: query.ByNetwork, wantRaw: "tcp"},
+		{by: query.BySource, wantRaw: "192.0.2.0/24"},
+		{by: query.ByDomain, wantRaw: "api.example.test"},
+	}
+	capabilities := clashapi.DimensionCapabilities{
+		ConnectionID: true, SourceIP: true, DestinationIP: true,
+		DestinationPort: true, Network: true, Host: true,
+	}
+	for _, test := range tests {
+		t.Run(string(test.by), func(t *testing.T) {
+			store := &recordingQueryStore{
+				atomicTraffic: []storage.TrafficRollup{{UploadBytes: 5, DownloadBytes: 7}},
+				atomicFlows: []storage.FlowPoint{
+					{Dimension: dimension, UploadBytes: 5, DownloadBytes: 7},
+					{Dimension: querySpecialDimension(2)}, {Dimension: querySpecialDimension(3)},
+				},
+			}
+			service := newServiceWith(t, store, fakeLiveSource{capabilities: capabilities}, now, 20, attribution.SourcePrefix)
+			result, err := service.Breakdown(
+				context.Background(), rollup.Range{From: now.Add(-time.Hour).Unix(), To: now.Unix()}, test.by,
+			)
+			if err != nil || !result.Available || len(result.Items) != 1 ||
+				result.Items[0].RawValue != test.wantRaw || result.Items[0].UploadBytes != 5 || result.Items[0].DownloadBytes != 7 {
+				t.Fatalf("Breakdown(%s) = %#v, %v", test.by, result, err)
+			}
+		})
+	}
+}
+
+func TestBreakdownUsesUnknownNetworkForMixedProjection(t *testing.T) {
+	now := time.Date(2026, time.July, 19, 8, 0, 0, 0, time.UTC)
+	tcp := queryDimension(1)
+	udp := queryDimension(1)
+	udp.NetworkCode = 2
+	store := &recordingQueryStore{
+		atomicTraffic: []storage.TrafficRollup{{UploadBytes: 12, DownloadBytes: 14}},
+		atomicFlows: []storage.FlowPoint{
+			{Dimension: tcp, UploadBytes: 5, DownloadBytes: 7},
+			{Dimension: udp, UploadBytes: 7, DownloadBytes: 7},
+			{Dimension: querySpecialDimension(2)}, {Dimension: querySpecialDimension(3)},
+		},
+	}
+	service := newServiceWith(t, store, fakeLiveSource{}, now, 20, attribution.SourcePrefix)
+	result, err := service.Breakdown(
+		context.Background(), rollup.Range{From: now.Add(-time.Hour).Unix(), To: now.Unix()}, query.ByEndpoint,
+	)
+	if err != nil || len(result.Items) != 1 || result.Items[0].NetworkCode != 0 ||
+		result.Items[0].UploadBytes != 12 || result.Items[0].DownloadBytes != 14 {
+		t.Fatalf("mixed Breakdown() = %#v, %v", result, err)
+	}
+}
+
+func TestBreakdownCoverageHandlesZeroAndFullyUnattributedTraffic(t *testing.T) {
+	now := time.Date(2026, time.July, 19, 8, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name             string
+		global           storage.TrafficRollup
+		flows            []storage.FlowPoint
+		wantNoTraffic    bool
+		wantCoverage     *float64
+		wantUnattributed storage.ByteTotals
+	}{
+		{name: "zero traffic", wantNoTraffic: true},
+		{
+			name: "fully unattributed", global: storage.TrafficRollup{UploadBytes: 5, DownloadBytes: 7},
+			flows: []storage.FlowPoint{{
+				Dimension: querySpecialDimension(3), UploadBytes: 5, DownloadBytes: 7,
+			}},
+			wantCoverage: float64Pointer(0), wantUnattributed: storage.ByteTotals{Upload: 5, Download: 7},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			store := &recordingQueryStore{atomicTraffic: []storage.TrafficRollup{test.global}, atomicFlows: test.flows}
+			service := newServiceWith(t, store, fakeLiveSource{}, now, 20, attribution.SourcePrefix)
+			result, err := service.Breakdown(
+				context.Background(), rollup.Range{From: now.Add(-time.Hour).Unix(), To: now.Unix()}, query.ByTarget,
+			)
+			if err != nil || result.NoTraffic != test.wantNoTraffic || result.DimensionRetention != nil ||
+				result.Unattributed != test.wantUnattributed {
+				t.Fatalf("Breakdown() = %#v, %v", result, err)
+			}
+			if test.wantCoverage == nil {
+				if result.ConnectionCoverage != nil {
+					t.Fatalf("ConnectionCoverage = %#v, want nil", result.ConnectionCoverage)
+				}
+			} else if result.ConnectionCoverage == nil || *result.ConnectionCoverage != *test.wantCoverage {
+				t.Fatalf("ConnectionCoverage = %#v, want %f", result.ConnectionCoverage, *test.wantCoverage)
+			}
+		})
+	}
+}
+
+func TestBreakdownRejectsProjectedByteOverflow(t *testing.T) {
+	now := time.Date(2026, time.July, 19, 8, 0, 0, 0, time.UTC)
+	dimension := queryDimension(1)
+	store := &recordingQueryStore{
+		atomicTraffic: []storage.TrafficRollup{{UploadBytes: math.MaxInt64}},
+		atomicFlows: []storage.FlowPoint{
+			{Dimension: dimension, UploadBytes: math.MaxInt64},
+			{Dimension: dimension, UploadBytes: 1},
+		},
+	}
+	service := newServiceWith(t, store, fakeLiveSource{}, now, 20, attribution.SourcePrefix)
+	if _, err := service.Breakdown(
+		context.Background(), rollup.Range{From: now.Add(-time.Hour).Unix(), To: now.Unix()}, query.ByTarget,
+	); err == nil {
+		t.Fatal("overflow Breakdown() error = nil")
+	}
+}
+
+func float64Pointer(value float64) *float64 { return &value }
+
 type fakeLiveSource struct {
 	snapshot     attribution.LiveSnapshot
 	capabilities clashapi.DimensionCapabilities

@@ -2,6 +2,7 @@ package storage_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"reflect"
@@ -182,6 +183,172 @@ func TestRollupTrafficAcceptsOnlyPlannedResolutionEdges(t *testing.T) {
 	minute.BucketEnd++
 	if _, err := store.RollupTraffic(context.Background(), rollup.ResolutionTenSeconds, minute); !errors.Is(err, storage.ErrInvalidRollup) {
 		t.Fatalf("misaligned RollupTraffic() error = %v, want ErrInvalidRollup", err)
+	}
+}
+
+func TestRollupTrafficPreservesDimensionsAcrossEveryPlannedEdge(t *testing.T) {
+	store, _ := migratedTestStore(t)
+	commitBatch(t, store, firstBatch())
+
+	minute := storageWindow(t, firstBucketAt, rollup.ResolutionMinute, time.UTC)
+	if _, err := store.RollupTraffic(context.Background(), rollup.ResolutionTenSeconds, minute, 20); err != nil {
+		t.Fatalf("minute RollupTraffic() error = %v", err)
+	}
+	halfHour := storageWindow(t, firstBucketAt, rollup.ResolutionHalfHour, time.UTC)
+	if _, err := store.RollupTraffic(context.Background(), rollup.ResolutionMinute, halfHour, 20); err != nil {
+		t.Fatalf("half-hour RollupTraffic() error = %v", err)
+	}
+	hour := storageWindow(t, firstBucketAt, rollup.ResolutionHour, time.UTC)
+	if _, err := store.RollupTraffic(context.Background(), rollup.ResolutionHalfHour, hour, 20); err != nil {
+		t.Fatalf("hour RollupTraffic() error = %v", err)
+	}
+	day := storageWindow(t, firstBucketAt, rollup.ResolutionDay, time.UTC)
+	if _, err := store.RollupTraffic(context.Background(), rollup.ResolutionMinute, day, 20); err != nil {
+		t.Fatalf("day RollupTraffic() error = %v", err)
+	}
+
+	for _, target := range []rollup.Window{minute, halfHour, hour, day} {
+		global, found, err := store.TrafficRollup(context.Background(), target.ResolutionSec, target.BucketStart)
+		if err != nil || !found || global.UploadBytes != 100 || global.DownloadBytes != 400 ||
+			global.UnattributedUploadBytes != 30 || global.UnattributedDownloadBytes != 120 {
+			t.Fatalf("target global %d = %#v, %t, %v", target.ResolutionSec, global, found, err)
+		}
+		flows, err := store.FlowRollups(context.Background(), target.ResolutionSec, target.BucketStart)
+		if err != nil {
+			t.Fatalf("target flows %d error = %v", target.ResolutionSec, err)
+		}
+		assertFlowClasses(t, flows, map[int64]storage.ByteTotals{
+			1: {Upload: 60, Download: 240},
+			2: {Upload: 10, Download: 40},
+			3: {Upload: 30, Download: 120},
+		})
+	}
+}
+
+func TestRollupTrafficHandlesNaturalDayTimezoneBoundaries(t *testing.T) {
+	tests := []struct {
+		name            string
+		location        string
+		localTime       time.Time
+		expectedSeconds int64
+	}{
+		{name: "UTC", location: "UTC", localTime: time.Date(2026, time.July, 19, 12, 0, 0, 0, time.UTC), expectedSeconds: 24 * 60 * 60},
+		{name: "Kathmandu", location: "Asia/Kathmandu", localTime: time.Date(2026, time.July, 19, 12, 0, 0, 0, time.UTC), expectedSeconds: 24 * 60 * 60},
+		{name: "New York spring", location: "America/New_York", localTime: time.Date(2026, time.March, 8, 12, 0, 0, 0, time.UTC), expectedSeconds: 23 * 60 * 60},
+		{name: "New York fall", location: "America/New_York", localTime: time.Date(2026, time.November, 1, 12, 0, 0, 0, time.UTC), expectedSeconds: 25 * 60 * 60},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			location, err := time.LoadLocation(test.location)
+			if err != nil {
+				t.Fatalf("LoadLocation() error = %v", err)
+			}
+			day, err := rollup.WindowAt(test.localTime.In(location), rollup.ResolutionDay, location)
+			if err != nil {
+				t.Fatalf("day WindowAt() error = %v", err)
+			}
+			if duration := day.BucketEnd - day.BucketStart; duration != test.expectedSeconds {
+				t.Fatalf("day duration = %d, want %d", duration, test.expectedSeconds)
+			}
+
+			store, _ := migratedTestStore(t)
+			batch := firstBatch()
+			batch.Global.BucketStart = day.BucketStart
+			batch.Global.BucketEnd = day.BucketStart + rollup.ResolutionTenSeconds
+			batch.NewState.LastSampleAt = batch.Global.BucketEnd - 1
+			batch.NewState.BucketTimezone = test.location
+			batch.NewRuntimeSession.StartedAt = day.BucketStart
+			batch.QualityEvents[0].StartedAt = day.BucketStart
+			commitBatch(t, store, batch)
+
+			minute := storageWindow(t, day.BucketStart, rollup.ResolutionMinute, location)
+			if _, err := store.RollupTraffic(context.Background(), rollup.ResolutionTenSeconds, minute, 20); err != nil {
+				t.Fatalf("minute RollupTraffic() error = %v", err)
+			}
+			target, err := store.RollupTraffic(context.Background(), rollup.ResolutionMinute, day, 20)
+			if err != nil || target.BucketStart != day.BucketStart || target.BucketEnd != day.BucketEnd ||
+				target.UploadBytes != 100 || target.DownloadBytes != 400 {
+				t.Fatalf("day RollupTraffic() = %#v, %v", target, err)
+			}
+			flows, err := store.FlowRollups(context.Background(), rollup.ResolutionDay, day.BucketStart)
+			if err != nil {
+				t.Fatalf("day FlowRollups() error = %v", err)
+			}
+			assertFlowClasses(t, flows, map[int64]storage.ByteTotals{
+				1: {Upload: 60, Download: 240},
+				2: {Upload: 10, Download: 40},
+				3: {Upload: 30, Download: 120},
+			})
+		})
+	}
+}
+
+func TestRollupTrafficRollsBackEveryTargetWriteStage(t *testing.T) {
+	tests := []struct {
+		name      string
+		table     string
+		operation string
+	}{
+		{name: "global target write", table: "traffic_rollup", operation: "UPDATE"},
+		{name: "flow target delete", table: "flow_rollup", operation: "DELETE"},
+		{name: "dimension resolve", table: "flow_dimension", operation: "INSERT"},
+		{name: "flow target insert", table: "flow_rollup", operation: "INSERT"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			store, databasePath := migratedTestStore(t)
+			commitBatch(t, store, firstBatch())
+			minute := storageWindow(t, firstBucketAt, rollup.ResolutionMinute, time.UTC)
+			if _, err := store.RollupTraffic(context.Background(), rollup.ResolutionTenSeconds, minute, 20); err != nil {
+				t.Fatalf("initial RollupTraffic() error = %v", err)
+			}
+			database := openRawDatabase(t, databasePath)
+			advanceRollupSource(t, database, firstBucketAt)
+			dropTrigger := installAbortTrigger(t, database, test.table, test.operation)
+
+			if _, err := store.RollupTraffic(context.Background(), rollup.ResolutionTenSeconds, minute, 20); err == nil {
+				t.Fatal("RollupTraffic() error = nil with abort trigger")
+			}
+			global, found, err := store.TrafficRollup(context.Background(), rollup.ResolutionMinute, minute.BucketStart)
+			if err != nil || !found || global.UploadBytes != 100 || global.DownloadBytes != 400 {
+				t.Fatalf("rolled-back global = %#v, %t, %v", global, found, err)
+			}
+			flows, err := store.FlowRollups(context.Background(), rollup.ResolutionMinute, minute.BucketStart)
+			if err != nil {
+				t.Fatalf("rolled-back FlowRollups() error = %v", err)
+			}
+			assertFlowClasses(t, flows, map[int64]storage.ByteTotals{
+				1: {Upload: 60, Download: 240},
+				2: {Upload: 10, Download: 40},
+				3: {Upload: 30, Download: 120},
+			})
+
+			dropTrigger()
+			updated, err := store.RollupTraffic(context.Background(), rollup.ResolutionTenSeconds, minute, 20)
+			if err != nil || updated.UploadBytes != 101 || updated.DownloadBytes != 401 {
+				t.Fatalf("retry RollupTraffic() = %#v, %v", updated, err)
+			}
+		})
+	}
+}
+
+func advanceRollupSource(t *testing.T, database *sql.DB, bucketStart int64) {
+	t.Helper()
+	if _, err := database.Exec(`
+		UPDATE traffic_rollup
+		SET upload_bytes = upload_bytes + 1, download_bytes = download_bytes + 1
+		WHERE resolution_sec = ? AND bucket_start = ?
+	`, rollup.ResolutionTenSeconds, bucketStart); err != nil {
+		t.Fatalf("advance source global: %v", err)
+	}
+	if _, err := database.Exec(`
+		UPDATE flow_rollup
+		SET upload_bytes = upload_bytes + 1, download_bytes = download_bytes + 1
+		WHERE resolution_sec = ? AND bucket_start = ? AND dimension_id IN (
+			SELECT id FROM flow_dimension WHERE classification_code = 1
+		)
+	`, rollup.ResolutionTenSeconds, bucketStart); err != nil {
+		t.Fatalf("advance source flow: %v", err)
 	}
 }
 

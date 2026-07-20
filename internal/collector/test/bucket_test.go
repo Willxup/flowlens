@@ -237,3 +237,39 @@ func TestGlobalBucketRejectsInvalidContributionAtomically(t *testing.T) {
 		t.Fatal("bucket mutated after invalid contribution")
 	}
 }
+
+func TestGlobalBucketMarksClippedAttributionWithoutChangingConservation(t *testing.T) {
+	bucket, err := collector.NewGlobalBucket(1000, 20)
+	if err != nil {
+		t.Fatalf("NewGlobalBucket() error = %v", err)
+	}
+	dimension := storage.FlowDimension{
+		DestinationFamily: 4, DestinationIP: []byte{198, 51, 100, 1},
+		DestinationPort: 443, NetworkCode: 1, ClassificationCode: 1,
+	}
+	if err := bucket.ObserveConnections(
+		1001,
+		collector.CounterObservation{Delta: collector.ByteTotals{Upload: 3, Download: 5}},
+		1,
+		attribution.Contribution{
+			Flows: []storage.FlowRollup{{
+				Dimension: dimension, UploadBytes: 3, DownloadBytes: 5, FlowObservationCount: 1,
+			}},
+			Observed: true,
+			Clipped:  true,
+		},
+	); err != nil {
+		t.Fatalf("ObserveConnections() error = %v", err)
+	}
+	rollup := bucket.Rollup()
+	if rollup.UploadBytes != 3 || rollup.DownloadBytes != 5 ||
+		rollup.UnattributedUploadBytes != 0 || rollup.UnattributedDownloadBytes != 0 ||
+		rollup.QualityFlags != collector.QualityFlagAttributionClipped {
+		t.Fatalf("clipped Rollup() = %#v", rollup)
+	}
+	flows := bucket.Flows()
+	if len(flows) != 3 || flows[0].UploadBytes != 3 || flows[0].DownloadBytes != 5 ||
+		flows[1].Dimension.ClassificationCode != 2 || flows[2].Dimension.ClassificationCode != 3 {
+		t.Fatalf("clipped Flows() = %#v", flows)
+	}
+}
