@@ -331,7 +331,7 @@
 }
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 10px;
 }
@@ -496,6 +496,9 @@
   }
   .storage-panel {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .metric-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .storage-lead {
     grid-column: 1 / -1;

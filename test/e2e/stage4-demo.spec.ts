@@ -52,6 +52,20 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
   await expect(page.getByText("1 分钟平均下载")).toBeVisible();
   await expect(page.getByText("5 分钟平均上传")).toBeVisible();
   await expect(page.getByText("60 分钟峰值下载")).toBeVisible();
+  const liveMetricBoxes = await page
+    .locator(".metric-grid .chart-value")
+    .evaluateAll((elements) =>
+      elements.map((element) => {
+        const box = element.getBoundingClientRect();
+        return { x: box.x, y: box.y };
+      }),
+    );
+  expect(liveMetricBoxes).toHaveLength(6);
+  expect(
+    liveMetricBoxes.every(
+      (box) => Math.abs(box.y - liveMetricBoxes[0]!.y) < 2,
+    ),
+  ).toBe(true);
   await expect(page.getByText(/占全局 51\.6%/)).toBeVisible();
   const topologyBox = await page.locator(".topology-panel").boundingBox();
   const confidenceBox = await page.locator(".confidence-panel").boundingBox();
