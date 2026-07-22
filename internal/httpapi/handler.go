@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/fs"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/Willxup/flowlens/internal/clashapi"
+	"github.com/Willxup/flowlens/internal/collector"
 	flowstatus "github.com/Willxup/flowlens/internal/status"
 )
 
@@ -23,6 +25,9 @@ type Options struct {
 	Status           *flowstatus.Tracker
 	Queries          StatisticsQueries
 	CapabilitySource CapabilitySource
+	Web              fs.FS
+	Live             LiveSource
+	Timezone         string
 }
 
 // CapabilitySource exposes only the public optional dimension matrix.
@@ -42,6 +47,14 @@ type handler struct {
 	status       *flowstatus.Tracker
 	queries      StatisticsQueries
 	capabilities CapabilitySource
+	web          fs.FS
+	live         LiveSource
+	timezone     string
+}
+
+// LiveSource exposes the immutable one-second window needed by SSE.
+type LiveSource interface {
+	Snapshot() []collector.SpeedSample
 }
 
 // String prevents internal HTTP state disclosure through formatting.
@@ -52,7 +65,8 @@ func (h *handler) GoString() string { return h.String() }
 
 // New builds the complete minimal Stage 1 handler.
 func New(options Options) (http.Handler, error) {
-	if options.AccessKey == "" || options.Status == nil || options.Queries == nil || options.CapabilitySource == nil {
+	if options.AccessKey == "" || options.Status == nil || options.Queries == nil || options.CapabilitySource == nil ||
+		options.Timezone == "" {
 		return nil, errors.New("invalid FlowLens HTTP configuration")
 	}
 	sessions, err := NewSessionStore(options.SessionTTL)
@@ -61,12 +75,15 @@ func New(options Options) (http.Handler, error) {
 	}
 	return &handler{
 		accessKey: []byte(options.AccessKey), sessions: sessions, status: options.Status, queries: options.Queries,
-		capabilities: options.CapabilitySource,
+		capabilities: options.CapabilitySource, web: options.Web, live: options.Live, timezone: options.Timezone,
 	}, nil
 }
 
 func (h *handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	setSecurityHeaders(writer.Header())
+	if h.webResponse(writer, request) {
+		return
+	}
 	if strings.HasPrefix(request.URL.Path, "/api/v1/labels/") {
 		if h.requireSession(writer, request) {
 			h.labelItemResponse(writer, request)
@@ -83,6 +100,10 @@ func (h *handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	case "/api/v1/status":
 		if h.requireSession(writer, request) {
 			h.statusResponse(writer, request)
+		}
+	case "/api/v1/live":
+		if h.requireSession(writer, request) {
+			h.liveResponse(writer, request)
 		}
 	case "/api/v1/overview":
 		if h.requireSession(writer, request) {
@@ -240,12 +261,16 @@ func (h *handler) logout(writer http.ResponseWriter, request *http.Request) {
 }
 
 func (h *handler) requireSession(writer http.ResponseWriter, request *http.Request) bool {
-	cookie, err := request.Cookie(SessionCookieName)
-	if err != nil || !h.sessions.Valid(cookie.Value, time.Now()) {
+	if !h.validSession(request) {
 		writer.WriteHeader(http.StatusUnauthorized)
 		return false
 	}
 	return true
+}
+
+func (h *handler) validSession(request *http.Request) bool {
+	cookie, err := request.Cookie(SessionCookieName)
+	return err == nil && h.sessions.Valid(cookie.Value, time.Now())
 }
 
 func (h *handler) statusResponse(writer http.ResponseWriter, request *http.Request) {
@@ -258,6 +283,7 @@ func (h *handler) statusResponse(writer http.ResponseWriter, request *http.Reque
 	writeJSON(writer, struct {
 		Status       flowstatus.Level `json:"status"`
 		Reason       string           `json:"reason"`
+		Timezone     string           `json:"timezone"`
 		Capabilities struct {
 			ConnectionID bool `json:"connection_id"`
 			Source       bool `json:"source"`
@@ -267,7 +293,7 @@ func (h *handler) statusResponse(writer http.ResponseWriter, request *http.Reque
 			Domain       bool `json:"domain"`
 		} `json:"capabilities"`
 	}{
-		Status: snapshot.Level, Reason: snapshot.Reason,
+		Status: snapshot.Level, Reason: snapshot.Reason, Timezone: h.timezone,
 		Capabilities: struct {
 			ConnectionID bool `json:"connection_id"`
 			Source       bool `json:"source"`

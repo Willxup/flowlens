@@ -142,7 +142,7 @@ func TestStage3AttributionRollupAliasAndHTTPChain(t *testing.T) {
 	_ = statusTracker.Set(flowstatus.LevelOK, "ready", true)
 	handler, err := httpapi.New(httpapi.Options{
 		AccessKey: "fixture-access-key-123456", SessionTTL: time.Hour,
-		Status: statusTracker, Queries: service, CapabilitySource: tracker,
+		Status: statusTracker, Queries: service, CapabilitySource: tracker, Timezone: "UTC",
 	})
 	if err != nil {
 		t.Fatalf("httpapi.New() error = %v", err)

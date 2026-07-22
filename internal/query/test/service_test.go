@@ -67,6 +67,26 @@ func TestServiceOverviewSumsCurrentAndPreviousEqualRanges(t *testing.T) {
 	}
 }
 
+func TestServiceOverviewAllowsAllDataWithoutPreviousRange(t *testing.T) {
+	now := time.Date(2026, time.July, 18, 12, 0, 0, 0, time.UTC)
+	store := &recordingQueryStore{trafficResponses: [][]storage.TrafficRollup{{{
+		BucketStart: now.Add(-24 * time.Hour).Unix(), BucketEnd: now.Unix(),
+		UploadBytes: 100, DownloadBytes: 400, CounterObservedSeconds: 86_400,
+	}}}}
+	service := newService(t, store, now)
+
+	overview, err := service.Overview(context.Background(), rollup.Range{From: 86_400, To: now.Unix()})
+	if err != nil {
+		t.Fatalf("Overview() error = %v", err)
+	}
+	if overview.Current.UploadBytes != 100 || overview.Current.DownloadBytes != 400 || overview.Previous != (query.Totals{}) {
+		t.Fatalf("Overview() = %#v", overview)
+	}
+	if len(store.segmentCalls) != 1 {
+		t.Fatalf("segment calls = %#v, want current range only", store.segmentCalls)
+	}
+}
+
 func TestServiceOverviewUsesOneSharedApproximateBoundary(t *testing.T) {
 	now := time.Date(2026, time.July, 18, 12, 0, 0, 0, time.UTC)
 	store := &recordingQueryStore{trafficResponses: [][]storage.TrafficRollup{{}, {}}}

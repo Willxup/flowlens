@@ -44,16 +44,17 @@ type Runtime struct {
 	attribution *attribution.Tracker
 	topK        int
 
-	counter      *collector.CounterTracker
-	durable      storage.CollectorState
-	hasDurable   bool
-	sessionID    string
-	bucket       *collector.GlobalBucket
-	lastSampleAt int64
-	newSession   *storage.RuntimeSessionStart
-	endSession   *storage.RuntimeSessionEnd
-	pending      *storage.Batch
-	trafficQueue []deferredTrafficSample
+	counter           *collector.CounterTracker
+	durable           storage.CollectorState
+	hasDurable        bool
+	sessionID         string
+	bucket            *collector.GlobalBucket
+	lastSampleAt      int64
+	activeConnections int64
+	newSession        *storage.RuntimeSessionStart
+	endSession        *storage.RuntimeSessionEnd
+	pending           *storage.Batch
+	trafficQueue      []deferredTrafficSample
 }
 
 type deferredTrafficSample struct {
@@ -211,6 +212,7 @@ func (r *Runtime) applyConnections(
 	r.bucket = bucket
 	r.counter.Commit(observation)
 	r.attribution.Commit(preparedAttribution)
+	r.activeConnections = int64(len(snapshot.Connections))
 	r.sessionID = nextSessionID
 	r.newSession = nextNewSession
 	r.endSession = nextEndSession
@@ -230,7 +232,8 @@ func (r *Runtime) ObserveTraffic(at time.Time, sample clashapi.TrafficSample) er
 		sampleStatus = collector.SampleStatusDegraded
 	}
 	if err := r.ring.Add(collector.SpeedSample{
-		Timestamp: at, UploadBytesPerSecond: sample.Up, DownloadBytesPerSecond: sample.Down, Status: sampleStatus,
+		Timestamp: at, UploadBytesPerSecond: sample.Up, DownloadBytesPerSecond: sample.Down,
+		ActiveConnections: r.activeConnections, Status: sampleStatus,
 	}); err != nil {
 		return err
 	}

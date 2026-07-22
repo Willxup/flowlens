@@ -19,5 +19,7 @@
 # Frontend dependencies and generated outputs
 node_modules/
 /web/dist/
+/web/.vite/
+/web/.vitest/
 /playwright-report/
 /test-results/

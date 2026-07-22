@@ -1,0 +1,39 @@
+{
+  "name": "flowlens-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "build:app": "VITE_FLOWLENS_MODE=app vite build --mode app",
+    "build:demo": "VITE_FLOWLENS_MODE=demo vite build --mode demo",
+    "dev:demo": "VITE_FLOWLENS_MODE=demo vite --mode demo",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "preview:app": "vite preview --mode app --host 127.0.0.1 --port 4175",
+    "preview:demo": "vite preview --mode demo --host 127.0.0.1 --port 4174",
+    "test": "vitest",
+    "test:e2e": "playwright test",
+    "test:run": "vitest run",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit"
+  },
+  "dependencies": {
+    "echarts": "6.0.0",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.54.1",
+    "@testing-library/jest-dom": "6.6.3",
+    "@testing-library/react": "16.3.0",
+    "@testing-library/user-event": "14.6.1",
+    "@types/react": "19.1.9",
+    "@types/react-dom": "19.1.7",
+    "@vitejs/plugin-react": "4.6.0",
+    "jsdom": "26.1.0",
+    "prettier": "3.6.2",
+    "typescript": "5.8.3",
+    "vite": "7.0.6",
+    "vitest": "3.2.4"
+  }
+}

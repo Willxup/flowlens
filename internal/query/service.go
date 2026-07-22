@@ -88,15 +88,18 @@ func (s *Service) Overview(ctx context.Context, rangeValue rollup.Range) (Overvi
 	}
 	duration := rangeValue.To - rangeValue.From
 	previousRange := rollup.Range{From: rangeValue.From - duration, To: rangeValue.From}
-	if previousRange.From <= 0 {
-		return Overview{}, ErrQuery
-	}
-	previousSegments, previousApproximate, err := rollup.PlanSeries(previousRange, now, s.retention, s.location)
-	if err != nil {
-		return Overview{}, ErrQuery
+	var previousSegments []rollup.Segment
+	var previousApproximate bool
+	if previousRange.From > 0 {
+		previousSegments, previousApproximate, err = rollup.PlanSeries(previousRange, now, s.retention, s.location)
+		if err != nil {
+			return Overview{}, ErrQuery
+		}
 	}
 	sharedBoundary := currentSegments[0].From
-	previousSegments = trimSegmentsTo(previousSegments, sharedBoundary)
+	if len(previousSegments) > 0 {
+		previousSegments = trimSegmentsTo(previousSegments, sharedBoundary)
+	}
 	current, err := s.store.TrafficSeries(ctx, currentSegments)
 	if err != nil {
 		return Overview{}, ErrQuery

@@ -1,0 +1,785 @@
+{
+  "now": 1784523600,
+  "status": {
+    "status": "ok",
+    "reason": "ready",
+    "timezone": "Asia/Shanghai",
+    "capabilities": {
+      "connection_id": true,
+      "source": true,
+      "destination": true,
+      "port": true,
+      "network": true,
+      "domain": true
+    }
+  },
+  "overview": {
+    "current": {
+      "upload_bytes": "4287213568",
+      "download_bytes": "12884901888",
+      "total_bytes": "17172115456",
+      "elapsed_seconds": 46800,
+      "observed_seconds": 46791
+    },
+    "previous": {
+      "upload_bytes": "3758096384",
+      "download_bytes": "11274289152",
+      "total_bytes": "15032385536",
+      "elapsed_seconds": 46800,
+      "observed_seconds": 46784
+    },
+    "boundary_approximate": false
+  },
+  "series": {
+    "boundary_approximate": false,
+    "points": [
+      {
+        "bucket_start": 1784480400,
+        "bucket_end": 1784484000,
+        "elapsed_seconds": 3600,
+        "source_resolution_sec": 3600,
+        "upload_bytes": "268435456",
+        "download_bytes": "805306368",
+        "recovered_upload_bytes": "0",
+        "recovered_download_bytes": "0",
+        "unattributed_upload_bytes": "13421772",
+        "unattributed_download_bytes": "40265318",
+        "average_upload_bytes_per_second": 74565,
+        "average_download_bytes_per_second": 223696,
+        "peak_upload_bytes_per_second": 524288,
+        "peak_download_bytes_per_second": 2621440,
+        "counter_observed_seconds": 3599,
+        "active_connections_sum": 49320,
+        "active_connections_samples": 3600,
+        "active_connections_max": 22,
+        "reset_count": 0,
+        "quality_flags": 0
+      },
+      {
+        "bucket_start": 1784484000,
+        "bucket_end": 1784487600,
+        "elapsed_seconds": 3600,
+        "source_resolution_sec": 3600,
+        "upload_bytes": "402653184",
+        "download_bytes": "1207959552",
+        "recovered_upload_bytes": "0",
+        "recovered_download_bytes": "0",
+        "unattributed_upload_bytes": "20132659",
+        "unattributed_download_bytes": "60397977",
+        "average_upload_bytes_per_second": 111848,
+        "average_download_bytes_per_second": 335544,
+        "peak_upload_bytes_per_second": 786432,
+        "peak_download_bytes_per_second": 3145728,
+        "counter_observed_seconds": 3600,
+        "active_connections_sum": 57600,
+        "active_connections_samples": 3600,
+        "active_connections_max": 25,
+        "reset_count": 0,
+        "quality_flags": 0
+      },
+      {
+        "bucket_start": 1784487600,
+        "bucket_end": 1784491200,
+        "elapsed_seconds": 3600,
+        "source_resolution_sec": 3600,
+        "upload_bytes": "536870912",
+        "download_bytes": "1879048192",
+        "recovered_upload_bytes": "0",
+        "recovered_download_bytes": "0",
+        "unattributed_upload_bytes": "26843546",
+        "unattributed_download_bytes": "93952410",
+        "average_upload_bytes_per_second": 149131,
+        "average_download_bytes_per_second": 521958,
+        "peak_upload_bytes_per_second": 1048576,
+        "peak_download_bytes_per_second": 4194304,
+        "counter_observed_seconds": 3600,
+        "active_connections_sum": 64800,
+        "active_connections_samples": 3600,
+        "active_connections_max": 31,
+        "reset_count": 0,
+        "quality_flags": 0
+      },
+      {
+        "bucket_start": 1784491200,
+        "bucket_end": 1784494800,
+        "elapsed_seconds": 3600,
+        "source_resolution_sec": 3600,
+        "upload_bytes": "671088640",
+        "download_bytes": "2415919104",
+        "recovered_upload_bytes": "0",
+        "recovered_download_bytes": "0",
+        "unattributed_upload_bytes": "33554432",
+        "unattributed_download_bytes": "120795955",
+        "average_upload_bytes_per_second": 186414,
+        "average_download_bytes_per_second": 671089,
+        "peak_upload_bytes_per_second": 1310720,
+        "peak_download_bytes_per_second": 5242880,
+        "counter_observed_seconds": 3592,
+        "active_connections_sum": 75600,
+        "active_connections_samples": 3600,
+        "active_connections_max": 34,
+        "reset_count": 0,
+        "quality_flags": 8
+      },
+      {
+        "bucket_start": 1784494800,
+        "bucket_end": 1784498400,
+        "elapsed_seconds": 3600,
+        "source_resolution_sec": 3600,
+        "upload_bytes": "805306368",
+        "download_bytes": "2684354560",
+        "recovered_upload_bytes": "0",
+        "recovered_download_bytes": "0",
+        "unattributed_upload_bytes": "40265318",
+        "unattributed_download_bytes": "134217728",
+        "average_upload_bytes_per_second": 223696,
+        "average_download_bytes_per_second": 745654,
+        "peak_upload_bytes_per_second": 1572864,
+        "peak_download_bytes_per_second": 6291456,
+        "counter_observed_seconds": 3600,
+        "active_connections_sum": 82800,
+        "active_connections_samples": 3600,
+        "active_connections_max": 38,
+        "reset_count": 0,
+        "quality_flags": 0
+      }
+    ]
+  },
+  "quality": {
+    "events": [
+      {
+        "code": "clash_unavailable",
+        "started_at": 1784491620,
+        "ended_at": 1784491628,
+        "flags": 8
+      }
+    ]
+  },
+  "storage": {
+    "database_bytes": "44879052",
+    "wal_bytes": "3250585",
+    "soft_limit_bytes": "268435456",
+    "protecting": false,
+    "last_rollup_cleanup": {
+      "started_at": 1784497800,
+      "ended_at": 1784497804,
+      "deleted_rows": 8640,
+      "successful": true
+    }
+  },
+  "breakdowns": {
+    "target": {
+      "by": "target",
+      "available": true,
+      "approximate": true,
+      "boundary_approximate": false,
+      "no_traffic": false,
+      "connection_coverage": 0.924,
+      "dimension_retention": 0.919,
+      "global": {
+        "upload_bytes": "4287213568",
+        "download_bytes": "12884901888"
+      },
+      "other": { "upload_bytes": "321541017", "download_bytes": "966367642" },
+      "unattributed": {
+        "upload_bytes": "325477990",
+        "download_bytes": "975175680"
+      },
+      "items": [
+        {
+          "raw_value": "198.51.100.20",
+          "display_name": "Media · 198.51.100.20",
+          "network_code": 1,
+          "upload_bytes": "1288490188",
+          "download_bytes": "5368709120"
+        },
+        {
+          "raw_value": "203.0.113.44",
+          "display_name": "Backup · 203.0.113.44",
+          "network_code": 1,
+          "upload_bytes": "1000000000",
+          "download_bytes": "2500000000"
+        },
+        {
+          "raw_value": "192.0.2.80",
+          "display_name": "Updates · 192.0.2.80",
+          "network_code": 1,
+          "upload_bytes": "550000000",
+          "download_bytes": "1300000000"
+        },
+        {
+          "raw_value": "198.51.100.72",
+          "display_name": "Work tools · 198.51.100.72",
+          "network_code": 1,
+          "upload_bytes": "400000000",
+          "download_bytes": "800000000"
+        },
+        {
+          "raw_value": "192.0.2.60",
+          "display_name": "DNS · 192.0.2.60",
+          "network_code": 2,
+          "upload_bytes": "250000000",
+          "download_bytes": "400000000"
+        },
+        {
+          "raw_value": "203.0.113.90",
+          "display_name": "Messages · 203.0.113.90",
+          "network_code": 1,
+          "upload_bytes": "151704373",
+          "download_bytes": "574649446"
+        }
+      ]
+    },
+    "endpoint": {
+      "by": "endpoint",
+      "available": true,
+      "approximate": true,
+      "boundary_approximate": false,
+      "no_traffic": false,
+      "connection_coverage": 0.924,
+      "dimension_retention": 0.919,
+      "global": {
+        "upload_bytes": "4287213568",
+        "download_bytes": "12884901888"
+      },
+      "other": { "upload_bytes": "321541017", "download_bytes": "966367642" },
+      "unattributed": {
+        "upload_bytes": "325477990",
+        "download_bytes": "975175680"
+      },
+      "items": [
+        {
+          "raw_value": "198.51.100.20:443",
+          "display_name": "Media API · 198.51.100.20:443",
+          "network_code": 1,
+          "upload_bytes": "1288490188",
+          "download_bytes": "5368709120"
+        },
+        {
+          "raw_value": "203.0.113.44:443",
+          "display_name": "Backup · 203.0.113.44:443",
+          "network_code": 1,
+          "upload_bytes": "1000000000",
+          "download_bytes": "2500000000"
+        },
+        {
+          "raw_value": "192.0.2.80:443",
+          "display_name": "Updates · 192.0.2.80:443",
+          "network_code": 1,
+          "upload_bytes": "550000000",
+          "download_bytes": "1300000000"
+        },
+        {
+          "raw_value": "198.51.100.72:443",
+          "display_name": "Work tools · 198.51.100.72:443",
+          "network_code": 1,
+          "upload_bytes": "400000000",
+          "download_bytes": "800000000"
+        },
+        {
+          "raw_value": "192.0.2.60:53",
+          "display_name": "DNS · 192.0.2.60:53",
+          "network_code": 2,
+          "upload_bytes": "250000000",
+          "download_bytes": "400000000"
+        },
+        {
+          "raw_value": "203.0.113.90:5228",
+          "display_name": "Messages · 203.0.113.90:5228",
+          "network_code": 1,
+          "upload_bytes": "151704373",
+          "download_bytes": "574649446"
+        }
+      ]
+    },
+    "port": {
+      "by": "port",
+      "available": true,
+      "approximate": true,
+      "boundary_approximate": false,
+      "no_traffic": false,
+      "connection_coverage": 0.924,
+      "dimension_retention": 0.919,
+      "global": {
+        "upload_bytes": "4287213568",
+        "download_bytes": "12884901888"
+      },
+      "other": { "upload_bytes": "321541017", "download_bytes": "966367642" },
+      "unattributed": {
+        "upload_bytes": "325477990",
+        "download_bytes": "975175680"
+      },
+      "items": [
+        {
+          "raw_value": "443",
+          "display_name": "443",
+          "network_code": 0,
+          "upload_bytes": "2800000000",
+          "download_bytes": "9200000000"
+        },
+        {
+          "raw_value": "53",
+          "display_name": "53 · DNS",
+          "network_code": 0,
+          "upload_bytes": "250000000",
+          "download_bytes": "400000000"
+        },
+        {
+          "raw_value": "5228",
+          "display_name": "5228 · Messaging",
+          "network_code": 0,
+          "upload_bytes": "220000000",
+          "download_bytes": "350000000"
+        },
+        {
+          "raw_value": "80",
+          "display_name": "80 · HTTP",
+          "network_code": 0,
+          "upload_bytes": "180000000",
+          "download_bytes": "300000000"
+        },
+        {
+          "raw_value": "123",
+          "display_name": "123 · NTP",
+          "network_code": 0,
+          "upload_bytes": "40000000",
+          "download_bytes": "50000000"
+        },
+        {
+          "raw_value": "8443",
+          "display_name": "8443",
+          "network_code": 0,
+          "upload_bytes": "150194561",
+          "download_bytes": "643358566"
+        }
+      ]
+    },
+    "network": {
+      "by": "network",
+      "available": true,
+      "approximate": true,
+      "boundary_approximate": false,
+      "no_traffic": false,
+      "connection_coverage": 0.924,
+      "dimension_retention": 0.919,
+      "global": {
+        "upload_bytes": "4287213568",
+        "download_bytes": "12884901888"
+      },
+      "other": { "upload_bytes": "321541017", "download_bytes": "966367642" },
+      "unattributed": {
+        "upload_bytes": "325477990",
+        "download_bytes": "975175680"
+      },
+      "items": [
+        {
+          "raw_value": "tcp",
+          "display_name": "TCP",
+          "network_code": 1,
+          "upload_bytes": "3300000000",
+          "download_bytes": "10400000000"
+        },
+        {
+          "raw_value": "udp",
+          "display_name": "UDP",
+          "network_code": 2,
+          "upload_bytes": "340194561",
+          "download_bytes": "543358566"
+        }
+      ]
+    },
+    "source": {
+      "by": "source",
+      "available": true,
+      "approximate": true,
+      "boundary_approximate": false,
+      "no_traffic": false,
+      "connection_coverage": 0.924,
+      "dimension_retention": 0.919,
+      "global": {
+        "upload_bytes": "4287213568",
+        "download_bytes": "12884901888"
+      },
+      "other": { "upload_bytes": "321541017", "download_bytes": "966367642" },
+      "unattributed": {
+        "upload_bytes": "325477990",
+        "download_bytes": "975175680"
+      },
+      "items": [
+        {
+          "raw_value": "192.0.2.0/25",
+          "display_name": "192.0.2.0/25",
+          "network_code": 0,
+          "upload_bytes": "1800000000",
+          "download_bytes": "5500000000"
+        },
+        {
+          "raw_value": "198.51.100.0/25",
+          "display_name": "198.51.100.0/25",
+          "network_code": 0,
+          "upload_bytes": "1100000000",
+          "download_bytes": "3000000000"
+        },
+        {
+          "raw_value": "203.0.113.0/25",
+          "display_name": "203.0.113.0/25",
+          "network_code": 0,
+          "upload_bytes": "600000000",
+          "download_bytes": "1700000000"
+        },
+        {
+          "raw_value": "192.0.2.128/25",
+          "display_name": "192.0.2.128/25",
+          "network_code": 0,
+          "upload_bytes": "140194561",
+          "download_bytes": "743358566"
+        }
+      ]
+    },
+    "domain": {
+      "by": "domain",
+      "available": true,
+      "approximate": true,
+      "boundary_approximate": false,
+      "no_traffic": false,
+      "connection_coverage": 0.924,
+      "dimension_retention": 0.919,
+      "global": {
+        "upload_bytes": "4287213568",
+        "download_bytes": "12884901888"
+      },
+      "other": { "upload_bytes": "321541017", "download_bytes": "966367642" },
+      "unattributed": {
+        "upload_bytes": "325477990",
+        "download_bytes": "975175680"
+      },
+      "items": [
+        {
+          "raw_value": "media.example.test",
+          "display_name": "media.example.test",
+          "network_code": 1,
+          "upload_bytes": "1288490188",
+          "download_bytes": "5368709120"
+        },
+        {
+          "raw_value": "backup.example.test",
+          "display_name": "backup.example.test",
+          "network_code": 1,
+          "upload_bytes": "1000000000",
+          "download_bytes": "2500000000"
+        },
+        {
+          "raw_value": "updates.example.test",
+          "display_name": "updates.example.test",
+          "network_code": 1,
+          "upload_bytes": "550000000",
+          "download_bytes": "1300000000"
+        },
+        {
+          "raw_value": "work.example.test",
+          "display_name": "work.example.test",
+          "network_code": 1,
+          "upload_bytes": "400000000",
+          "download_bytes": "800000000"
+        },
+        {
+          "raw_value": "dns.example.test",
+          "display_name": "dns.example.test",
+          "network_code": 2,
+          "upload_bytes": "250000000",
+          "download_bytes": "400000000"
+        },
+        {
+          "raw_value": "messages.example.test",
+          "display_name": "messages.example.test",
+          "network_code": 1,
+          "upload_bytes": "151704373",
+          "download_bytes": "574649446"
+        }
+      ]
+    }
+  },
+  "liveTargets": {
+    "observed_at": 1784523600,
+    "interval_millis": 10012,
+    "active_connections": 17,
+    "connection_coverage": 0.947,
+    "targets": [
+      {
+        "raw_endpoint": "198.51.100.20:443",
+        "display_name": "Media API · 198.51.100.20:443",
+        "network_code": 1,
+        "host": "media.example.test",
+        "upload_bytes_per_second": 688128,
+        "download_bytes_per_second": 4016046
+      },
+      {
+        "raw_endpoint": "203.0.113.44:443",
+        "display_name": "Backup · 203.0.113.44:443",
+        "network_code": 1,
+        "host": "backup.example.test",
+        "upload_bytes_per_second": 262144,
+        "download_bytes_per_second": 1409024
+      },
+      {
+        "raw_endpoint": "192.0.2.60:53",
+        "display_name": "DNS · 192.0.2.60:53",
+        "network_code": 2,
+        "host": "dns.example.test",
+        "upload_bytes_per_second": 32768,
+        "download_bytes_per_second": 98304
+      },
+      {
+        "raw_endpoint": "192.0.2.80:443",
+        "display_name": "Updates · 192.0.2.80:443",
+        "network_code": 1,
+        "host": "updates.example.test",
+        "upload_bytes_per_second": 180224,
+        "download_bytes_per_second": 917504
+      },
+      {
+        "raw_endpoint": "198.51.100.72:443",
+        "display_name": "Work tools · 198.51.100.72:443",
+        "network_code": 1,
+        "host": "work.example.test",
+        "upload_bytes_per_second": 131072,
+        "download_bytes_per_second": 655360
+      },
+      {
+        "raw_endpoint": "203.0.113.90:5228",
+        "display_name": "Messages · 203.0.113.90:5228",
+        "network_code": 1,
+        "host": "messages.example.test",
+        "upload_bytes_per_second": 49152,
+        "download_bytes_per_second": 196608
+      }
+    ]
+  },
+  "liveSamples": [
+    {
+      "timestamp": 1784523581,
+      "upload_bytes_per_second": 1120000,
+      "download_bytes_per_second": 5700000,
+      "active_connections": 14,
+      "status": "ok"
+    },
+    {
+      "timestamp": 1784523582,
+      "upload_bytes_per_second": 1180000,
+      "download_bytes_per_second": 5960000,
+      "active_connections": 15,
+      "status": "ok"
+    },
+    {
+      "timestamp": 1784523583,
+      "upload_bytes_per_second": 1250000,
+      "download_bytes_per_second": 6220000,
+      "active_connections": 15,
+      "status": "ok"
+    },
+    {
+      "timestamp": 1784523584,
+      "upload_bytes_per_second": 1210000,
+      "download_bytes_per_second": 6100000,
+      "active_connections": 16,
+      "status": "ok"
+    },
+    {
+      "timestamp": 1784523585,
+      "upload_bytes_per_second": 1290000,
+      "download_bytes_per_second": 6480000,
+      "active_connections": 16,
+      "status": "ok"
+    },
+    {
+      "timestamp": 1784523586,
+      "upload_bytes_per_second": 1330000,
+      "download_bytes_per_second": 6710000,
+      "active_connections": 17,
+      "status": "ok"
+    },
+    {
+      "timestamp": 1784523587,
+      "upload_bytes_per_second": 1280000,
+      "download_bytes_per_second": 6590000,
+      "active_connections": 16,
+      "status": "ok"
+    },
+    {
+      "timestamp": 1784523588,
+      "upload_bytes_per_second": 1360000,
+      "download_bytes_per_second": 6980000,
+      "active_connections": 17,
+      "status": "ok"
+    },
+    {
+      "timestamp": 1784523589,
+      "upload_bytes_per_second": 1410000,
+      "download_bytes_per_second": 7240000,
+      "active_connections": 18,
+      "status": "ok"
+    },
+    {
+      "timestamp": 1784523590,
+      "upload_bytes_per_second": 1380000,
+      "download_bytes_per_second": 7130000,
+      "active_connections": 18,
+      "status": "ok"
+    },
+    {
+      "timestamp": 1784523591,
+      "upload_bytes_per_second": 1430000,
+      "download_bytes_per_second": 7350000,
+      "active_connections": 19,
+      "status": "ok"
+    },
+    {
+      "timestamp": 1784523592,
+      "upload_bytes_per_second": 1390000,
+      "download_bytes_per_second": 7190000,
+      "active_connections": 18,
+      "status": "ok"
+    },
+    {
+      "timestamp": 1784523593,
+      "upload_bytes_per_second": 1460000,
+      "download_bytes_per_second": 7480000,
+      "active_connections": 19,
+      "status": "ok"
+    },
+    {
+      "timestamp": 1784523594,
+      "upload_bytes_per_second": 1490000,
+      "download_bytes_per_second": 7710000,
+      "active_connections": 20,
+      "status": "ok"
+    },
+    {
+      "timestamp": 1784523595,
+      "upload_bytes_per_second": 1440000,
+      "download_bytes_per_second": 7560000,
+      "active_connections": 19,
+      "status": "ok"
+    },
+    {
+      "timestamp": 1784523596,
+      "upload_bytes_per_second": 1510000,
+      "download_bytes_per_second": 7890000,
+      "active_connections": 20,
+      "status": "ok"
+    },
+    {
+      "timestamp": 1784523597,
+      "upload_bytes_per_second": 1480000,
+      "download_bytes_per_second": 7810000,
+      "active_connections": 19,
+      "status": "ok"
+    },
+    {
+      "timestamp": 1784523598,
+      "upload_bytes_per_second": 1530000,
+      "download_bytes_per_second": 8050000,
+      "active_connections": 20,
+      "status": "ok"
+    },
+    {
+      "timestamp": 1784523599,
+      "upload_bytes_per_second": 1500000,
+      "download_bytes_per_second": 7920000,
+      "active_connections": 18,
+      "status": "ok"
+    },
+    {
+      "timestamp": 1784523600,
+      "upload_bytes_per_second": 1450000,
+      "download_bytes_per_second": 7670000,
+      "active_connections": 17,
+      "status": "ok"
+    }
+  ],
+  "labels": [
+    {
+      "id": 1,
+      "label_type": "endpoint",
+      "match_value": "198.51.100.20:443",
+      "display_name": "Media API",
+      "created_at": 1784000000,
+      "updated_at": 1784400000
+    },
+    {
+      "id": 2,
+      "label_type": "host",
+      "match_value": "203.0.113.44",
+      "display_name": "Backup",
+      "created_at": 1784100000,
+      "updated_at": 1784100000
+    },
+    {
+      "id": 3,
+      "label_type": "endpoint",
+      "match_value": "192.0.2.80:443",
+      "display_name": "Updates",
+      "created_at": 1784200000,
+      "updated_at": 1784200000
+    },
+    {
+      "id": 4,
+      "label_type": "host",
+      "match_value": "198.51.100.72",
+      "display_name": "Work tools",
+      "created_at": 1784250000,
+      "updated_at": 1784450000
+    }
+  ],
+  "candidates": [
+    {
+      "label_type": "endpoint",
+      "match_value": "198.51.100.20:443",
+      "display_name": "Media API",
+      "upload_bytes": "1288490188",
+      "download_bytes": "5368709120"
+    },
+    {
+      "label_type": "endpoint",
+      "match_value": "203.0.113.44:443",
+      "display_name": "203.0.113.44:443",
+      "upload_bytes": "1000000000",
+      "download_bytes": "2500000000"
+    },
+    {
+      "label_type": "host",
+      "match_value": "media.example.test",
+      "display_name": "media.example.test",
+      "upload_bytes": "1288490188",
+      "download_bytes": "5368709120"
+    },
+    {
+      "label_type": "endpoint",
+      "match_value": "192.0.2.80:443",
+      "display_name": "Updates",
+      "upload_bytes": "550000000",
+      "download_bytes": "1300000000"
+    },
+    {
+      "label_type": "endpoint",
+      "match_value": "198.51.100.72:443",
+      "display_name": "Work tools",
+      "upload_bytes": "400000000",
+      "download_bytes": "800000000"
+    },
+    {
+      "label_type": "endpoint",
+      "match_value": "192.0.2.60:53",
+      "display_name": "DNS",
+      "upload_bytes": "250000000",
+      "download_bytes": "400000000"
+    },
+    {
+      "label_type": "host",
+      "match_value": "messages.example.test",
+      "display_name": "Messages",
+      "upload_bytes": "151704373",
+      "download_bytes": "574649446"
+    }
+  ]
+}

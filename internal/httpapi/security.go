@@ -8,10 +8,18 @@ import (
 
 const maxLoginBodyBytes int64 = 4096
 
+// WebContentSecurityPolicy is the fixed same-origin policy for the embedded UI.
+const WebContentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+
 func setSecurityHeaders(headers mapHeader) {
 	headers.Set("X-Content-Type-Options", "nosniff")
 	headers.Set("Referrer-Policy", "no-referrer")
 	headers.Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
+}
+
+func setWebSecurityHeaders(headers mapHeader) {
+	setSecurityHeaders(headers)
+	headers.Set("Content-Security-Policy", WebContentSecurityPolicy)
 }
 
 type mapHeader interface {

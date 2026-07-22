@@ -57,12 +57,14 @@ func TestLoginStatusAndLogoutFlow(t *testing.T) {
 	var body struct {
 		Status       string          `json:"status"`
 		Reason       string          `json:"reason"`
+		Timezone     string          `json:"timezone"`
 		Capabilities map[string]bool `json:"capabilities"`
 	}
 	if err := json.Unmarshal(statusResponse.Body.Bytes(), &body); err != nil {
 		t.Fatalf("status JSON: %v", err)
 	}
-	if body.Status != "ok" || body.Reason != "ready" || len(body.Capabilities) != 6 || !body.Capabilities["connection_id"] {
+	if body.Status != "ok" || body.Reason != "ready" || body.Timezone != "Asia/Shanghai" ||
+		len(body.Capabilities) != 6 || !body.Capabilities["connection_id"] {
 		t.Errorf("status body = %#v", body)
 	}
 
@@ -147,7 +149,7 @@ func TestHandlerAddsSecurityHeadersAndFormattingRedactsAccessKey(t *testing.T) {
 	tracker := flowstatus.NewTracker()
 	handler, err := httpapi.New(httpapi.Options{
 		AccessKey: fixtureAccessKey, SessionTTL: time.Hour, Status: tracker, Queries: fixtureStatisticsQueries(),
-		CapabilitySource: fixtureCapabilitySource{},
+		CapabilitySource: fixtureCapabilitySource{}, Timezone: "Asia/Shanghai",
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
@@ -164,7 +166,7 @@ func TestHandlerAddsSecurityHeadersAndFormattingRedactsAccessKey(t *testing.T) {
 	}
 	options := httpapi.Options{
 		AccessKey: fixtureAccessKey, SessionTTL: time.Hour, Status: tracker, Queries: fixtureStatisticsQueries(),
-		CapabilitySource: fixtureCapabilitySource{},
+		CapabilitySource: fixtureCapabilitySource{}, Timezone: "Asia/Shanghai",
 	}
 	for _, value := range []any{options, handler} {
 		for _, format := range []string{"%v", "%+v", "%#v"} {
@@ -179,7 +181,7 @@ func newHandler(t *testing.T, tracker *flowstatus.Tracker) http.Handler {
 	t.Helper()
 	handler, err := httpapi.New(httpapi.Options{
 		AccessKey: fixtureAccessKey, SessionTTL: time.Hour, Status: tracker, Queries: fixtureStatisticsQueries(),
-		CapabilitySource: fixtureCapabilitySource{},
+		CapabilitySource: fixtureCapabilitySource{}, Timezone: "Asia/Shanghai",
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)

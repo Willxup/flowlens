@@ -258,6 +258,31 @@ func TestRuntimeRetainsTrafficSampleUntilMatchingCounterBucketExists(t *testing.
 	}
 }
 
+func TestRuntimeCopiesLastSuccessfulActiveConnectionsIntoLiveTraffic(t *testing.T) {
+	client, closeServer := runtimeClient(t, []clashapi.ConnectionsSnapshot{{
+		UploadTotal: 1000, DownloadTotal: 4000, Connections: make([]clashapi.Connection, 3),
+	}})
+	defer closeServer()
+	store, _ := runtimeStore(t)
+	ring, _ := collector.NewRing(collector.DefaultRingCapacity)
+	runtime := newRuntime(t, client, store, ring, flowstatus.NewTracker())
+
+	if err := runtime.ObserveConnections(
+		context.Background(), time.Unix(runtimeBucketStart+1, 0), false,
+	); err != nil {
+		t.Fatalf("ObserveConnections() error = %v", err)
+	}
+	if err := runtime.ObserveTraffic(
+		time.Unix(runtimeBucketStart+2, 0), clashapi.TrafficSample{Up: 30, Down: 40},
+	); err != nil {
+		t.Fatalf("ObserveTraffic() error = %v", err)
+	}
+	samples := ring.Snapshot()
+	if len(samples) != 1 || samples[0].ActiveConnections != 3 {
+		t.Fatalf("ring samples = %#v", samples)
+	}
+}
+
 func TestRuntimeRunCommitsAlreadyCompleteBucketOnCancellation(t *testing.T) {
 	client, closeServer := runtimeClient(t, []clashapi.ConnectionsSnapshot{
 		{UploadTotal: 1000, DownloadTotal: 4000},

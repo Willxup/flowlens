@@ -253,7 +253,7 @@ func statsHandler(t *testing.T, queries httpapi.StatisticsQueries) http.Handler 
 	tracker := flowstatus.NewTracker()
 	handler, err := httpapi.New(httpapi.Options{
 		AccessKey: fixtureAccessKey, SessionTTL: time.Hour, Status: tracker, Queries: queries,
-		CapabilitySource: fixtureCapabilitySource{},
+		CapabilitySource: fixtureCapabilitySource{}, Timezone: "UTC",
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)

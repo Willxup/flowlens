@@ -18,6 +18,7 @@ import (
 	"github.com/Willxup/flowlens/internal/query"
 	flowstatus "github.com/Willxup/flowlens/internal/status"
 	"github.com/Willxup/flowlens/internal/storage"
+	"github.com/Willxup/flowlens/internal/webassets"
 )
 
 // App owns the Stage 1 process dependencies.
@@ -121,9 +122,14 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	if err != nil {
 		return fail(errors.New("cannot configure FlowLens historical queries"))
 	}
+	web, err := webassets.Content()
+	if err != nil {
+		return fail(errors.New("cannot load FlowLens web assets"))
+	}
 	handler, err := httpapi.New(httpapi.Options{
 		AccessKey: cfg.Auth.AccessKey.Value(), SessionTTL: cfg.Auth.SessionTTL.Duration,
-		Status: tracker, Queries: queries, CapabilitySource: attributionTracker,
+		Status: tracker, Queries: queries, CapabilitySource: attributionTracker, Timezone: cfg.Time.Timezone,
+		Web: web, Live: ring,
 	})
 	if err != nil {
 		return fail(err)
