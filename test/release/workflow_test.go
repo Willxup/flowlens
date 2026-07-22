@@ -66,6 +66,13 @@ func TestReleaseWorkflowIsTagOnlyMultiArchitectureGHCRWithSBOM(t *testing.T) {
 	assertNoDeploymentPermissions(t, "release", contents)
 }
 
+func TestReleaseWorkflowPublishesOriginalVersionTag(t *testing.T) {
+	contents := readRepositoryFile(t, ".github/workflows/release.yml")
+	if !strings.Contains(contents, "type=raw,value=${{ github.ref_name }}") {
+		t.Error("release workflow must preserve the original v-prefixed Git tag")
+	}
+}
+
 func assertNoDeploymentPermissions(t *testing.T, name, contents string) {
 	t.Helper()
 	for _, forbidden := range []string{"pages:", "deployments:", "id-token:"} {

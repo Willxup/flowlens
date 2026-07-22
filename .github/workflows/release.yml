@@ -29,6 +29,7 @@ jobs:
         with:
           images: ghcr.io/willxup/flowlens
           tags: |
+            type=raw,value=${{ github.ref_name }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
