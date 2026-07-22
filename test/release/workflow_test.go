@@ -33,7 +33,7 @@ func TestCIWorkflowRunsProductAndReleaseChecksWithoutDeploymentPermissions(t *te
 
 func TestCIInstallsPlaywrightBrowsersInTheProjectCache(t *testing.T) {
 	contents := readRepositoryFile(t, ".github/workflows/ci.yml")
-	want := "- name: Install Chromium\n        env:\n          PLAYWRIGHT_BROWSERS_PATH: .flowlens-dev/cache/playwright\n        run: pnpm --dir web exec playwright install --with-deps chromium"
+	want := "- name: Install Chromium\n        env:\n          PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.flowlens-dev/cache/playwright\n        run: pnpm --dir web exec playwright install --with-deps chromium"
 	if !strings.Contains(contents, want) {
 		t.Error("CI must install Playwright browsers in the same project-local cache used by Makefile")
 	}
