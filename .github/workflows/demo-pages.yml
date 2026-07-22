@@ -29,6 +29,8 @@ jobs:
       - run: pnpm --dir web test:run
       - run: pnpm --dir web build:demo
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web/dist
