@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-22
+
 ### Added
 
 - Self-hosted dashboard for live speed, exact historical totals, approximate connection attribution, data quality, and SQLite storage state.
@@ -18,4 +20,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Non-root scratch container and hardened Compose defaults.
 - Redaction boundaries for secrets, paths, session data, and public examples.
 
-[Unreleased]: https://github.com/Willxup/flowlens/compare/main...HEAD
+[Unreleased]: https://github.com/Willxup/flowlens/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/Willxup/flowlens/releases/tag/v0.1.0
