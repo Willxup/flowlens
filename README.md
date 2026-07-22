@@ -2,8 +2,6 @@
 
 FlowLens 是一个面向 sing-box Clash API 的自托管流量仪表盘。它将可靠的全局累计流量保存到 SQLite，同时展示实时速度、历史趋势、连接归因、数据质量和存储状态。
 
-[在线 Demo](https://willxup.github.io/flowlens/) 使用固定的 RFC 文档地址和完全离线的数据，不会连接任何真实代理服务。
-
 ![FlowLens 单页流量仪表盘](assets/flowlens-light.png)
 
 <details>
@@ -69,7 +67,7 @@ docker compose -f docker-compose.example.yml up -d --build
 ## 安全与隐私
 
 - FlowLens 不修改 sing-box 配置、路由、防火墙或代理连接。
-- 登录密钥、Clash Secret 和会话不会写入 Demo、URL 或浏览器存储。
+- 登录密钥、Clash Secret 和会话不会写入 URL 或浏览器存储。
 - FlowLens 不内置 TLS；如需远程访问，请在可信反向代理后提供 HTTPS。
 - 容器以 `10001:10001` 运行，最终镜像为 scratch；示例 Compose 使用只读根文件系统并移除全部 Linux capabilities。
 - 不要提交真实 `config/config.yaml`、Secret、Cookie、数据库、备份或未脱敏日志。
