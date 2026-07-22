@@ -1,0 +1,10 @@
+**
+!go.mod
+!go.sum
+!test/
+!test/release/
+!test/release/fixture/
+!test/release/fixture/**
+!test/fixtures/
+!test/fixtures/clashapi/
+!test/fixtures/clashapi/**

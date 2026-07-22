@@ -36,6 +36,20 @@ func TestDockerfileIsCrossCompiledAndCarriesReleaseMetadata(t *testing.T) {
 	}
 }
 
+func TestDockerfileDoesNotShadowBuildKitPlatformArguments(t *testing.T) {
+	contents := readRepositoryFile(t, "Dockerfile")
+	firstStage := strings.Index(contents, "\nFROM ")
+	if firstStage < 0 {
+		t.Fatal("Dockerfile has no build stage")
+	}
+	globalArguments := contents[:firstStage]
+	for _, argument := range []string{"ARG BUILDPLATFORM", "ARG TARGETARCH"} {
+		if hasLine(globalArguments, argument) {
+			t.Errorf("Dockerfile shadows automatic BuildKit argument %q", argument)
+		}
+	}
+}
+
 func TestComposeUsesPublishedImageAndHardenedRuntime(t *testing.T) {
 	contents := readRepositoryFile(t, "docker-compose.example.yml")
 	var document map[string]any
@@ -72,6 +86,21 @@ func TestDockerContextExcludesLocalAndRuntimeData(t *testing.T) {
 	for _, line := range []string{".git", ".flowlens-dev", "config/config.yaml", "data", "*.db", "*.db-wal", "*.db-shm"} {
 		if !hasLine(contents, line) {
 			t.Errorf(".dockerignore missing %q", line)
+		}
+	}
+}
+
+func TestFixtureDockerContextIncludesOnlyRequiredFiles(t *testing.T) {
+	contents := readRepositoryFile(t, "test/release/fixture/Dockerfile.dockerignore")
+	for _, line := range []string{
+		"**",
+		"!go.mod",
+		"!go.sum",
+		"!test/release/fixture/**",
+		"!test/fixtures/clashapi/**",
+	} {
+		if !hasLine(contents, line) {
+			t.Errorf("fixture Dockerfile.dockerignore missing %q", line)
 		}
 	}
 }

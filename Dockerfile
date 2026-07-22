@@ -1,8 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG BUILDPLATFORM
 ARG TARGETOS=linux
-ARG TARGETARCH
 ARG VERSION=dev
 ARG COMMIT=unknown
 ARG BUILD_DATE=unknown
