@@ -30,6 +30,8 @@ jobs:
       - name: Check source and tests
         run: make check
       - name: Install Chromium
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: .flowlens-dev/cache/playwright
         run: pnpm --dir web exec playwright install --with-deps chromium
       - name: Run browser tests
         run: make frontend-e2e
