@@ -6,13 +6,16 @@ export function Shell({
   status,
   sourceMode,
   onLogout,
+  logoutFailed,
   children,
 }: {
   status: ServiceLevel;
   sourceMode: "app" | "demo";
   onLogout: () => void;
+  logoutFailed?: boolean;
   children: ReactNode;
 }) {
+  const logoutLabel = logoutFailed ? "退出失败，请重试" : "退出";
   return (
     <main className="app" data-source-mode={sourceMode}>
       <header className="topbar">
@@ -33,11 +36,17 @@ export function Shell({
                 : "采集失败"}
           </span>
           <ThemeSelect />
-          <button className="logout-button" type="button" onClick={onLogout}>
+          <button
+            className={`logout-button${logoutFailed ? " failed" : ""}`}
+            type="button"
+            aria-label={logoutLabel}
+            title={logoutLabel}
+            onClick={onLogout}
+          >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M10 4H5.5A1.5 1.5 0 0 0 4 5.5v13A1.5 1.5 0 0 0 5.5 20H10M14.5 8.5 18 12l-3.5 3.5M9 12h9" />
             </svg>
-            <span>退出</span>
+            <span>{logoutFailed ? "重试退出" : "退出"}</span>
           </button>
         </div>
       </header>

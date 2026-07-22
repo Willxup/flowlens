@@ -61,6 +61,9 @@ export interface SeriesPointResponse {
   unattributed_download_bytes: ByteString;
   average_upload_bytes_per_second: number;
   average_download_bytes_per_second: number;
+  speed_upload_sample_sum: ByteString;
+  speed_download_sample_sum: ByteString;
+  speed_sample_count: number;
   peak_upload_bytes_per_second: number;
   peak_download_bytes_per_second: number;
   counter_observed_seconds: number;
@@ -146,6 +149,8 @@ export interface LiveTargetsResponse {
   observed_at: number;
   interval_millis: number;
   active_connections: number;
+  global_upload_bytes_per_second: number;
+  global_download_bytes_per_second: number;
   connection_coverage: number | null;
   targets: LiveTargetResponse[];
 }

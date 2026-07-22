@@ -128,4 +128,22 @@ describe("ProductionDataSource", () => {
 
     await expect(source.runtimeSessions()).resolves.toEqual(payload.sessions);
   });
+
+  it("rejects live target payloads without same-window global rates", async () => {
+    const source = new ProductionDataSource(
+      vi.fn(async () =>
+        Response.json({
+          observed_at: 100,
+          interval_millis: 1000,
+          active_connections: 1,
+          connection_coverage: 1,
+          targets: [],
+        }),
+      ) as typeof fetch,
+    );
+
+    await expect(source.liveTargets()).rejects.toThrow(
+      "FlowLens response is invalid",
+    );
+  });
 });

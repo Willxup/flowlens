@@ -64,6 +64,28 @@ describe("ProductionDataSource live stream", () => {
     );
     expect(connection).toHaveBeenLastCalledWith(false);
   });
+
+  it("accepts a fresh sequence after the browser reconnects", () => {
+    const stream = new FakeEventSource();
+    const source = new ProductionDataSource(
+      fetch,
+      () => stream as unknown as EventSource,
+    );
+    const listener = vi.fn();
+    const connection = vi.fn();
+    source.subscribeLive(listener, connection);
+
+    stream.open();
+    stream.emit("heartbeat", { sequence: 12, at: 1_700_000_000 });
+    stream.open();
+    stream.emit("snapshot", { sequence: 1, samples: [] });
+
+    expect(listener).toHaveBeenCalledTimes(2);
+    expect(listener).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: "snapshot", sequence: 1 }),
+    );
+    expect(connection).toHaveBeenLastCalledWith(true);
+  });
 });
 
 class FakeEventSource {

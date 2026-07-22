@@ -12,8 +12,8 @@ export interface HistoricalChartPoint {
   upload: ByteString;
   download: ByteString;
   cumulative: ByteString;
-  uploadRate: number;
-  downloadRate: number;
+  uploadRate: number | null;
+  downloadRate: number | null;
   resolution: number;
 }
 
@@ -35,8 +35,14 @@ export function buildHistoricalView(
       upload: point.upload_bytes,
       download: point.download_bytes,
       cumulative,
-      uploadRate: point.average_upload_bytes_per_second,
-      downloadRate: point.average_download_bytes_per_second,
+      uploadRate:
+        point.speed_sample_count > 0
+          ? point.average_upload_bytes_per_second
+          : null,
+      downloadRate:
+        point.speed_sample_count > 0
+          ? point.average_download_bytes_per_second
+          : null,
       resolution: point.source_resolution_sec,
     } satisfies HistoricalChartPoint;
   });
@@ -83,19 +89,22 @@ export function buildHistoricalView(
     ),
     previousBytes: overview.previous.total_bytes,
     completeness: elapsed > 0 ? Math.min(1, observed / elapsed) : null,
-    averageUpload: weightedAverage(series, "average_upload_bytes_per_second"),
-    averageDownload: weightedAverage(
-      series,
-      "average_download_bytes_per_second",
-    ),
+    averageUpload: sampledAverage(series, "speed_upload_sample_sum"),
+    averageDownload: sampledAverage(series, "speed_download_sample_sum"),
     peakUpload: max(series, "peak_upload_bytes_per_second"),
     peakDownload: max(series, "peak_download_bytes_per_second"),
     averageConnections:
       connectionSamples > 0 ? connectionSum / connectionSamples : null,
-    peakConnections: series.points.reduce(
-      (value, point) => Math.max(value, point.active_connections_max),
-      0,
-    ),
+    peakConnections:
+      connectionSamples > 0
+        ? series.points.reduce(
+            (value, point) =>
+              point.active_connections_samples > 0
+                ? Math.max(value, point.active_connections_max)
+                : value,
+            0,
+          )
+        : null,
     boundaryApproximate:
       overview.boundary_approximate || series.boundary_approximate,
     qualityEvents: quality.events,
@@ -109,27 +118,28 @@ export function buildHistoricalView(
   };
 }
 
-function weightedAverage(
+function sampledAverage(
   series: SeriesResponse,
-  key: "average_upload_bytes_per_second" | "average_download_bytes_per_second",
+  key: "speed_upload_sample_sum" | "speed_download_sample_sum",
 ) {
-  const elapsed = series.points.reduce(
-    (sum, point) => sum + point.elapsed_seconds,
+  const samples = series.points.reduce(
+    (sum, point) => sum + point.speed_sample_count,
     0,
   );
-  if (elapsed === 0) return null;
-  return (
-    series.points.reduce(
-      (sum, point) => sum + point[key] * point.elapsed_seconds,
-      0,
-    ) / elapsed
+  if (samples === 0) return null;
+  const sum = series.points.reduce(
+    (value, point) => value + BigInt(point[key]),
+    0n,
   );
+  const count = BigInt(samples);
+  return Number(sum / count) + Number(sum % count) / samples;
 }
 
 function max(
   series: SeriesResponse,
   key: "peak_upload_bytes_per_second" | "peak_download_bytes_per_second",
 ) {
-  if (series.points.length === 0) return null;
-  return series.points.reduce((value, point) => Math.max(value, point[key]), 0);
+  const sampled = series.points.filter((point) => point.speed_sample_count > 0);
+  if (sampled.length === 0) return null;
+  return sampled.reduce((value, point) => Math.max(value, point[key]), 0);
 }

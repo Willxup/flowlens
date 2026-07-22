@@ -4,19 +4,20 @@ FlowLens 是一个面向 sing-box Clash API 的自托管流量仪表盘。它将
 
 [在线 Demo](https://willxup.github.io/flowlens/) 使用固定的 RFC 文档地址和完全离线的数据，不会连接任何真实代理服务。
 
-| Overview                                                 | Traffic                                                  |
-| -------------------------------------------------------- | -------------------------------------------------------- |
-| ![FlowLens overview](assets/flowlens-light.png)          | ![FlowLens traffic history](assets/flowlens-traffic.png) |
-| Targets                                                  | Storage                                                  |
-| ![FlowLens target analysis](assets/flowlens-targets.png) | ![FlowLens storage health](assets/flowlens-storage.png)  |
+![FlowLens 单页流量仪表盘](assets/flowlens-light.png)
 
-![FlowLens Dark dashboard](assets/flowlens-dark.png)
+<details>
+<summary>深色主题</summary>
+
+![FlowLens 深色单页流量仪表盘](assets/flowlens-dark.png)
+
+</details>
 
 ## 功能
 
 - 实时上传/下载速度、1/5 分钟均值、60 分钟峰值和活动连接数。
-- 今天、昨天、7/30/90 天、今年、生命周期和自定义范围的历史统计。
-- 目标、端点、端口、网络、来源和域名六类近似归因，以及覆盖率和未归因流量。
+- 今天、昨天、7/30/90 天、今年和自定义范围的历史统计。
+- 目标 IP、Endpoint、端口、TCP/UDP、来源网段和域名六类近似归因，以及覆盖率和未归因流量。
 - host/endpoint 展示别名、静态流量拓扑和存储健康视图。
 - System、Light、Dark 三种主题和移动端响应式布局。
 - 严格 YAML 配置、共享密钥登录、内存 Cookie 会话、健康和就绪检查。

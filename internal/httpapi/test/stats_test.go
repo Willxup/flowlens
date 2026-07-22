@@ -42,6 +42,9 @@ func TestStage2StatisticsRoutesRequireSessionAndEncodeExactBytes(t *testing.T) {
 	series := request(t, handler, http.MethodGet, "/api/v1/series?from=100&to=200&resolution=auto", "", cookie)
 	if series.Code != http.StatusOK || !strings.Contains(series.Body.String(), `"upload_bytes":"18014398509481985"`) ||
 		!strings.Contains(series.Body.String(), `"source_resolution_sec":60`) ||
+		!strings.Contains(series.Body.String(), `"speed_upload_sample_sum":"60"`) ||
+		!strings.Contains(series.Body.String(), `"speed_download_sample_sum":"120"`) ||
+		!strings.Contains(series.Body.String(), `"speed_sample_count":6`) ||
 		!strings.Contains(series.Body.String(), `"boundary_approximate":true`) {
 		t.Fatalf("series response = status:%d body:%q", series.Code, series.Body.String())
 	}

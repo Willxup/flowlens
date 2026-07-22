@@ -1,7 +1,42 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type {
+  HistoricalRange,
+  LiveTargetsResponse,
+  OverviewResponse,
+} from "../../../api/contracts";
+import { UnauthorizedError } from "../../../api/production";
 import { DemoDataSource } from "../../../demo/source";
 import { DashboardPage } from "../DashboardPage";
+
+class FailingHistorySource extends DemoDataSource {
+  override async overview(_range: HistoricalRange): Promise<OverviewResponse> {
+    throw new Error("fixture unavailable");
+  }
+}
+
+class DifferentWindowLiveSource extends DemoDataSource {
+  override async liveTargets(): Promise<LiveTargetsResponse> {
+    const value = await super.liveTargets();
+    return {
+      ...value,
+      global_upload_bytes_per_second: 2_900_000,
+      global_download_bytes_per_second: 15_340_000,
+    };
+  }
+}
+
+class FailingLogoutSource extends DemoDataSource {
+  override async logout(): Promise<void> {
+    throw new Error("fixture unavailable");
+  }
+}
+
+class UnauthorizedLogoutSource extends DemoDataSource {
+  override async logout(): Promise<void> {
+    throw new UnauthorizedError();
+  }
+}
 
 describe("DashboardPage", () => {
   it("keeps the approved header and exposes one complete dashboard", async () => {
@@ -141,6 +176,8 @@ describe("DashboardPage", () => {
       <DashboardPage source={new DemoDataSource()} onUnauthorized={vi.fn()} />,
     );
     await userEvent.click(screen.getByRole("button", { name: "自定义" }));
+    await userEvent.click(screen.getByRole("button", { name: "2026-07-16" }));
+    await userEvent.click(screen.getByRole("button", { name: "2026-07-18" }));
     await userEvent.click(screen.getByRole("button", { name: "应用" }));
     expect(await screen.findByText("已近似")).toBeInTheDocument();
   });
@@ -175,5 +212,64 @@ describe("DashboardPage", () => {
     ).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "关闭别名" }));
     expect(screen.getByText("42.8 MiB")).toBeInTheDocument();
+  });
+
+  it("shows an explicit error instead of stale historical data", async () => {
+    render(
+      <DashboardPage
+        source={new FailingHistorySource()}
+        onUnauthorized={vi.fn()}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "今天" }));
+
+    expect(await screen.findByText("历史数据加载失败")).toBeInTheDocument();
+  });
+
+  it("uses the target snapshot window for realtime shares", async () => {
+    render(
+      <DashboardPage
+        source={new DifferentWindowLiveSource()}
+        onUnauthorized={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText(/占全局 25\.8%/)).toBeInTheDocument();
+  });
+
+  it("keeps the session visible when logout fails", async () => {
+    const onUnauthorized = vi.fn();
+    render(
+      <DashboardPage
+        source={new FailingLogoutSource()}
+        onUnauthorized={onUnauthorized}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "退出" }));
+
+    expect(onUnauthorized).not.toHaveBeenCalled();
+    expect(
+      await screen.findByRole("button", { name: "退出失败，请重试" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("leaves the dashboard when logout reports an unavailable session", async () => {
+    const onUnauthorized = vi.fn();
+    render(
+      <DashboardPage
+        source={new UnauthorizedLogoutSource()}
+        onUnauthorized={onUnauthorized}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "退出" }));
+
+    expect(onUnauthorized).toHaveBeenCalledOnce();
+    expect(
+      screen.queryByRole("button", { name: "退出失败，请重试" }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -97,6 +97,11 @@ select:focus-visible {
   color: var(--ink);
   background: var(--surface-soft);
 }
+.logout-button.failed,
+.logout-button.failed:hover {
+  color: var(--danger);
+  background: var(--surface-soft);
+}
 .live-status {
   display: inline-flex;
   align-items: center;

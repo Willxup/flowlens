@@ -60,6 +60,9 @@ type seriesPointResponse struct {
 	UnattributedDownloadBytes     string `json:"unattributed_download_bytes"`
 	AverageUploadBytesPerSecond   int64  `json:"average_upload_bytes_per_second"`
 	AverageDownloadBytesPerSecond int64  `json:"average_download_bytes_per_second"`
+	SpeedUploadSampleSum          string `json:"speed_upload_sample_sum"`
+	SpeedDownloadSampleSum        string `json:"speed_download_sample_sum"`
+	SpeedSampleCount              int64  `json:"speed_sample_count"`
 	PeakUploadBytesPerSecond      int64  `json:"peak_upload_bytes_per_second"`
 	PeakDownloadBytesPerSecond    int64  `json:"peak_download_bytes_per_second"`
 	CounterObservedSeconds        int64  `json:"counter_observed_seconds"`
@@ -158,6 +161,9 @@ func (h *handler) seriesResponse(writer http.ResponseWriter, request *http.Reque
 			UnattributedUploadBytes:     strconv.FormatInt(point.UnattributedUploadBytes, 10),
 			UnattributedDownloadBytes:   strconv.FormatInt(point.UnattributedDownloadBytes, 10),
 			AverageUploadBytesPerSecond: averageUpload, AverageDownloadBytesPerSecond: averageDownload,
+			SpeedUploadSampleSum:       strconv.FormatInt(point.SpeedUploadSampleSum, 10),
+			SpeedDownloadSampleSum:     strconv.FormatInt(point.SpeedDownloadSampleSum, 10),
+			SpeedSampleCount:           point.SpeedSampleCount,
 			PeakUploadBytesPerSecond:   point.PeakUploadBytesPerSecond,
 			PeakDownloadBytesPerSecond: point.PeakDownloadBytesPerSecond,
 			CounterObservedSeconds:     point.CounterObservedSeconds,

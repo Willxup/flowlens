@@ -208,6 +208,8 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
   expect(customDialogBox!.height).toBeLessThanOrEqual(480);
   expect(customDateCardBox!.height).toBeLessThanOrEqual(62);
   expect(calendarDayBox!.height).toBeLessThanOrEqual(30);
+  await page.getByRole("button", { name: "2026-07-16" }).click();
+  await page.getByRole("button", { name: "2026-07-18" }).click();
   await page.getByRole("button", { name: "应用" }).click();
   const customTotal = await page
     .locator(".chart-summary .chart-value")

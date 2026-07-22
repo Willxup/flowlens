@@ -71,6 +71,9 @@ func (h *handler) liveResponse(writer http.ResponseWriter, request *http.Request
 		case <-request.Context().Done():
 			return
 		case <-poll.C:
+			if !h.validSession(request) {
+				return
+			}
 			for _, sample := range h.live.Snapshot() {
 				stamp := sample.Timestamp.UnixNano()
 				if stamp <= lastTimestamp {

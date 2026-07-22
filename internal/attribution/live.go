@@ -19,11 +19,13 @@ type LiveTarget struct {
 
 // LiveSnapshot is the bounded immutable realtime attribution view.
 type LiveSnapshot struct {
-	ObservedAt         int64
-	IntervalMillis     int64
-	ActiveConnections  int64
-	ConnectionCoverage *float64
-	Targets            []LiveTarget
+	ObservedAt                   int64
+	IntervalMillis               int64
+	ActiveConnections            int64
+	GlobalUploadBytesPerSecond   int64
+	GlobalDownloadBytesPerSecond int64
+	ConnectionCoverage           *float64
+	Targets                      []LiveTarget
 }
 
 type liveAggregate struct {
@@ -51,6 +53,16 @@ func (tracker *Tracker) prepareLive(
 		return LiveSnapshot{}, ErrAttribution
 	}
 	snapshot.IntervalMillis = intervalMillis
+	globalUploadRate, ok := mulDivNonnegative(budget.Upload, 1000, intervalMillis)
+	if !ok {
+		return LiveSnapshot{}, ErrAttribution
+	}
+	globalDownloadRate, ok := mulDivNonnegative(budget.Download, 1000, intervalMillis)
+	if !ok {
+		return LiveSnapshot{}, ErrAttribution
+	}
+	snapshot.GlobalUploadBytesPerSecond = globalUploadRate
+	snapshot.GlobalDownloadBytesPerSecond = globalDownloadRate
 	if !contribution.Observed {
 		return snapshot, nil
 	}

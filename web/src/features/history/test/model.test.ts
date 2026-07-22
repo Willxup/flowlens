@@ -42,6 +42,9 @@ describe("buildHistoricalView", () => {
           unattributed_download_bytes: asByteString("2"),
           average_upload_bytes_per_second: 3,
           average_download_bytes_per_second: 4,
+          speed_upload_sample_sum: asByteString("30"),
+          speed_download_sample_sum: asByteString("40"),
+          speed_sample_count: 10,
           peak_upload_bytes_per_second: 8,
           peak_download_bytes_per_second: 9,
           counter_observed_seconds: 9,
@@ -66,5 +69,75 @@ describe("buildHistoricalView", () => {
     expect(view.unattributedBytes).toBe("3");
     expect(view.resetCount).toBe(2);
     expect(view.qualityEvents).toHaveLength(1);
+  });
+
+  it("weights historical speeds by real samples and preserves unavailable metrics", () => {
+    const point = {
+      bucket_start: 10,
+      bucket_end: 20,
+      elapsed_seconds: 10,
+      source_resolution_sec: 10,
+      upload_bytes: asByteString("0"),
+      download_bytes: asByteString("0"),
+      recovered_upload_bytes: asByteString("0"),
+      recovered_download_bytes: asByteString("0"),
+      unattributed_upload_bytes: asByteString("0"),
+      unattributed_download_bytes: asByteString("0"),
+      average_upload_bytes_per_second: 0,
+      average_download_bytes_per_second: 0,
+      speed_upload_sample_sum: asByteString("0"),
+      speed_download_sample_sum: asByteString("0"),
+      speed_sample_count: 0,
+      peak_upload_bytes_per_second: 0,
+      peak_download_bytes_per_second: 0,
+      counter_observed_seconds: 0,
+      active_connections_sum: 0,
+      active_connections_samples: 0,
+      active_connections_max: 0,
+      reset_count: 0,
+      quality_flags: 0,
+    };
+    const overview: OverviewResponse = {
+      current: totals("0", "0", 20, 0),
+      previous: totals("0", "0", 20, 0),
+      boundary_approximate: false,
+    };
+    const series: SeriesResponse = {
+      boundary_approximate: false,
+      points: [
+        {
+          ...point,
+          speed_upload_sample_sum: asByteString("1000"),
+          speed_download_sample_sum: asByteString("2000"),
+          speed_sample_count: 1,
+          average_upload_bytes_per_second: 1000,
+          average_download_bytes_per_second: 2000,
+          peak_upload_bytes_per_second: 1000,
+          peak_download_bytes_per_second: 2000,
+        },
+        {
+          ...point,
+          bucket_start: 20,
+          bucket_end: 30,
+          speed_sample_count: 10,
+        },
+      ],
+    };
+
+    const view = buildHistoricalView(overview, series, { events: [] });
+
+    expect(view.averageUpload).toBeCloseTo(1000 / 11);
+    expect(view.averageDownload).toBeCloseTo(2000 / 11);
+    expect(view.peakUpload).toBe(1000);
+    expect(view.averageConnections).toBeNull();
+    expect(view.peakConnections).toBeNull();
+
+    const unavailable = buildHistoricalView(
+      overview,
+      { boundary_approximate: false, points: [point] },
+      { events: [] },
+    );
+    expect(unavailable.averageUpload).toBeNull();
+    expect(unavailable.peakUpload).toBeNull();
   });
 });

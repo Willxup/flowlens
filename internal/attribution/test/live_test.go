@@ -31,7 +31,9 @@ func TestTrackerPublishesBoundedImmutableLiveTargets(t *testing.T) {
 	}
 	tracker.Commit(prepared)
 	snapshot := tracker.Snapshot()
-	if snapshot.IntervalMillis != 500 || snapshot.ActiveConnections != 3 || len(snapshot.Targets) != 1 {
+	if snapshot.IntervalMillis != 500 || snapshot.ActiveConnections != 3 ||
+		snapshot.GlobalUploadBytesPerSecond != 14 || snapshot.GlobalDownloadBytesPerSecond != 14 ||
+		len(snapshot.Targets) != 1 {
 		t.Fatalf("Snapshot() = %#v", snapshot)
 	}
 	target := snapshot.Targets[0]

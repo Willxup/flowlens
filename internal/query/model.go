@@ -60,11 +60,13 @@ type LiveTarget struct {
 
 // LiveTargets contains the current bounded realtime target view.
 type LiveTargets struct {
-	ObservedAt         int64
-	IntervalMillis     int64
-	ActiveConnections  int64
-	ConnectionCoverage *float64
-	Targets            []LiveTarget
+	ObservedAt                   int64
+	IntervalMillis               int64
+	ActiveConnections            int64
+	GlobalUploadBytesPerSecond   int64
+	GlobalDownloadBytesPerSecond int64
+	ConnectionCoverage           *float64
+	Targets                      []LiveTarget
 }
 
 // RuntimeSessionRecord omits the internal session identifier and totals.

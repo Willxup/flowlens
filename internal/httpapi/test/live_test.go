@@ -93,6 +93,52 @@ func TestLiveSSEStreamsSnapshotStatusAndNewSamples(t *testing.T) {
 	cancel()
 }
 
+func TestLiveSSEStopsAfterSessionIsRevoked(t *testing.T) {
+	ring, _ := collector.NewRing(4)
+	handler := liveHandler(t, ring)
+	cookie := loginCookie(t, handler)
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	request, _ := http.NewRequest(http.MethodGet, server.URL+"/api/v1/live", nil)
+	request.AddCookie(cookie)
+	response, err := server.Client().Do(request)
+	if err != nil {
+		t.Fatalf("GET live: %v", err)
+	}
+	defer response.Body.Close()
+	reader := bufio.NewReader(response.Body)
+	_ = readSSEEvent(t, reader)
+	_ = readSSEEvent(t, reader)
+
+	logout, _ := http.NewRequest(http.MethodDelete, server.URL+"/api/v1/session", nil)
+	logout.Host = strings.TrimPrefix(server.URL, "http://")
+	logout.Header.Set("Origin", server.URL)
+	logout.AddCookie(cookie)
+	logoutResponse, err := server.Client().Do(logout)
+	if err != nil {
+		t.Fatalf("DELETE session: %v", err)
+	}
+	logoutResponse.Body.Close()
+	if logoutResponse.StatusCode != http.StatusNoContent {
+		t.Fatalf("logout status = %d", logoutResponse.StatusCode)
+	}
+
+	ended := make(chan error, 1)
+	go func() {
+		_, err := reader.ReadString('\n')
+		ended <- err
+	}()
+	select {
+	case err := <-ended:
+		if err == nil {
+			t.Fatal("SSE remained open after session revocation")
+		}
+	case <-time.After(2500 * time.Millisecond):
+		t.Fatal("SSE did not stop after session revocation")
+	}
+}
+
 type sseEvent struct {
 	id   string
 	name string

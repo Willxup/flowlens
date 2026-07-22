@@ -25,15 +25,25 @@ export function toHistoricalRange(
   if (selection.kind === "custom") {
     const fromDate = parseDate(selection.from);
     const endDate = parseDate(selection.to);
+    const local = dateParts(now, timezone);
+    const currentDate = {
+      year: local.year,
+      month: local.month,
+      day: local.day,
+    };
     if (
       fromDate === null ||
       endDate === null ||
-      compareDate(fromDate, endDate) > 0
+      compareDate(fromDate, endDate) > 0 ||
+      compareDate(endDate, currentDate) > 0
     ) {
       throw new Error("invalid custom range");
     }
     const from = zonedMidnight(fromDate, timezone);
-    const customTo = zonedMidnight(addDays(endDate, 1), timezone);
+    const customTo =
+      compareDate(endDate, currentDate) === 0
+        ? to
+        : zonedMidnight(addDays(endDate, 1), timezone);
     if (customTo <= from) throw new Error("invalid custom range");
     return { from, to: customTo };
   }
@@ -63,6 +73,15 @@ export function toHistoricalRange(
     from: zonedMidnight({ year: local.year, month: 1, day: 1 }, timezone),
     to,
   };
+}
+
+export function dateInTimezone(now: Date, timezone: string): string {
+  const value = dateParts(now, timezone);
+  return [
+    value.year,
+    String(value.month).padStart(2, "0"),
+    String(value.day).padStart(2, "0"),
+  ].join("-");
 }
 
 function formatter(timezone: string): Intl.DateTimeFormat {

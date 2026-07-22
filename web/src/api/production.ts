@@ -201,7 +201,10 @@ export class ProductionDataSource implements FlowLensDataSource {
       };
       stream.addEventListener(name, receive as EventListener);
     }
-    stream.onopen = () => connection(true);
+    stream.onopen = () => {
+      lastSequence = 0;
+      connection(true);
+    };
     stream.onerror = () => connection(false);
     let closed = false;
     return () => {
@@ -349,7 +352,10 @@ function validResponse(value: unknown, shape: string | undefined): boolean {
       );
     case "live-targets":
       return (
-        Array.isArray(value.targets) && typeof value.observed_at === "number"
+        Array.isArray(value.targets) &&
+        typeof value.observed_at === "number" &&
+        nonnegativeInteger(value.global_upload_bytes_per_second) &&
+        nonnegativeInteger(value.global_download_bytes_per_second)
       );
     case "runtime-sessions":
       return Array.isArray(value.sessions);

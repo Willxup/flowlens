@@ -60,6 +60,8 @@ export function DashboardPage({
   const [candidates, setCandidates] = useState<LabelCandidateResponse[]>([]);
   const [sessions, setSessions] = useState<RuntimeSessionResponse[]>([]);
   const [aliasesOpen, setAliasesOpen] = useState(false);
+  const [aliasRevision, setAliasRevision] = useState(0);
+  const [logoutFailed, setLogoutFailed] = useState(false);
   const updateStatus = useCallback(
     (level: StatusResponse["status"], reason: string) => {
       setStatus((current) =>
@@ -72,6 +74,7 @@ export function DashboardPage({
   );
   const reloadLabels = useCallback(async () => {
     setLabels(await source.labels());
+    setAliasRevision((current) => current + 1);
   }, [source]);
 
   useEffect(() => {
@@ -106,6 +109,7 @@ export function DashboardPage({
     status.timezone,
     by,
     onUnauthorized,
+    aliasRevision,
   );
   const historicalRows = useMemo<HistoricalTargetRow[]>(
     () => history.targets?.items ?? [],
@@ -124,10 +128,16 @@ export function DashboardPage({
       : historicalRows;
 
   async function logout() {
+    setLogoutFailed(false);
     try {
       await source.logout();
-    } finally {
       onUnauthorized();
+    } catch (error) {
+      if (error instanceof UnauthorizedError) {
+        onUnauthorized();
+        return;
+      }
+      setLogoutFailed(true);
     }
   }
 
@@ -138,6 +148,7 @@ export function DashboardPage({
       status={status.status}
       sourceMode={source.demo ? "demo" : "app"}
       onLogout={() => void logout()}
+      logoutFailed={logoutFailed}
     >
       <section className="page-head">
         <div>
@@ -146,6 +157,7 @@ export function DashboardPage({
         </div>
         <RangeSelector
           value={selection}
+          now={source.now()}
           timezone={status.timezone}
           onChange={setSelection}
         />
@@ -174,7 +186,9 @@ export function DashboardPage({
                   : "SSE 重连中"
                 : history.loading
                   ? "正在加载"
-                  : "按范围查询"}
+                  : history.error
+                    ? "历史数据加载失败"
+                    : "按范围查询"}
             </span>
           </header>
           <div className="chart-summary">
@@ -384,7 +398,7 @@ export function DashboardPage({
           {liveMode ? (
             <TargetList
               live={live.targets}
-              liveTotalRate={sumRates(live.currentUpload, live.currentDownload)}
+              liveTotalRate={live.targetGlobalRate}
             />
           ) : (
             <TargetList historical={historicalRows} />
@@ -656,10 +670,6 @@ function DimensionSelect({
 
 function formatCount(value: number | null): string {
   return value === null ? "—" : value.toFixed(value % 1 === 0 ? 0 : 1);
-}
-
-function sumRates(left: number | null, right: number | null): number | null {
-  return left === null && right === null ? null : (left ?? 0) + (right ?? 0);
 }
 
 function formatInterval(value: number | null): string {

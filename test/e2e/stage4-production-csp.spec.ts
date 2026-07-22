@@ -15,6 +15,7 @@ const csp = [
 test("production bundle works with the shipped CSP and named SSE events", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 320, height: 720 });
   const cspErrors: string[] = [];
   const apiRequests: string[] = [];
   page.on("request", (request) => {
@@ -54,6 +55,13 @@ test("production bundle works with the shipped CSP and named SSE events", async 
       });
       return;
     }
+    if (
+      path === "/api/v1/session" &&
+      route.request().method() === "DELETE"
+    ) {
+      await route.fulfill({ status: 503 });
+      return;
+    }
     const response = fixtureResponse(path);
     if (response !== undefined) {
       await route.fulfill({ json: response });
@@ -73,6 +81,17 @@ test("production bundle works with the shipped CSP and named SSE events", async 
     page.getByText("Fixture · 198.51.100.20:443").first(),
   ).toBeVisible();
   await expect(page.locator(".chart-shell svg")).toBeVisible();
+  await page.locator(".logout-button").click();
+  await expect(
+    page.getByRole("button", { name: "退出失败，请重试" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth,
+    ),
+  ).toBeLessThanOrEqual(1);
   expect(cspErrors).toEqual([]);
 });
 
@@ -106,6 +125,8 @@ function fixtureResponse(path: string): unknown {
       observed_at: 1_700_000_000,
       interval_millis: 1000,
       active_connections: 2,
+      global_upload_bytes_per_second: 12,
+      global_download_bytes_per_second: 34,
       connection_coverage: 1,
       targets: [
         {

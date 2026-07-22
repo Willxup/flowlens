@@ -503,6 +503,8 @@
     "observed_at": 1784523600,
     "interval_millis": 10012,
     "active_connections": 17,
+    "global_upload_bytes_per_second": 1450000,
+    "global_download_bytes_per_second": 7670000,
     "connection_coverage": 0.947,
     "targets": [
       {

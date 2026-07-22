@@ -25,6 +25,7 @@ export interface LiveView {
   connected: boolean;
   observedAt: number | null;
   intervalMillis: number | null;
+  targetGlobalRate: number | null;
   hasGap: boolean;
   chart: LiveChartPoint[];
   targets: LiveTargetsResponse["targets"];
@@ -61,6 +62,11 @@ export function buildLiveView(
     connected,
     observedAt: targets?.observed_at ?? null,
     intervalMillis: targets?.interval_millis ?? null,
+    targetGlobalRate:
+      targets === null
+        ? null
+        : targets.global_upload_bytes_per_second +
+          targets.global_download_bytes_per_second,
     hasGap: chart.some((point) => point.upload === null),
     chart,
     targets: targets?.targets ?? [],

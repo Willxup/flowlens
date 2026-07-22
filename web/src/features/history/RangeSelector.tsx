@@ -1,8 +1,10 @@
 import { useState } from "react";
 import type { TimeSelection } from "../../api/contracts";
+import { dateInTimezone } from "../../lib/time-range";
 
 interface RangeSelectorProps {
   value: TimeSelection;
+  now: Date;
   timezone?: string;
   onChange: (value: TimeSelection) => void;
 }
@@ -33,20 +35,22 @@ interface CalendarDay {
 
 export function RangeSelector({
   value,
+  now,
   timezone = "UTC",
   onChange,
 }: RangeSelectorProps) {
   const [customOpen, setCustomOpen] = useState(false);
-  const [from, setFrom] = useState("2026-07-01");
-  const [to, setTo] = useState("2026-07-14");
+  const currentDate = dateInTimezone(now, timezone);
+  const [from, setFrom] = useState(currentDate);
+  const [to, setTo] = useState(currentDate);
   const [activeField, setActiveField] = useState<DateField>("from");
   const [calendarMonth, setCalendarMonth] = useState<CalendarMonth>({
-    year: 2026,
-    month: 7,
+    ...monthFromDate(currentDate),
   });
   const selected = (candidate: TimeSelection) =>
     JSON.stringify(candidate) === JSON.stringify(value);
-  const validCustomRange = from !== "" && to !== "" && from <= to;
+  const validCustomRange =
+    from !== "" && to !== "" && from <= to && to <= currentDate;
 
   function openCustom() {
     if (value.kind === "custom") {
@@ -54,7 +58,9 @@ export function RangeSelector({
       setTo(value.to);
       setCalendarMonth(monthFromDate(value.from));
     } else {
-      setCalendarMonth(monthFromDate(from));
+      setFrom(currentDate);
+      setTo(currentDate);
+      setCalendarMonth(monthFromDate(currentDate));
     }
     setActiveField("from");
     setCustomOpen(true);
@@ -173,6 +179,7 @@ export function RangeSelector({
                       .join(" ")}
                     key={date.value}
                     type="button"
+                    disabled={date.value > currentDate}
                     aria-label={date.value}
                     aria-pressed={endpoint}
                     onClick={() => {

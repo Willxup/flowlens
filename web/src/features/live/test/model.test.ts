@@ -22,6 +22,8 @@ const targets: LiveTargetsResponse = {
   observed_at: 100,
   interval_millis: 1000,
   active_connections: 3,
+  global_upload_bytes_per_second: 100,
+  global_download_bytes_per_second: 200,
   connection_coverage: 0.9,
   targets: [],
 };
@@ -56,6 +58,7 @@ describe("buildLiveView", () => {
     expect(view.connected).toBe(true);
     expect(view.observedAt).toBe(100);
     expect(view.intervalMillis).toBe(1000);
+    expect(view.targetGlobalRate).toBe(300);
     expect(view.hasGap).toBe(true);
   });
 

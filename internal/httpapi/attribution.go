@@ -110,12 +110,20 @@ func (handler *handler) liveTargetsResponse(writer http.ResponseWriter, request 
 		})
 	}
 	writeJSON(writer, struct {
-		ObservedAt         int64                `json:"observed_at"`
-		IntervalMillis     int64                `json:"interval_millis"`
-		ActiveConnections  int64                `json:"active_connections"`
-		ConnectionCoverage *float64             `json:"connection_coverage"`
-		Targets            []liveTargetResponse `json:"targets"`
-	}{value.ObservedAt, value.IntervalMillis, value.ActiveConnections, value.ConnectionCoverage, targets})
+		ObservedAt                   int64                `json:"observed_at"`
+		IntervalMillis               int64                `json:"interval_millis"`
+		ActiveConnections            int64                `json:"active_connections"`
+		GlobalUploadBytesPerSecond   int64                `json:"global_upload_bytes_per_second"`
+		GlobalDownloadBytesPerSecond int64                `json:"global_download_bytes_per_second"`
+		ConnectionCoverage           *float64             `json:"connection_coverage"`
+		Targets                      []liveTargetResponse `json:"targets"`
+	}{
+		ObservedAt: value.ObservedAt, IntervalMillis: value.IntervalMillis,
+		ActiveConnections:            value.ActiveConnections,
+		GlobalUploadBytesPerSecond:   value.GlobalUploadBytesPerSecond,
+		GlobalDownloadBytesPerSecond: value.GlobalDownloadBytesPerSecond,
+		ConnectionCoverage:           value.ConnectionCoverage, Targets: targets,
+	})
 }
 
 func (handler *handler) runtimeSessionsResponse(writer http.ResponseWriter, request *http.Request) {

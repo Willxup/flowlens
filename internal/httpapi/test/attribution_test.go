@@ -22,7 +22,8 @@ func TestStage3AttributionRoutesAuthenticateAndEncodeExplicitDTOs(t *testing.T) 
 		Unattributed: storage.ByteTotals{Upload: 30, Download: 40},
 		Items:        []query.BreakdownItem{{RawValue: "198.51.100.1:443", DisplayName: "API", NetworkCode: 1, UploadBytes: 50, DownloadBytes: 60}},
 	}
-	queries.live = query.LiveTargets{ObservedAt: 100, IntervalMillis: 1000, ActiveConnections: 2, ConnectionCoverage: &coverage,
+	queries.live = query.LiveTargets{ObservedAt: 100, IntervalMillis: 1000, ActiveConnections: 2,
+		GlobalUploadBytesPerSecond: 70, GlobalDownloadBytesPerSecond: 80, ConnectionCoverage: &coverage,
 		Targets: []query.LiveTarget{{RawEndpoint: "198.51.100.1:443", DisplayName: "API", NetworkCode: 1, UploadBytesPerSecond: 50, DownloadBytesPerSecond: 60}}}
 	queries.sessions = []query.RuntimeSessionRecord{{StartedAt: 10, LastSeenAt: 20, StartReason: "startup", SingBoxVersion: "fixture"}}
 	handler := statsHandler(t, queries)
@@ -36,6 +37,8 @@ func TestStage3AttributionRoutesAuthenticateAndEncodeExplicitDTOs(t *testing.T) 
 	}
 	live := request(t, handler, http.MethodGet, "/api/v1/connections/live", "", cookie)
 	if live.Code != http.StatusOK || !strings.Contains(live.Body.String(), `"upload_bytes_per_second":50`) ||
+		!strings.Contains(live.Body.String(), `"global_upload_bytes_per_second":70`) ||
+		!strings.Contains(live.Body.String(), `"global_download_bytes_per_second":80`) ||
 		strings.Contains(live.Body.String(), `"upload_bytes":`) || strings.Contains(live.Body.String(), "192.0.2.") {
 		t.Fatalf("live = status:%d body:%q", live.Code, live.Body.String())
 	}

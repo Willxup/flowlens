@@ -3,9 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { RangeSelector } from "../RangeSelector";
 
 describe("RangeSelector", () => {
+  const now = new Date("2026-07-22T04:00:00Z");
+
   it("temporarily hides the all-data range", () => {
     const onChange = vi.fn();
-    render(<RangeSelector value={{ kind: "live" }} onChange={onChange} />);
+    render(
+      <RangeSelector value={{ kind: "live" }} now={now} onChange={onChange} />,
+    );
     expect(screen.queryByText("生命周期")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "全部" }),
@@ -19,6 +23,7 @@ describe("RangeSelector", () => {
     render(
       <RangeSelector
         value={{ kind: "preset", preset: "90d" }}
+        now={now}
         onChange={vi.fn()}
       />,
     );
@@ -42,6 +47,7 @@ describe("RangeSelector", () => {
     render(
       <RangeSelector
         value={{ kind: "preset", preset: "30d" }}
+        now={now}
         onChange={onChange}
       />,
     );
@@ -60,14 +66,16 @@ describe("RangeSelector", () => {
   it("selects and applies dates through date cards and the calendar", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    render(<RangeSelector value={{ kind: "live" }} onChange={onChange} />);
+    render(
+      <RangeSelector value={{ kind: "live" }} now={now} onChange={onChange} />,
+    );
 
     await user.click(screen.getByRole("button", { name: "自定义" }));
     const start = screen.getByRole("button", {
-      name: "开始日期 2026-07-01",
+      name: "开始日期 2026-07-22",
     });
     const end = screen.getByRole("button", {
-      name: "结束日期 2026-07-14",
+      name: "结束日期 2026-07-22",
     });
     expect(start).toHaveAttribute("aria-pressed", "true");
     expect(end).toHaveAttribute("aria-pressed", "false");
@@ -88,7 +96,9 @@ describe("RangeSelector", () => {
 
   it("moves the calendar between months", async () => {
     const user = userEvent.setup();
-    render(<RangeSelector value={{ kind: "live" }} onChange={vi.fn()} />);
+    render(
+      <RangeSelector value={{ kind: "live" }} now={now} onChange={vi.fn()} />,
+    );
 
     await user.click(screen.getByRole("button", { name: "自定义" }));
     expect(
@@ -102,5 +112,27 @@ describe("RangeSelector", () => {
     expect(
       screen.getByRole("heading", { name: "2026 年 7 月" }),
     ).toBeInTheDocument();
+  });
+
+  it("uses the configured-zone current date and disables future dates", async () => {
+    const user = userEvent.setup();
+    render(
+      <RangeSelector
+        value={{ kind: "live" }}
+        now={new Date("2027-03-05T20:00:00Z")}
+        timezone="Asia/Shanghai"
+        onChange={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "自定义" }));
+
+    expect(
+      screen.getByRole("button", { name: "开始日期 2027-03-06" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "结束日期 2027-03-06" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "2027-03-07" })).toBeDisabled();
   });
 });

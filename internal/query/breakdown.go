@@ -149,7 +149,9 @@ func (service *Service) LiveTargets(ctx context.Context) (LiveTargets, error) {
 	}
 	result := LiveTargets{
 		ObservedAt: snapshot.ObservedAt, IntervalMillis: snapshot.IntervalMillis,
-		ActiveConnections: snapshot.ActiveConnections,
+		ActiveConnections:            snapshot.ActiveConnections,
+		GlobalUploadBytesPerSecond:   snapshot.GlobalUploadBytesPerSecond,
+		GlobalDownloadBytesPerSecond: snapshot.GlobalDownloadBytesPerSecond,
 	}
 	if snapshot.ConnectionCoverage != nil {
 		coverage := *snapshot.ConnectionCoverage

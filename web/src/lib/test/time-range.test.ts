@@ -87,4 +87,21 @@ describe("historical ranges", () => {
       ),
     ).toThrow("invalid custom range");
   });
+
+  it("ends a current-day custom range at now and rejects future dates", () => {
+    expect(
+      range(
+        { kind: "custom", from: "2026-07-20", to: "2026-07-20" },
+        "2026-07-20T05:00:00Z",
+        "Asia/Shanghai",
+      ),
+    ).toEqual({ from: 1784476800, to: 1784523600 });
+    expect(() =>
+      range(
+        { kind: "custom", from: "2026-07-20", to: "2026-07-21" },
+        "2026-07-20T05:00:00Z",
+        "Asia/Shanghai",
+      ),
+    ).toThrow("invalid custom range");
+  });
 });
