@@ -91,24 +91,26 @@ export function mockHistory(range: HistoricalRange, now: number): MockHistory {
 
 export function generateLiveSamples(now: number): LiveSampleResponse[] {
   return Array.from({ length: 3600 }, (_, index) => {
-    const cycle = index % 600;
-    const triangle = cycle <= 300 ? cycle : 600 - cycle;
-    const eveningBurst = index % 900 >= 690 ? 1_450_000 : 0;
+    const progress = index / 3599;
+    const angle = progress * Math.PI * 2;
     const sample: LiveSampleResponse = {
       timestamp: now - 3599 + index,
-      upload_bytes_per_second:
-        720_000 + triangle * 1_800 + ((index * 7_919) % 310_000),
-      download_bytes_per_second:
-        3_850_000 +
-        triangle * 8_400 +
-        ((index * 15_407) % 860_000) +
-        eveningBurst,
+      upload_bytes_per_second: Math.round(
+        1_050_000 +
+          Math.sin(angle * 2 + Math.PI / 2) * 300_000 +
+          Math.sin(angle * 6 + Math.PI / 2) * 100_000 +
+          Math.sin(angle * 10) * 50_000,
+      ),
+      download_bytes_per_second: Math.round(
+        5_800_000 +
+          Math.sin(angle * 2 + Math.PI / 2) * 1_450_000 +
+          Math.sin(angle * 5 + Math.PI / 2) * 420_000 +
+          Math.sin(angle * 8) * 80_000,
+      ),
       active_connections: 11 + ((index * 7 + Math.floor(index / 60)) % 18),
       status: index >= 1710 && index < 1722 ? "degraded" : "ok",
     };
     if (index === 3599) {
-      sample.upload_bytes_per_second = 1_450_000;
-      sample.download_bytes_per_second = 7_670_000;
       sample.active_connections = 17;
     }
     return sample;

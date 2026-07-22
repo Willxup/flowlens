@@ -1,6 +1,34 @@
 import { DemoDataSource, DemoReadOnlyError } from "../source";
+import { generateLiveSamples } from "../mock-history";
 
 describe("DemoDataSource", () => {
+  it("generates continuous live traffic without sawtooth resets", () => {
+    const samples = generateLiveSamples(1_800_000_000);
+    const uploadSteps = samples
+      .slice(1)
+      .map((sample, index) =>
+        Math.abs(
+          sample.upload_bytes_per_second -
+            samples[index]!.upload_bytes_per_second,
+        ),
+      );
+    const downloadSteps = samples
+      .slice(1)
+      .map((sample, index) =>
+        Math.abs(
+          sample.download_bytes_per_second -
+            samples[index]!.download_bytes_per_second,
+        ),
+      );
+
+    expect(Math.max(...uploadSteps)).toBeLessThan(4_000);
+    expect(Math.max(...downloadSteps)).toBeLessThan(10_000);
+    expect(samples.at(-1)).toMatchObject({
+      upload_bytes_per_second: 1_450_000,
+      download_bytes_per_second: 7_670_000,
+    });
+  });
+
   it("is deterministic and never touches production networking", async () => {
     const fetchTrap = vi
       .spyOn(globalThis, "fetch")
