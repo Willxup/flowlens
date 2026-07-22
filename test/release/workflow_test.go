@@ -23,6 +23,11 @@ func TestCIWorkflowRunsProductAndReleaseChecksWithoutDeploymentPermissions(t *te
 			t.Errorf("CI workflow missing %q", value)
 		}
 	}
+	for _, step := range strings.Split(contents, "\n      - ") {
+		if strings.Contains(step, "uses: actions/setup-node@") && strings.Contains(step, "cache: false") {
+			t.Error("setup-node cache input must be omitted or name npm, yarn, or pnpm")
+		}
+	}
 	assertNoDeploymentPermissions(t, "CI", contents)
 }
 
