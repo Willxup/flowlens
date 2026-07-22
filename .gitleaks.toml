@@ -1,0 +1,17 @@
+title = "FlowLens release secret scan"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Explicit unusable test credentials and RFC documentation addresses"
+regexTarget = "match"
+regexes = [
+  '''fixture-clash-secret''',
+  '''fixture-access-key(?:-123456)?''',
+  '''environment-clash-secret''',
+  '''environment-access-key''',
+  '''clash-secret-must-not-leak''',
+  '''access-key-must-not-leak''',
+  '''(?:192\.0\.2|198\.51\.100|203\.0\.113)\.[0-9]{1,3}''',
+]

@@ -1,8 +1,6 @@
 services:
   flowlens:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: "${FLOWLENS_IMAGE:-ghcr.io/willxup/flowlens:latest}"
     user: "10001:10001"
     restart: unless-stopped
     read_only: true

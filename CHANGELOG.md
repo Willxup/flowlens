@@ -1,0 +1,21 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- Self-hosted dashboard for live speed, exact historical totals, approximate connection attribution, data quality, and SQLite storage state.
+- Strict YAML configuration, same-origin shared-key sessions, health/readiness checks, and bounded Clash API collection.
+- Multi-resolution SQLite rollups, retention, capacity protection, validated local backups, and manual restore tooling.
+- Responsive embedded React interface with system, light, and dark themes.
+
+### Security
+
+- Non-root scratch container and hardened Compose defaults.
+- Redaction boundaries for secrets, paths, session data, and public examples.
+
+[Unreleased]: https://github.com/Willxup/flowlens/compare/main...HEAD

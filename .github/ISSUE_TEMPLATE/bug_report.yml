@@ -1,0 +1,55 @@
+name: Bug report
+description: Report a reproducible FlowLens defect without private deployment data.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include access keys, Clash Secrets, Cookies, real configuration, databases, backups, or private addresses.
+  - type: input
+    id: version
+    attributes:
+      label: FlowLens version
+      description: Image tag or output of `flowlens version`.
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: architecture
+    attributes:
+      label: Architecture
+      options:
+        - linux/amd64
+        - linux/arm64
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the observed and expected behavior using sanitized data.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Start FlowLens with ...
+        2. Open ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: checks
+    attributes:
+      label: Diagnostic results
+      description: Include sanitized `healthcheck` and `doctor` results; never paste configuration values.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed credentials, Cookies, private addresses, databases, backups, and real configuration.
+          required: true

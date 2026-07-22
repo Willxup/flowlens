@@ -80,6 +80,9 @@ func New(options Options) (http.Handler, error) {
 }
 
 func (h *handler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	if strings.HasPrefix(request.URL.Path, "/api/") {
+		writer = &apiResponseWriter{ResponseWriter: writer}
+	}
 	setSecurityHeaders(writer.Header())
 	if h.webResponse(writer, request) {
 		return

@@ -9,7 +9,8 @@
 /data/
 
 # Internal development plans
-/docs/
+/docs/*
+!/docs/api-sse.md
 
 # Go build and test outputs
 *.test

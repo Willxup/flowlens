@@ -43,15 +43,66 @@ chmod 600 config/config.yaml
 chmod 700 data
 ```
 
-让 sing-box 加入 `flowlens_private`，然后构建并启动：
+让 sing-box 加入 `flowlens_private`，然后拉取并启动已发布镜像：
 
 ```bash
-docker compose -f docker-compose.example.yml up -d --build
+FLOWLENS_IMAGE=ghcr.io/willxup/flowlens:v0.1.0 \
+  docker compose -f docker-compose.example.yml pull
+FLOWLENS_IMAGE=ghcr.io/willxup/flowlens:v0.1.0 \
+  docker compose -f docker-compose.example.yml up -d
 ```
 
 打开 [http://127.0.0.1:8080](http://127.0.0.1:8080)，使用 `auth.access_key` 登录。Compose 默认只将 FlowLens 发布到宿主机 loopback，不会发布 Clash API。
 
 完整配置说明见 [`config/config.example.yaml`](config/config.example.yaml)。FlowLens 固定读取 `/etc/flowlens/config.yaml`；Compose 将配置只读挂载，并把 SQLite 数据和备份保存在 `./data/`。
+
+## 运行与维护
+
+检查容器内 Web 健康状态：
+
+```bash
+docker compose -f docker-compose.example.yml exec flowlens /flowlens healthcheck
+```
+
+`doctor` 是离线检查：它会取得数据目录锁，只读检查配置、已有 SQLite 数据库及必要的 Clash API 能力，不会创建数据库或执行迁移。先停止正在运行的实例：
+
+```bash
+docker compose -f docker-compose.example.yml stop flowlens
+docker compose -f docker-compose.example.yml run --rm flowlens doctor
+docker compose -f docker-compose.example.yml up -d
+```
+
+FlowLens 会按 `backup.local_time` 自动创建经过校验的本地备份，并按 `daily_keep`、`monthly_keep` 保留。手动备份同样需要独占数据目录，因此要短暂停止服务：
+
+```bash
+docker compose -f docker-compose.example.yml stop flowlens
+docker compose -f docker-compose.example.yml run --rm flowlens backup
+docker compose -f docker-compose.example.yml up -d
+```
+
+恢复前先停止服务，并对清单做完整校验。清单路径必须使用容器内绝对路径：
+
+```bash
+docker compose -f docker-compose.example.yml stop flowlens
+docker compose -f docker-compose.example.yml run --rm flowlens \
+  restore --check /var/lib/flowlens/backups/flowlens-YYYYMMDDTHHMMSSZ.manifest.json
+docker compose -f docker-compose.example.yml run --rm flowlens \
+  restore --output /var/lib/flowlens/restored.db \
+  /var/lib/flowlens/backups/flowlens-YYYYMMDDTHHMMSSZ.manifest.json
+```
+
+`restore --output` 只创建不存在的新数据库，绝不会覆盖配置中的活动数据库。确认恢复文件后，在宿主机保存原 `data/flowlens.db*`，把 `data/restored.db` 原子替换为 `data/flowlens.db`，再启动并运行 `doctor`。
+
+升级前建议先运行一次手动备份，然后更新镜像标签：
+
+```bash
+FLOWLENS_IMAGE=ghcr.io/willxup/flowlens:v0.1.0 \
+  docker compose -f docker-compose.example.yml pull
+FLOWLENS_IMAGE=ghcr.io/willxup/flowlens:v0.1.0 \
+  docker compose -f docker-compose.example.yml up -d
+```
+
+FlowLens 在需要迁移数据库时会先创建升级前快照。不要跨版本跳过备份，也不要在两个 FlowLens 实例之间共享同一个数据目录。
 
 ## 数据语义
 
@@ -68,6 +119,16 @@ docker compose -f docker-compose.example.yml up -d --build
 - FlowLens 不内置 TLS；如需远程访问，请在可信反向代理后提供 HTTPS。
 - 容器以 `10001:10001` 运行，最终镜像为 scratch；示例 Compose 使用只读根文件系统并移除全部 Linux capabilities。
 - 不要提交真实 `config/config.yaml`、Secret、Cookie、数据库、备份或未脱敏日志。
+
+## 故障排查
+
+- `healthcheck` 失败：确认容器正在运行、`server.listen` 端口与 Compose 容器端口一致。
+- `doctor` 的 storage 检查失败：确认数据卷权限为 `10001:10001`，数据库存在，且没有第二个 FlowLens 实例占用同一目录。
+- Clash API 检查失败：确认 sing-box 与 FlowLens 在同一私有网络、URL 使用服务名和显式端口、Secret 完全一致，并已启用 Clash API。
+- 页面显示采集降级：查看数据质量事件；缺失区间不会被伪装为零流量。
+- 达到存储软上限：FlowLens 会优先停止创建新的具体维度并保留精确全局数据；调整保留期或软上限后重启。
+
+公开 HTTP 契约见 [`api/openapi.yaml`](api/openapi.yaml)，实时事件语义见 [`docs/api-sse.md`](docs/api-sse.md)。安全问题请按 [`SECURITY.md`](SECURITY.md) 私下报告。
 
 ## 开发
 

@@ -1,0 +1,710 @@
+openapi: 3.1.0
+info:
+  title: FlowLens HTTP API
+  version: 0.1.0
+  description: |
+    Same-origin API used by the embedded FlowLens dashboard. Unix timestamps are
+    seconds unless a field explicitly says milliseconds. Historical global byte
+    totals are exact; dimensional breakdowns are approximate.
+servers:
+  - url: /
+paths:
+  /healthz:
+    get:
+      operationId: healthcheck
+      summary: Process liveness
+      security: []
+      responses:
+        "204":
+          description: The FlowLens process is running.
+        "405":
+          description: Only GET is accepted.
+  /readyz:
+    get:
+      operationId: readiness
+      summary: Collector readiness
+      security: []
+      responses:
+        "204":
+          description: FlowLens has reached a ready collector state.
+        "503":
+          description: FlowLens is not ready yet.
+        "405":
+          description: Only GET is accepted.
+  /api/v1/session:
+    post:
+      operationId: createSession
+      summary: Log in with the configured access key
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/Origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "204":
+          description: Session created.
+          headers:
+            Set-Cookie:
+              description: HttpOnly, SameSite=Strict `flowlens_session` Cookie scoped to `/`.
+              schema:
+                type: string
+        "400": { $ref: "#/components/responses/JSONError" }
+        "401": { $ref: "#/components/responses/JSONError" }
+        "403": { $ref: "#/components/responses/JSONError" }
+        "413": { $ref: "#/components/responses/JSONError" }
+        "415": { $ref: "#/components/responses/JSONError" }
+        "503": { $ref: "#/components/responses/JSONError" }
+    delete:
+      operationId: deleteSession
+      summary: Log out and invalidate the current session
+      parameters:
+        - $ref: "#/components/parameters/Origin"
+      responses:
+        "204":
+          description: Session invalidated and Cookie expired.
+          headers:
+            Set-Cookie:
+              description: Expired `flowlens_session` Cookie.
+              schema:
+                type: string
+        "401": { $ref: "#/components/responses/JSONError" }
+        "403": { $ref: "#/components/responses/JSONError" }
+  /api/v1/status:
+    get:
+      operationId: getStatus
+      summary: Read collector status and available dimensions
+      responses:
+        "200":
+          description: Current status.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StatusResponse" }
+        "401": { $ref: "#/components/responses/JSONError" }
+        "405": { $ref: "#/components/responses/JSONError" }
+  /api/v1/live:
+    get:
+      operationId: streamLive
+      summary: Stream recent and new one-second samples
+      responses:
+        "200":
+          description: |
+            Named SSE events: `snapshot`, `sample`, `status`, and `heartbeat`.
+            Event IDs are connection-local sequence numbers; reconnecting starts
+            with a new snapshot rather than replaying `Last-Event-ID`.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "400": { $ref: "#/components/responses/JSONError" }
+        "401": { $ref: "#/components/responses/JSONError" }
+        "405": { $ref: "#/components/responses/JSONError" }
+        "503": { $ref: "#/components/responses/JSONError" }
+  /api/v1/overview:
+    get:
+      operationId: getOverview
+      summary: Compare exact totals with the previous equal-duration range
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+      responses:
+        "200":
+          description: Current and previous totals.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OverviewResponse" }
+        "400": { $ref: "#/components/responses/JSONError" }
+        "401": { $ref: "#/components/responses/JSONError" }
+        "405": { $ref: "#/components/responses/JSONError" }
+        "503": { $ref: "#/components/responses/JSONError" }
+  /api/v1/series:
+    get:
+      operationId: getSeries
+      summary: Read an automatically resolved historical series
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - name: resolution
+          in: query
+          required: false
+          description: Omit or set to `auto`; explicit storage resolutions are not public.
+          schema:
+            type: string
+            enum: [auto]
+      responses:
+        "200":
+          description: Historical series.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SeriesResponse" }
+        "400": { $ref: "#/components/responses/JSONError" }
+        "401": { $ref: "#/components/responses/JSONError" }
+        "405": { $ref: "#/components/responses/JSONError" }
+        "503": { $ref: "#/components/responses/JSONError" }
+  /api/v1/quality:
+    get:
+      operationId: getQuality
+      summary: Read data-quality events intersecting a range
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+      responses:
+        "200":
+          description: Quality events.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QualityResponse" }
+        "400": { $ref: "#/components/responses/JSONError" }
+        "401": { $ref: "#/components/responses/JSONError" }
+        "405": { $ref: "#/components/responses/JSONError" }
+        "503": { $ref: "#/components/responses/JSONError" }
+  /api/v1/storage:
+    get:
+      operationId: getStorage
+      summary: Read non-sensitive SQLite capacity state
+      responses:
+        "200":
+          description: Storage state.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StorageResponse" }
+        "400": { $ref: "#/components/responses/JSONError" }
+        "401": { $ref: "#/components/responses/JSONError" }
+        "405": { $ref: "#/components/responses/JSONError" }
+        "503": { $ref: "#/components/responses/JSONError" }
+  /api/v1/breakdown:
+    get:
+      operationId: getBreakdown
+      summary: Read an approximate dimensional Top K breakdown
+      parameters:
+        - $ref: "#/components/parameters/From"
+        - $ref: "#/components/parameters/To"
+        - name: by
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [target, endpoint, port, network, source, domain]
+      responses:
+        "200":
+          description: Conserving dimensional breakdown.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BreakdownResponse" }
+        "400": { $ref: "#/components/responses/JSONError" }
+        "401": { $ref: "#/components/responses/JSONError" }
+        "405": { $ref: "#/components/responses/JSONError" }
+        "503": { $ref: "#/components/responses/JSONError" }
+  /api/v1/connections/live:
+    get:
+      operationId: getLiveTargets
+      summary: Read the bounded live endpoint ranking
+      responses:
+        "200":
+          description: Current approximate endpoint attribution.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LiveTargetsResponse" }
+        "400": { $ref: "#/components/responses/JSONError" }
+        "401": { $ref: "#/components/responses/JSONError" }
+        "405": { $ref: "#/components/responses/JSONError" }
+        "503": { $ref: "#/components/responses/JSONError" }
+  /api/v1/runtime-sessions:
+    get:
+      operationId: getRuntimeSessions
+      summary: Read sing-box counter continuity sessions
+      responses:
+        "200":
+          description: Runtime sessions, newest first.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RuntimeSessionsResponse" }
+        "400": { $ref: "#/components/responses/JSONError" }
+        "401": { $ref: "#/components/responses/JSONError" }
+        "405": { $ref: "#/components/responses/JSONError" }
+        "503": { $ref: "#/components/responses/JSONError" }
+  /api/v1/labels:
+    get:
+      operationId: getLabels
+      summary: List endpoint and host aliases
+      responses:
+        "200":
+          description: Saved labels.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LabelsResponse" }
+        "400": { $ref: "#/components/responses/JSONError" }
+        "401": { $ref: "#/components/responses/JSONError" }
+        "405": { $ref: "#/components/responses/JSONError" }
+        "503": { $ref: "#/components/responses/JSONError" }
+    post:
+      operationId: createLabel
+      summary: Create an endpoint or host alias
+      parameters:
+        - $ref: "#/components/parameters/Origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateLabelRequest" }
+      responses:
+        "201":
+          description: Label created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Label" }
+        "400": { $ref: "#/components/responses/JSONError" }
+        "401": { $ref: "#/components/responses/JSONError" }
+        "403": { $ref: "#/components/responses/JSONError" }
+        "405": { $ref: "#/components/responses/JSONError" }
+        "409": { $ref: "#/components/responses/JSONError" }
+        "413": { $ref: "#/components/responses/JSONError" }
+        "415": { $ref: "#/components/responses/JSONError" }
+        "503": { $ref: "#/components/responses/JSONError" }
+  /api/v1/labels/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+    put:
+      operationId: updateLabel
+      summary: Rename an existing alias
+      parameters:
+        - $ref: "#/components/parameters/Origin"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateLabelRequest" }
+      responses:
+        "200":
+          description: Updated label.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Label" }
+        "400": { $ref: "#/components/responses/JSONError" }
+        "401": { $ref: "#/components/responses/JSONError" }
+        "403": { $ref: "#/components/responses/JSONError" }
+        "404": { $ref: "#/components/responses/JSONError" }
+        "405": { $ref: "#/components/responses/JSONError" }
+        "409": { $ref: "#/components/responses/JSONError" }
+        "413": { $ref: "#/components/responses/JSONError" }
+        "415": { $ref: "#/components/responses/JSONError" }
+        "503": { $ref: "#/components/responses/JSONError" }
+    delete:
+      operationId: deleteLabel
+      summary: Delete an alias
+      parameters:
+        - $ref: "#/components/parameters/Origin"
+      responses:
+        "204":
+          description: Label deleted.
+        "400": { $ref: "#/components/responses/JSONError" }
+        "401": { $ref: "#/components/responses/JSONError" }
+        "403": { $ref: "#/components/responses/JSONError" }
+        "404": { $ref: "#/components/responses/JSONError" }
+        "405": { $ref: "#/components/responses/JSONError" }
+        "503": { $ref: "#/components/responses/JSONError" }
+  /api/v1/label-candidates:
+    get:
+      operationId: getLabelCandidates
+      summary: List recent observed alias candidates
+      responses:
+        "200":
+          description: Candidates ranked over the latest 30 days.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LabelCandidatesResponse" }
+        "400": { $ref: "#/components/responses/JSONError" }
+        "401": { $ref: "#/components/responses/JSONError" }
+        "405": { $ref: "#/components/responses/JSONError" }
+        "503": { $ref: "#/components/responses/JSONError" }
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: flowlens_session
+      description: In-memory same-origin session; never stored in browser storage or a URL.
+      x-cookie-attributes:
+        httpOnly: true
+        sameSite: Strict
+        path: /
+        secure: false
+  parameters:
+    Origin:
+      name: Origin
+      in: header
+      required: true
+      description: Must have an HTTP(S) origin whose authority exactly matches the request Host.
+      schema:
+        type: string
+        format: uri
+    From:
+      name: from
+      in: query
+      required: true
+      description: Inclusive Unix start second; must be positive and less than `to`.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    To:
+      name: to
+      in: query
+      required: true
+      description: Exclusive Unix end second; must be greater than `from`.
+      schema:
+        type: integer
+        format: int64
+        minimum: 2
+  responses:
+    JSONError:
+      description: The request failed. The body is intentionally generic and contains no configuration values.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: string
+          enum:
+            - bad_request
+            - unauthorized
+            - forbidden
+            - not_found
+            - method_not_allowed
+            - conflict
+            - request_too_large
+            - unsupported_media_type
+            - service_unavailable
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [access_key]
+      properties:
+        access_key:
+          type: string
+    StatusResponse:
+      type: object
+      additionalProperties: false
+      required: [status, reason, timezone, capabilities]
+      properties:
+        status: { type: string, enum: [ok, degraded, failed] }
+        reason: { type: string }
+        timezone: { type: string }
+        capabilities: { $ref: "#/components/schemas/Capabilities" }
+    Capabilities:
+      type: object
+      additionalProperties: false
+      required: [connection_id, source, destination, port, network, domain]
+      properties:
+        connection_id: { type: boolean }
+        source: { type: boolean }
+        destination: { type: boolean }
+        port: { type: boolean }
+        network: { type: boolean }
+        domain: { type: boolean }
+    Totals:
+      type: object
+      additionalProperties: false
+      required: [upload_bytes, download_bytes, total_bytes, elapsed_seconds, observed_seconds]
+      properties:
+        upload_bytes: { type: string, pattern: "^[0-9]+$" }
+        download_bytes: { type: string, pattern: "^[0-9]+$" }
+        total_bytes: { type: string, pattern: "^[0-9]+$" }
+        elapsed_seconds: { type: integer, format: int64, minimum: 0 }
+        observed_seconds: { type: integer, format: int64, minimum: 0 }
+    OverviewResponse:
+      type: object
+      additionalProperties: false
+      required: [current, previous, boundary_approximate]
+      properties:
+        current: { $ref: "#/components/schemas/Totals" }
+        previous: { $ref: "#/components/schemas/Totals" }
+        boundary_approximate: { type: boolean }
+    SeriesResponse:
+      type: object
+      additionalProperties: false
+      required: [boundary_approximate, points]
+      properties:
+        boundary_approximate: { type: boolean }
+        points:
+          type: array
+          items: { $ref: "#/components/schemas/SeriesPoint" }
+    SeriesPoint:
+      type: object
+      additionalProperties: false
+      required:
+        - bucket_start
+        - bucket_end
+        - elapsed_seconds
+        - source_resolution_sec
+        - upload_bytes
+        - download_bytes
+        - recovered_upload_bytes
+        - recovered_download_bytes
+        - unattributed_upload_bytes
+        - unattributed_download_bytes
+        - average_upload_bytes_per_second
+        - average_download_bytes_per_second
+        - speed_upload_sample_sum
+        - speed_download_sample_sum
+        - speed_sample_count
+        - peak_upload_bytes_per_second
+        - peak_download_bytes_per_second
+        - counter_observed_seconds
+        - active_connections_sum
+        - active_connections_samples
+        - active_connections_max
+        - reset_count
+        - quality_flags
+      properties:
+        bucket_start: { type: integer, format: int64 }
+        bucket_end: { type: integer, format: int64 }
+        elapsed_seconds: { type: integer, format: int64, minimum: 0 }
+        source_resolution_sec: { type: integer, format: int64, minimum: 1 }
+        upload_bytes: { type: string, pattern: "^[0-9]+$" }
+        download_bytes: { type: string, pattern: "^[0-9]+$" }
+        recovered_upload_bytes: { type: string, pattern: "^[0-9]+$" }
+        recovered_download_bytes: { type: string, pattern: "^[0-9]+$" }
+        unattributed_upload_bytes: { type: string, pattern: "^[0-9]+$" }
+        unattributed_download_bytes: { type: string, pattern: "^[0-9]+$" }
+        average_upload_bytes_per_second: { type: integer, format: int64, minimum: 0 }
+        average_download_bytes_per_second: { type: integer, format: int64, minimum: 0 }
+        speed_upload_sample_sum: { type: string, pattern: "^[0-9]+$" }
+        speed_download_sample_sum: { type: string, pattern: "^[0-9]+$" }
+        speed_sample_count: { type: integer, format: int64, minimum: 0 }
+        peak_upload_bytes_per_second: { type: integer, format: int64, minimum: 0 }
+        peak_download_bytes_per_second: { type: integer, format: int64, minimum: 0 }
+        counter_observed_seconds: { type: integer, format: int64, minimum: 0 }
+        active_connections_sum: { type: integer, format: int64, minimum: 0 }
+        active_connections_samples: { type: integer, format: int64, minimum: 0 }
+        active_connections_max: { type: integer, format: int64, minimum: 0 }
+        reset_count: { type: integer, format: int64, minimum: 0 }
+        quality_flags: { type: integer, format: int64, minimum: 0 }
+    QualityResponse:
+      type: object
+      additionalProperties: false
+      required: [events]
+      properties:
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/QualityEvent" }
+    QualityEvent:
+      type: object
+      additionalProperties: false
+      required: [code, started_at, ended_at, flags]
+      properties:
+        code: { type: string }
+        started_at: { type: integer, format: int64 }
+        ended_at: { type: [integer, "null"], format: int64 }
+        flags: { type: integer, format: int64, minimum: 0 }
+    StorageResponse:
+      type: object
+      additionalProperties: false
+      required: [database_bytes, wal_bytes, soft_limit_bytes, protecting, last_rollup_cleanup]
+      properties:
+        database_bytes: { type: string, pattern: "^[0-9]+$" }
+        wal_bytes: { type: string, pattern: "^[0-9]+$" }
+        soft_limit_bytes: { type: string, pattern: "^[0-9]+$" }
+        protecting: { type: boolean }
+        last_rollup_cleanup:
+          anyOf:
+            - $ref: "#/components/schemas/MaintenanceRun"
+            - type: "null"
+    MaintenanceRun:
+      type: object
+      additionalProperties: false
+      required: [started_at, ended_at, deleted_rows, successful]
+      properties:
+        started_at: { type: integer, format: int64 }
+        ended_at: { type: [integer, "null"], format: int64 }
+        deleted_rows: { type: integer, format: int64, minimum: 0 }
+        successful: { type: boolean }
+    BytePair:
+      type: object
+      additionalProperties: false
+      required: [upload_bytes, download_bytes]
+      properties:
+        upload_bytes: { type: string, pattern: "^[0-9]+$" }
+        download_bytes: { type: string, pattern: "^[0-9]+$" }
+    BreakdownResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - by
+        - available
+        - approximate
+        - boundary_approximate
+        - no_traffic
+        - connection_coverage
+        - dimension_retention
+        - global
+        - other
+        - unattributed
+        - items
+      properties:
+        by: { type: string, enum: [target, endpoint, port, network, source, domain] }
+        available: { type: boolean }
+        approximate: { type: boolean, const: true }
+        boundary_approximate: { type: boolean }
+        no_traffic: { type: boolean }
+        connection_coverage: { type: [number, "null"], minimum: 0, maximum: 1 }
+        dimension_retention: { type: [number, "null"], minimum: 0, maximum: 1 }
+        global: { $ref: "#/components/schemas/BytePair" }
+        other: { $ref: "#/components/schemas/BytePair" }
+        unattributed: { $ref: "#/components/schemas/BytePair" }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BreakdownItem" }
+    BreakdownItem:
+      type: object
+      additionalProperties: false
+      required: [raw_value, display_name, network_code, upload_bytes, download_bytes]
+      properties:
+        raw_value: { type: string }
+        display_name: { type: string }
+        network_code: { type: integer, format: int64 }
+        upload_bytes: { type: string, pattern: "^[0-9]+$" }
+        download_bytes: { type: string, pattern: "^[0-9]+$" }
+    LiveTargetsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - observed_at
+        - interval_millis
+        - active_connections
+        - global_upload_bytes_per_second
+        - global_download_bytes_per_second
+        - connection_coverage
+        - targets
+      properties:
+        observed_at: { type: integer, format: int64 }
+        interval_millis: { type: integer, format: int64, minimum: 0 }
+        active_connections: { type: integer, format: int64, minimum: 0 }
+        global_upload_bytes_per_second: { type: integer, format: int64, minimum: 0 }
+        global_download_bytes_per_second: { type: integer, format: int64, minimum: 0 }
+        connection_coverage: { type: [number, "null"], minimum: 0, maximum: 1 }
+        targets:
+          type: array
+          items: { $ref: "#/components/schemas/LiveTarget" }
+    LiveTarget:
+      type: object
+      additionalProperties: false
+      required:
+        - raw_endpoint
+        - display_name
+        - network_code
+        - host
+        - upload_bytes_per_second
+        - download_bytes_per_second
+      properties:
+        raw_endpoint: { type: string }
+        display_name: { type: string }
+        network_code: { type: integer, format: int64 }
+        host: { type: string }
+        upload_bytes_per_second: { type: integer, format: int64, minimum: 0 }
+        download_bytes_per_second: { type: integer, format: int64, minimum: 0 }
+    RuntimeSessionsResponse:
+      type: object
+      additionalProperties: false
+      required: [sessions]
+      properties:
+        sessions:
+          type: array
+          items: { $ref: "#/components/schemas/RuntimeSession" }
+    RuntimeSession:
+      type: object
+      additionalProperties: false
+      required:
+        - started_at
+        - ended_at
+        - start_reason
+        - end_reason
+        - last_seen_at
+        - sing_box_version
+        - data_gap_before_seconds
+      properties:
+        started_at: { type: integer, format: int64 }
+        ended_at: { type: [integer, "null"], format: int64 }
+        start_reason: { type: string }
+        end_reason: { type: [string, "null"] }
+        last_seen_at: { type: integer, format: int64 }
+        sing_box_version: { type: string }
+        data_gap_before_seconds: { type: integer, format: int64, minimum: 0 }
+    LabelsResponse:
+      type: object
+      additionalProperties: false
+      required: [labels]
+      properties:
+        labels:
+          type: array
+          items: { $ref: "#/components/schemas/Label" }
+    Label:
+      type: object
+      additionalProperties: false
+      required: [id, label_type, match_value, display_name, created_at, updated_at]
+      properties:
+        id: { type: integer, format: int64, minimum: 1 }
+        label_type: { type: string, enum: [host, endpoint] }
+        match_value: { type: string }
+        display_name: { type: string }
+        created_at: { type: integer, format: int64 }
+        updated_at: { type: integer, format: int64 }
+    CreateLabelRequest:
+      type: object
+      additionalProperties: false
+      required: [label_type, match_value, display_name]
+      properties:
+        label_type: { type: string, enum: [host, endpoint] }
+        match_value: { type: string }
+        display_name: { type: string }
+    UpdateLabelRequest:
+      type: object
+      additionalProperties: false
+      required: [display_name]
+      properties:
+        display_name: { type: string }
+    LabelCandidatesResponse:
+      type: object
+      additionalProperties: false
+      required: [candidates]
+      properties:
+        candidates:
+          type: array
+          items: { $ref: "#/components/schemas/LabelCandidate" }
+    LabelCandidate:
+      type: object
+      additionalProperties: false
+      required: [label_type, match_value, display_name, upload_bytes, download_bytes]
+      properties:
+        label_type: { type: string, enum: [host, endpoint] }
+        match_value: { type: string }
+        display_name: { type: string }
+        upload_bytes: { type: string, pattern: "^[0-9]+$" }
+        download_bytes: { type: string, pattern: "^[0-9]+$" }
+    LiveSample:
+      type: object
+      additionalProperties: false
+      required: [timestamp, upload_bytes_per_second, download_bytes_per_second, active_connections, status]
+      properties:
+        timestamp: { type: integer, format: int64 }
+        upload_bytes_per_second: { type: integer, format: int64, minimum: 0 }
+        download_bytes_per_second: { type: integer, format: int64, minimum: 0 }
+        active_connections: { type: integer, format: int64, minimum: 0 }
+        status: { type: string, enum: [ok, degraded] }
+security:
+  - sessionCookie: []

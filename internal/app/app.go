@@ -10,6 +10,7 @@ import (
 
 	"github.com/Willxup/flowlens/internal/attribution"
 	"github.com/Willxup/flowlens/internal/backup"
+	"github.com/Willxup/flowlens/internal/buildinfo"
 	"github.com/Willxup/flowlens/internal/clashapi"
 	"github.com/Willxup/flowlens/internal/collector"
 	"github.com/Willxup/flowlens/internal/config"
@@ -139,7 +140,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		Backup: backup.Options{
 			Store: store, Directory: cfg.Backup.Directory,
 			DailyKeep: cfg.Backup.DailyKeep, MonthlyKeep: cfg.Backup.MonthlyKeep,
-			BucketTimezone: cfg.Time.Timezone, ApplicationVersion: "0.1.0-dev",
+			BucketTimezone: cfg.Time.Timezone, ApplicationVersion: buildinfo.Version,
 		},
 		BackupTime: cfg.Backup.LocalTime,
 	})

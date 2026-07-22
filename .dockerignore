@@ -1,11 +1,17 @@
 .git
+.github
 .flowlens-dev
+api
+assets
 docs
+test
 config/config.yaml
 data
 node_modules
 web/dist
 coverage
+*.md
+NOTICE
 *.db
 *.db-wal
 *.db-shm

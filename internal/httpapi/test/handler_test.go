@@ -105,6 +105,32 @@ func TestBusinessRoutesAuthenticateBeforeRouteDisclosure(t *testing.T) {
 	assertResponse(t, handler, http.MethodGet, "/api/v1/not-implemented", "", cookie, http.StatusNotFound)
 }
 
+func TestAPIErrorsUseGenericJSONBodies(t *testing.T) {
+	handler := newHandler(t, flowstatus.NewTracker())
+	cookie := loginCookie(t, handler)
+	tests := []struct {
+		name   string
+		method string
+		path   string
+		cookie *http.Cookie
+		status int
+		body   string
+	}{
+		{name: "unauthorized", method: http.MethodGet, path: "/api/v1/status", status: http.StatusUnauthorized, body: "{\"error\":\"unauthorized\"}\n"},
+		{name: "bad request", method: http.MethodGet, path: "/api/v1/overview", cookie: cookie, status: http.StatusBadRequest, body: "{\"error\":\"bad_request\"}\n"},
+		{name: "method", method: http.MethodPost, path: "/api/v1/status", cookie: cookie, status: http.StatusMethodNotAllowed, body: "{\"error\":\"method_not_allowed\"}\n"},
+		{name: "not found", method: http.MethodGet, path: "/api/v1/missing", cookie: cookie, status: http.StatusNotFound, body: "{\"error\":\"not_found\"}\n"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			response := request(t, handler, test.method, test.path, "", test.cookie)
+			if response.Code != test.status || response.Header().Get("Content-Type") != "application/json" || response.Body.String() != test.body {
+				t.Fatalf("API error = (%d, %q, %q)", response.Code, response.Header().Get("Content-Type"), response.Body.String())
+			}
+		})
+	}
+}
+
 func TestLoginRejectsUnsafeOrInvalidRequests(t *testing.T) {
 	handler := newHandler(t, flowstatus.NewTracker())
 	tests := []struct {
