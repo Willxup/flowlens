@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-07-23
+
+### Changed
+
+- Refined the target-alias editor with a compact responsive layout and a single save action.
+- Updated the browser favicon to match the FlowLens brand mark.
+
+### Fixed
+
+- Today and Yesterday history charts now use hour labels instead of repeating calendar dates.
+- Clearing an existing target alias and saving now restores the original target name.
+
 ## [0.2.0] - 2026-07-23
 
 ### Added
@@ -34,6 +46,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Non-root scratch container and hardened Compose defaults.
 - Redaction boundaries for secrets, paths, session data, and public examples.
 
-[Unreleased]: https://github.com/Willxup/flowlens/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Willxup/flowlens/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/Willxup/flowlens/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Willxup/flowlens/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Willxup/flowlens/releases/tag/v0.1.0

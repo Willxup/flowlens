@@ -72,11 +72,13 @@ export function AliasDialog({
   ) {
     const itemKey = key(candidate.label_type, candidate.match_value);
     const displayName = (edits[itemKey] ?? "").trim();
-    if (displayName === "" || source.demo) return;
+    if (source.demo || (displayName === "" && label === undefined)) return;
     setSaving(itemKey);
     setError(false);
     try {
-      if (label === undefined) {
+      if (displayName === "") {
+        await source.deleteLabel(label!.id);
+      } else if (label === undefined) {
         await source.createLabel({
           label_type: candidate.label_type,
           match_value: candidate.match_value,
@@ -85,20 +87,6 @@ export function AliasDialog({
       } else {
         await source.updateLabel(label.id, displayName);
       }
-      await onChanged();
-    } catch {
-      setError(true);
-    } finally {
-      setSaving(null);
-    }
-  }
-
-  async function remove(label: LabelResponse) {
-    if (source.demo) return;
-    setSaving(key(label.label_type, label.match_value));
-    setError(false);
-    try {
-      await source.deleteLabel(label.id);
       await onChanged();
     } catch {
       setError(true);
@@ -119,73 +107,71 @@ export function AliasDialog({
           <div>
             <span className="eyebrow">Display aliases</span>
             <h2 id="alias-title">目标别名</h2>
-            <p>别名只改变 FlowLens 展示，不修改代理服务或历史流量。</p>
+            <p>别名只改变 FlowLens 展示；清空后保存即可恢复原始名称。</p>
           </div>
           <button type="button" aria-label="关闭别名" onClick={onClose}>
-            ×
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m7 7 10 10M17 7 7 17" />
+            </svg>
           </button>
         </header>
-        {source.demo ? (
-          <p className="demo-notice">Demo 为只读，别名修改仅在生产模式提供。</p>
-        ) : null}
-        {error ? (
-          <p className="form-error" role="alert">
-            别名保存失败，请重试。
-          </p>
-        ) : null}
-        <div className="alias-list">
-          {entries.map((candidate) => {
-            const label = labels.find(
-              (item) =>
-                item.label_type === candidate.label_type &&
-                item.match_value === candidate.match_value,
-            );
-            const itemKey = key(candidate.label_type, candidate.match_value);
-            return (
-              <div className="alias-row" key={itemKey}>
-                <div>
-                  <strong>{candidate.match_value}</strong>
-                  <span>{candidate.label_type} 别名</span>
-                </div>
-                <input
-                  aria-label={`${candidate.match_value} 显示名称`}
-                  value={edits[itemKey] ?? ""}
-                  onChange={(event) =>
-                    setEdits((current) => ({
-                      ...current,
-                      [itemKey]: event.target.value,
-                    }))
-                  }
-                  maxLength={64}
-                  disabled={source.demo}
-                />
-                <div className="alias-actions">
-                  <button
-                    type="button"
-                    aria-label={`${candidate.match_value} 保存`}
-                    disabled={
-                      source.demo ||
-                      saving !== null ||
-                      (edits[itemKey] ?? "").trim() === ""
+        <div className="dialog-body">
+          {source.demo ? (
+            <p className="demo-notice">
+              Demo 为只读，别名修改仅在生产模式提供。
+            </p>
+          ) : null}
+          {error ? (
+            <p className="form-error" role="alert">
+              别名保存失败，请重试。
+            </p>
+          ) : null}
+          <div className="alias-list">
+            {entries.map((candidate) => {
+              const label = labels.find(
+                (item) =>
+                  item.label_type === candidate.label_type &&
+                  item.match_value === candidate.match_value,
+              );
+              const itemKey = key(candidate.label_type, candidate.match_value);
+              return (
+                <div className="alias-row" key={itemKey}>
+                  <div className="alias-identity">
+                    <strong>{candidate.match_value}</strong>
+                    <span>{candidate.label_type} 别名</span>
+                  </div>
+                  <input
+                    className="alias-field"
+                    aria-label={`${candidate.match_value} 显示名称`}
+                    value={edits[itemKey] ?? ""}
+                    onChange={(event) =>
+                      setEdits((current) => ({
+                        ...current,
+                        [itemKey]: event.target.value,
+                      }))
                     }
-                    onClick={() => void save(candidate, label)}
-                  >
-                    保存
-                  </button>
-                  {label === undefined ? null : (
+                    maxLength={64}
+                    disabled={source.demo}
+                  />
+                  <div className="alias-actions">
                     <button
                       type="button"
-                      aria-label={`${candidate.match_value} 删除`}
-                      disabled={source.demo || saving !== null}
-                      onClick={() => void remove(label)}
+                      aria-label={`${candidate.match_value} 保存`}
+                      disabled={
+                        source.demo ||
+                        saving !== null ||
+                        (label === undefined &&
+                          (edits[itemKey] ?? "").trim() === "")
+                      }
+                      onClick={() => void save(candidate, label)}
                     >
-                      删除
+                      保存
                     </button>
-                  )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </section>
     </div>

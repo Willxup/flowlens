@@ -469,27 +469,60 @@ select:focus-visible {
   backdrop-filter: blur(10px);
 }
 .dialog-shell {
-  width: min(720px, 100%);
-  max-height: min(760px, 90vh);
-  overflow: auto;
-  padding: 24px;
+  width: min(680px, 100%);
+  max-height: min(720px, calc(100dvh - 36px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: var(--radius-xl);
+  border-radius: 20px;
   background: var(--surface-strong);
   box-shadow: var(--shadow);
 }
 .dialog-head {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
+  gap: 14px;
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid var(--line);
 }
 .dialog-head h2 {
-  margin: 6px 0;
+  margin: 4px 0;
+  font-size: 1.08rem;
+  letter-spacing: -0.025em;
 }
 .dialog-head p {
   margin-bottom: 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+.dialog-head button {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  flex: 0 0 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  padding: 0;
+}
+.dialog-head button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+.dialog-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px 18px 18px;
 }
 .demo-notice {
+  margin: 0 0 10px;
   padding: 11px 13px;
   border-radius: var(--radius-sm);
   background: var(--download-soft);
@@ -499,44 +532,60 @@ select:focus-visible {
 .alias-list {
   display: grid;
   gap: 8px;
-  margin-top: 18px;
 }
 .alias-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.65fr);
+  grid-template-columns: minmax(150px, 0.72fr) minmax(200px, 1fr) auto;
   align-items: center;
-  gap: 16px;
-  padding: 13px;
+  gap: 10px;
+  padding: 10px 11px;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
+  background: var(--surface-soft);
 }
-.alias-row > div {
+.alias-identity {
   min-width: 0;
   display: grid;
-  gap: 4px;
+  gap: 3px;
 }
-.alias-row strong,
-.alias-row span {
+.alias-identity strong,
+.alias-identity span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.alias-row span {
+.alias-identity strong {
+  font-size: 0.78rem;
+}
+.alias-identity span {
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.64rem;
+}
+.alias-field {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 9px;
+  font-size: 0.76rem;
 }
 .alias-actions {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
 }
 .alias-actions button {
-  min-height: 34px;
+  min-height: 32px;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: 8px;
   color: var(--ink);
-  background: var(--surface-soft);
-  padding: 6px 10px;
+  background: var(--surface-strong);
+  padding: 5px 9px;
+  font-size: 0.72rem;
   font-weight: 700;
+}
+.alias-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 .empty-state {
   padding: 30px;
@@ -622,8 +671,46 @@ select:focus-visible {
   .node-target-1:hover {
     transform: none;
   }
+  .dialog-backdrop {
+    padding: 8px;
+  }
+  .dialog-shell {
+    max-height: calc(100dvh - 16px);
+    border-radius: 17px;
+  }
+  .dialog-head {
+    gap: 10px;
+    padding: 14px 14px 11px;
+  }
+  .dialog-head h2 {
+    font-size: 1rem;
+  }
+  .dialog-head p {
+    font-size: 0.66rem;
+  }
+  .dialog-body {
+    padding: 10px;
+  }
+  .demo-notice {
+    padding: 8px 10px;
+    font-size: 0.7rem;
+  }
   .alias-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 7px;
+    padding: 9px;
+  }
+  .alias-identity {
+    grid-column: 1 / -1;
+  }
+  .alias-field {
+    grid-column: 1;
+    min-width: 0;
+  }
+  .alias-actions {
+    grid-column: 2;
+    justify-self: end;
   }
   .target-item {
     grid-template-columns: 36px minmax(0, 1fr);

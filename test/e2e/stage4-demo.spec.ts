@@ -237,6 +237,33 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
   await expect(
     page.getByText("Demo 为只读，别名修改仅在生产模式提供。"),
   ).toBeVisible();
+  const desktopAliasInput = await page
+    .locator(".alias-row input")
+    .first()
+    .boundingBox();
+  const desktopAliasActions = await page
+    .locator(".alias-row .alias-actions")
+    .first()
+    .boundingBox();
+  const desktopClose = await page
+    .getByRole("button", { name: "关闭别名" })
+    .boundingBox();
+  const desktopAliasRowCount = await page.locator(".alias-row").count();
+  const desktopAliasActionCount = await page
+    .locator(".alias-actions button")
+    .count();
+  expect(desktopAliasInput).not.toBeNull();
+  expect(desktopAliasActions).not.toBeNull();
+  expect(desktopClose).not.toBeNull();
+  expect(
+    Math.abs(
+      desktopAliasInput!.y + desktopAliasInput!.height / 2 -
+        (desktopAliasActions!.y + desktopAliasActions!.height / 2),
+    ),
+  ).toBeLessThan(2);
+  expect(desktopClose!.width).toBeLessThanOrEqual(36);
+  expect(desktopClose!.height).toBeLessThanOrEqual(36);
+  expect(desktopAliasActionCount).toBe(desktopAliasRowCount);
   await page.getByRole("button", { name: "关闭别名" }).click();
 
   await page.setViewportSize({ width: 320, height: 800 });
@@ -285,6 +312,26 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
     "grid-template-columns",
     /310px|300px|1fr/,
   );
+  await page.getByRole("button", { name: "管理别名" }).click();
+  const mobileSave = await page
+    .locator(".alias-row")
+    .first()
+    .getByRole("button", { name: /保存$/ })
+    .boundingBox();
+  const mobileClose = await page
+    .getByRole("button", { name: "关闭别名" })
+    .boundingBox();
+  expect(mobileSave).not.toBeNull();
+  expect(mobileClose).not.toBeNull();
+  expect(mobileSave!.width).toBeLessThanOrEqual(80);
+  expect(mobileClose!.width).toBeLessThanOrEqual(36);
+  expect(mobileClose!.height).toBeLessThanOrEqual(36);
+  const dialogOverflow = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth -
+      document.documentElement.clientWidth,
+  );
+  expect(dialogOverflow).toBeLessThanOrEqual(1);
 
   expect(pageErrors).toEqual([]);
   expect(businessRequests).toEqual([]);

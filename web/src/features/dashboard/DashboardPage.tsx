@@ -317,6 +317,12 @@ export function DashboardPage({
             live={live.chart}
             history={history.view?.chart}
             historyView={historyChart}
+            historyLabelMode={
+              selection.kind === "preset" &&
+              (selection.preset === "today" || selection.preset === "yesterday")
+                ? "time"
+                : "date"
+            }
           />
         </article>
 

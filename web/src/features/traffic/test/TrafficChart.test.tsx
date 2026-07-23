@@ -151,6 +151,43 @@ describe("TrafficChart", () => {
     expect(option.xAxis.axisLabel.interval).toBe(3);
   });
 
+  it("uses hour labels for day history and date labels for longer history", async () => {
+    const history: HistoricalChartPoint[] = [
+      {
+        start: 1_721_284_200,
+        end: 1_721_287_800,
+        upload: "1" as ByteString,
+        download: "2" as ByteString,
+        cumulative: "3" as ByteString,
+        uploadRate: 1,
+        downloadRate: 2,
+        resolution: 3_600,
+      },
+    ];
+    const { rerender } = render(
+      <TrafficChart mode="history" history={history} historyLabelMode="time" />,
+    );
+    await waitFor(() => expect(chart.setOption).toHaveBeenCalledOnce());
+
+    const dayOption = chart.setOption.mock.calls.at(-1)![0] as {
+      xAxis: { axisLabel: { formatter: (value: string) => string } };
+    };
+    expect(
+      dayOption.xAxis.axisLabel.formatter(String(history[0]!.start)),
+    ).toMatch(/^\d{2}:\d{2}$/);
+
+    rerender(
+      <TrafficChart mode="history" history={history} historyLabelMode="date" />,
+    );
+    await waitFor(() => expect(chart.setOption).toHaveBeenCalledTimes(2));
+    const longerOption = chart.setOption.mock.calls.at(-1)![0] as {
+      xAxis: { axisLabel: { formatter: (value: string) => string } };
+    };
+    expect(
+      longerOption.xAxis.axisLabel.formatter(String(history[0]!.start)),
+    ).not.toContain(":");
+  });
+
   it("smooths historical speed but leaves cumulative traffic unsmoothed", async () => {
     const history: HistoricalChartPoint[] = [
       {

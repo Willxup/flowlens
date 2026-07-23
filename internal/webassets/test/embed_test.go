@@ -29,6 +29,10 @@ func TestEmbeddedProductionBuildContainsReferencedAssets(t *testing.T) {
 			t.Errorf("%s = %d bytes, %v", name, len(value), err)
 		}
 	}
+	favicon, err := fs.ReadFile(content, "favicon.svg")
+	if err != nil || !strings.Contains(string(favicon), `id="flowlens-brand-mark"`) {
+		t.Errorf("favicon.svg does not contain the FlowLens brand mark: %v", err)
+	}
 	for _, match := range regexp.MustCompile(`(?:src|href)="/([^"?]+\.(?:js|css))"`).FindAllSubmatch(index, -1) {
 		if _, err := fs.Stat(content, string(match[1])); err != nil {
 			t.Errorf("index references missing %q: %v", match[1], err)

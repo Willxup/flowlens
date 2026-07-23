@@ -17,7 +17,27 @@ const candidate: LabelCandidateResponse = {
 };
 
 describe("AliasDialog", () => {
-  it("creates, updates and deletes aliases through the server source of truth", async () => {
+  it("separates the compact header, scrolling body and row controls", () => {
+    const source = new DemoDataSource();
+    const { container } = render(
+      <AliasDialog
+        source={source}
+        labels={[]}
+        candidates={[candidate]}
+        onChanged={vi.fn(async () => undefined)}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector(".dialog-body")).not.toBeNull();
+    expect(container.querySelector(".alias-identity")).not.toBeNull();
+    expect(container.querySelector(".alias-field")).not.toBeNull();
+    expect(
+      screen.getByRole("button", { name: "关闭别名" }).querySelector("svg"),
+    ).not.toBeNull();
+  });
+
+  it("creates and updates aliases through the server source of truth", async () => {
     const source = new DemoDataSource();
     Object.defineProperty(source, "demo", { value: false });
     const create = vi.spyOn(source, "createLabel").mockResolvedValue({
@@ -61,7 +81,6 @@ describe("AliasDialog", () => {
     const update = vi
       .spyOn(source, "updateLabel")
       .mockResolvedValue({ ...label, display_name: "Streaming" });
-    const remove = vi.spyOn(source, "deleteLabel").mockResolvedValue();
     rerender(
       <AliasDialog
         source={source}
@@ -78,10 +97,6 @@ describe("AliasDialog", () => {
       screen.getByRole("button", { name: `${candidate.match_value} 保存` }),
     );
     expect(update).toHaveBeenCalledWith(1, "Streaming");
-    await userEvent.click(
-      screen.getByRole("button", { name: `${candidate.match_value} 删除` }),
-    );
-    expect(remove).toHaveBeenCalledWith(1);
   });
 
   it("does not replace server values after a failed write", async () => {
@@ -114,7 +129,7 @@ describe("AliasDialog", () => {
     ).toHaveValue("Media");
   });
 
-  it("keeps existing aliases manageable after they leave the candidate window", async () => {
+  it("clears an existing alias through Save without a separate Delete action", async () => {
     const source = new DemoDataSource();
     Object.defineProperty(source, "demo", { value: false });
     const label: LabelResponse = {
@@ -140,9 +155,16 @@ describe("AliasDialog", () => {
     expect(screen.getByLabelText(`${label.match_value} 显示名称`)).toHaveValue(
       "Archive",
     );
-    await userEvent.click(
-      screen.getByRole("button", { name: `${label.match_value} 删除` }),
-    );
+    expect(
+      screen.queryByRole("button", { name: `${label.match_value} 删除` }),
+    ).not.toBeInTheDocument();
+    const input = screen.getByLabelText(`${label.match_value} 显示名称`);
+    await userEvent.clear(input);
+    const save = screen.getByRole("button", {
+      name: `${label.match_value} 保存`,
+    });
+    expect(save).toBeEnabled();
+    await userEvent.click(save);
     expect(remove).toHaveBeenCalledWith(label.id);
   });
 });

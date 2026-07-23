@@ -23,6 +23,7 @@ echarts.use([
 interface TrafficChartProps {
   mode: "live" | "history";
   historyView?: "traffic" | "speed";
+  historyLabelMode?: "time" | "date";
   live?: LiveChartPoint[];
   history?: HistoricalChartPoint[];
 }
@@ -30,6 +31,7 @@ interface TrafficChartProps {
 export function TrafficChart({
   mode,
   historyView = "traffic",
+  historyLabelMode = "date",
   live = [],
   history = [],
 }: TrafficChartProps) {
@@ -98,7 +100,8 @@ export function TrafficChart({
             ),
             color: "#8a8c91",
             fontSize: 10,
-            formatter: (value: string) => formatTimestamp(value, mode),
+            formatter: (value: string) =>
+              formatTimestamp(value, mode, historyLabelMode),
           },
         },
         yAxis: {
@@ -202,7 +205,7 @@ export function TrafficChart({
         ? { lazyUpdate: true, replaceMerge: ["series"] }
         : { lazyUpdate: true },
     );
-  }, [history, historyView, live, mode]);
+  }, [history, historyLabelMode, historyView, live, mode]);
   return (
     <div
       ref={reference}
@@ -219,11 +222,15 @@ export function TrafficChart({
   );
 }
 
-function formatTimestamp(value: string, mode: "live" | "history"): string {
+function formatTimestamp(
+  value: string,
+  mode: "live" | "history",
+  historyLabelMode: "time" | "date",
+): string {
   const timestamp = Number(value);
   if (!Number.isFinite(timestamp)) return "";
   const date = new Date(timestamp * 1000);
-  if (mode === "live") {
+  if (mode === "live" || historyLabelMode === "time") {
     return date.toLocaleTimeString("zh-CN", {
       hour: "2-digit",
       minute: "2-digit",

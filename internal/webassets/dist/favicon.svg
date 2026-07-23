@@ -1,4 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="16" fill="#111214"/>
-  <path d="M18 18h28v8H27v8h16v8H27v12h-9z" fill="#f7f7f5"/>
+  <defs>
+    <linearGradient id="flowlens-brand-mark" x1="10" y1="10" x2="54" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6d5dfc"/>
+      <stop offset="0.36" stop-color="#3f8efc"/>
+      <stop offset="0.62" stop-color="#24a99a"/>
+      <stop offset="0.82" stop-color="#f2b84b"/>
+      <stop offset="1" stop-color="#f29a3f"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="19" fill="#f7f7f5"/>
+  <rect x="10" y="10" width="44" height="44" rx="13" fill="url(#flowlens-brand-mark)"/>
 </svg>
