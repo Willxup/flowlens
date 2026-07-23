@@ -20,6 +20,7 @@ const SessionCookieName = "flowlens_session"
 
 // Options configures the minimal Stage 1 HTTP boundary.
 type Options struct {
+	AuthDisabled     bool
 	AccessKey        string
 	SessionTTL       time.Duration
 	Status           *flowstatus.Tracker
@@ -42,6 +43,7 @@ func (Options) String() string { return "HTTPOptions{redacted}" }
 func (options Options) GoString() string { return options.String() }
 
 type handler struct {
+	authDisabled bool
 	accessKey    []byte
 	sessions     *SessionStore
 	status       *flowstatus.Tracker
@@ -65,16 +67,24 @@ func (h *handler) GoString() string { return h.String() }
 
 // New builds the complete minimal Stage 1 handler.
 func New(options Options) (http.Handler, error) {
-	if options.AccessKey == "" || options.Status == nil || options.Queries == nil || options.CapabilitySource == nil ||
+	if options.Status == nil || options.Queries == nil || options.CapabilitySource == nil ||
 		options.Timezone == "" {
 		return nil, errors.New("invalid FlowLens HTTP configuration")
 	}
-	sessions, err := NewSessionStore(options.SessionTTL)
-	if err != nil {
-		return nil, errors.New("invalid FlowLens HTTP configuration")
+	var sessions *SessionStore
+	if !options.AuthDisabled {
+		if options.AccessKey == "" {
+			return nil, errors.New("invalid FlowLens HTTP configuration")
+		}
+		var err error
+		sessions, err = NewSessionStore(options.SessionTTL)
+		if err != nil {
+			return nil, errors.New("invalid FlowLens HTTP configuration")
+		}
 	}
 	return &handler{
-		accessKey: []byte(options.AccessKey), sessions: sessions, status: options.Status, queries: options.Queries,
+		authDisabled: options.AuthDisabled, accessKey: []byte(options.AccessKey), sessions: sessions,
+		status: options.Status, queries: options.Queries,
 		capabilities: options.CapabilitySource, web: options.Web, live: options.Live, timezone: options.Timezone,
 	}, nil
 }
@@ -176,6 +186,10 @@ func (h *handler) ready(writer http.ResponseWriter, request *http.Request) {
 }
 
 func (h *handler) session(writer http.ResponseWriter, request *http.Request) {
+	if h.authDisabled {
+		writer.WriteHeader(http.StatusNotFound)
+		return
+	}
 	switch request.Method {
 	case http.MethodPost:
 		h.login(writer, request)
@@ -264,6 +278,9 @@ func (h *handler) logout(writer http.ResponseWriter, request *http.Request) {
 }
 
 func (h *handler) requireSession(writer http.ResponseWriter, request *http.Request) bool {
+	if h.authDisabled {
+		return true
+	}
 	if !h.validSession(request) {
 		writer.WriteHeader(http.StatusUnauthorized)
 		return false
@@ -272,6 +289,9 @@ func (h *handler) requireSession(writer http.ResponseWriter, request *http.Reque
 }
 
 func (h *handler) validSession(request *http.Request) bool {
+	if h.authDisabled {
+		return true
+	}
 	cookie, err := request.Cookie(SessionCookieName)
 	return err == nil && h.sessions.Valid(cookie.Value, time.Now())
 }
@@ -287,6 +307,7 @@ func (h *handler) statusResponse(writer http.ResponseWriter, request *http.Reque
 		Status       flowstatus.Level `json:"status"`
 		Reason       string           `json:"reason"`
 		Timezone     string           `json:"timezone"`
+		AuthEnabled  bool             `json:"auth_enabled"`
 		Capabilities struct {
 			ConnectionID bool `json:"connection_id"`
 			Source       bool `json:"source"`
@@ -296,7 +317,7 @@ func (h *handler) statusResponse(writer http.ResponseWriter, request *http.Reque
 			Domain       bool `json:"domain"`
 		} `json:"capabilities"`
 	}{
-		Status: snapshot.Level, Reason: snapshot.Reason, Timezone: h.timezone,
+		Status: snapshot.Level, Reason: snapshot.Reason, Timezone: h.timezone, AuthEnabled: !h.authDisabled,
 		Capabilities: struct {
 			ConnectionID bool `json:"connection_id"`
 			Source       bool `json:"source"`

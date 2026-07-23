@@ -4,9 +4,10 @@
 
 ## 连接与认证
 
-- 请求必须携带登录后得到的 `flowlens_session` Cookie。浏览器同源 `EventSource` 会自动携带该 Cookie。
+- `auth.enabled=true` 时，请求必须携带登录后得到的 `flowlens_session` Cookie。浏览器同源 `EventSource` 会自动携带该 Cookie。
+- `auth.enabled=false` 时，可匿名建立连接，不要求 Cookie，也不受会话过期影响。
 - 响应类型为 `text/event-stream`，禁止缓存和反向代理缓冲。
-- 会话缺失或过期时返回 `401`；流建立后会每秒重新检查会话，过期即关闭连接。
+- 仅在 `auth.enabled=true` 时，会话缺失或过期返回 `401`；流建立后会每秒重新检查会话，过期即关闭连接。
 - FlowLens 不内置 TLS。需要远程访问时，应只通过可信的 HTTPS 反向代理暴露 FlowLens。
 
 ## 事件

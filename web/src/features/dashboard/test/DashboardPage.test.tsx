@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type {
   HistoricalRange,
@@ -35,6 +35,14 @@ class FailingLogoutSource extends DemoDataSource {
 class UnauthorizedLogoutSource extends DemoDataSource {
   override async logout(): Promise<void> {
     throw new UnauthorizedError();
+  }
+}
+
+class NoAuthSource extends DemoDataSource {
+  override readonly demo = false;
+
+  override async status() {
+    return { ...(await super.status()), auth_enabled: false };
   }
 }
 
@@ -90,6 +98,18 @@ describe("DashboardPage", () => {
       confidence!.compareDocumentPosition(targets!) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
+  });
+
+  it("hides logout when authentication is disabled", async () => {
+    render(
+      <DashboardPage source={new NoAuthSource()} onUnauthorized={vi.fn()} />,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "退出" }),
+      ).not.toBeInTheDocument(),
+    );
   });
 
   it("keeps realtime and historical modes visibly separate", async () => {

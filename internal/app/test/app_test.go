@@ -48,6 +48,41 @@ func TestAppNewCompletesOrderedStartupAndOwnsLock(t *testing.T) {
 	}
 }
 
+func TestAppNewSupportsAnonymousDashboard(t *testing.T) {
+	server := probeServer(t)
+	defer server.Close()
+	cfg := appConfig(server.URL, filepath.Join(t.TempDir(), "flowlens.db"))
+	cfg.Auth.Enabled = false
+	cfg.Auth.AccessKey = ""
+	cfg.Auth.SessionTTL = config.Duration{}
+
+	application, err := app.New(context.Background(), cfg)
+	if err != nil {
+		t.Fatalf("app.New() error = %v", err)
+	}
+	defer application.Close()
+
+	handler := application.Handler()
+	tests := []struct {
+		path string
+		want int
+	}{
+		{path: "/", want: http.StatusOK},
+		{path: "/api/v1/status", want: http.StatusOK},
+		{path: "/api/v1/session", want: http.StatusNotFound},
+	}
+	for _, test := range tests {
+		t.Run(test.path, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodGet, "http://example.test"+test.path, nil)
+			handler.ServeHTTP(response, request)
+			if response.Code != test.want {
+				t.Fatalf("GET %s status = %d, want %d; body = %q", test.path, response.Code, test.want, response.Body.String())
+			}
+		})
+	}
+}
+
 func TestAppNewRejectsPersistedBucketTimezoneMismatch(t *testing.T) {
 	server := probeServer(t)
 	defer server.Close()
@@ -349,7 +384,10 @@ func appConfig(clashURL, databasePath string) config.Config {
 			RequestTimeout: config.Duration{Duration: time.Second}, ConnectionsInterval: config.Duration{Duration: time.Second},
 			MaxResponseSize: config.ByteSize(1 << 20),
 		},
-		Auth:    config.Auth{AccessKey: config.Secret("fixture-access-key-123456"), SessionTTL: config.Duration{Duration: time.Hour}},
+		Auth: config.Auth{
+			Enabled: true, AccessKey: config.Secret("fixture-access-key-123456"),
+			SessionTTL: config.Duration{Duration: time.Hour},
+		},
 		Storage: config.Storage{DatabasePath: databasePath, SoftLimit: config.ByteSize(1 << 20)},
 		Time:    config.Time{Timezone: "Asia/Shanghai"},
 		Retention: config.Retention{

@@ -22,6 +22,10 @@ func (h *handler) webResponse(writer http.ResponseWriter, request *http.Request)
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 		return true
 	}
+	if page && request.URL.Path == "/login" && h.authDisabled {
+		http.Redirect(writer, request, "/", http.StatusFound)
+		return true
+	}
 	if page && request.URL.Path != "/login" && !h.validSession(request) {
 		http.Redirect(writer, request, "/login", http.StatusFound)
 		return true

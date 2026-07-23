@@ -70,7 +70,24 @@ func TestWebRoutesRejectUnknownAssetsMethodsAndDirectories(t *testing.T) {
 	}
 }
 
+func TestDisabledAuthenticationServesDashboardAndLeavesLogin(t *testing.T) {
+	handler := webHandlerWithOptions(t, httpapi.Options{AuthDisabled: true})
+
+	root := request(t, handler, http.MethodGet, "/", "", nil)
+	if root.Code != http.StatusOK || root.Body.String() != "<!doctype html><title>FlowLens</title>" {
+		t.Fatalf("anonymous root = %d %q", root.Code, root.Body.String())
+	}
+	login := request(t, handler, http.MethodGet, "/login", "", nil)
+	if login.Code != http.StatusFound || login.Header().Get("Location") != "/" {
+		t.Fatalf("disabled login = %d Location=%q", login.Code, login.Header().Get("Location"))
+	}
+}
+
 func webHandler(t *testing.T) http.Handler {
+	return webHandlerWithOptions(t, httpapi.Options{})
+}
+
+func webHandlerWithOptions(t *testing.T, options httpapi.Options) http.Handler {
 	t.Helper()
 	content := fstest.MapFS{
 		"index.html":             &fstest.MapFile{Data: []byte("<!doctype html><title>FlowLens</title>")},
@@ -79,10 +96,14 @@ func webHandler(t *testing.T) http.Handler {
 		"assets/app-a1b2c3.js":   &fstest.MapFile{Data: []byte("console.log('FlowLens')")},
 		"assets/ignored/data.js": &fstest.MapFile{Mode: fs.ModeDir},
 	}
-	handler, err := httpapi.New(httpapi.Options{
-		AccessKey: fixtureAccessKey, SessionTTL: time.Hour, Status: flowstatus.NewTracker(),
-		Queries: fixtureStatisticsQueries(), CapabilitySource: fixtureCapabilitySource{}, Web: content, Timezone: "UTC",
-	})
+	options.AccessKey = fixtureAccessKey
+	options.SessionTTL = time.Hour
+	options.Status = flowstatus.NewTracker()
+	options.Queries = fixtureStatisticsQueries()
+	options.CapabilitySource = fixtureCapabilitySource{}
+	options.Web = content
+	options.Timezone = "UTC"
+	handler, err := httpapi.New(options)
 	if err != nil {
 		t.Fatalf("httpapi.New() error = %v", err)
 	}

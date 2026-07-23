@@ -128,7 +128,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return fail(errors.New("cannot load FlowLens web assets"))
 	}
 	handler, err := httpapi.New(httpapi.Options{
-		AccessKey: cfg.Auth.AccessKey.Value(), SessionTTL: cfg.Auth.SessionTTL.Duration,
+		AuthDisabled: !cfg.Auth.Enabled, AccessKey: cfg.Auth.AccessKey.Value(), SessionTTL: cfg.Auth.SessionTTL.Duration,
 		Status: tracker, Queries: queries, CapabilitySource: attributionTracker, Timezone: cfg.Time.Timezone,
 		Web: web, Live: ring,
 	})

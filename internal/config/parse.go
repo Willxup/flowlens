@@ -12,7 +12,7 @@ func Parse(reader io.Reader) (Config, error) {
 	decoder := yaml.NewDecoder(reader)
 	decoder.KnownFields(true)
 
-	var cfg Config
+	cfg := Config{Auth: Auth{Enabled: true}}
 	if err := decoder.Decode(&cfg); err != nil {
 		return Config{}, fmt.Errorf("configuration is invalid YAML or contains unknown fields")
 	}

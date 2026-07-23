@@ -58,12 +58,13 @@ func TestLoginStatusAndLogoutFlow(t *testing.T) {
 		Status       string          `json:"status"`
 		Reason       string          `json:"reason"`
 		Timezone     string          `json:"timezone"`
+		AuthEnabled  bool            `json:"auth_enabled"`
 		Capabilities map[string]bool `json:"capabilities"`
 	}
 	if err := json.Unmarshal(statusResponse.Body.Bytes(), &body); err != nil {
 		t.Fatalf("status JSON: %v", err)
 	}
-	if body.Status != "ok" || body.Reason != "ready" || body.Timezone != "Asia/Shanghai" ||
+	if body.Status != "ok" || body.Reason != "ready" || body.Timezone != "Asia/Shanghai" || !body.AuthEnabled ||
 		len(body.Capabilities) != 6 || !body.Capabilities["connection_id"] {
 		t.Errorf("status body = %#v", body)
 	}
@@ -77,6 +78,32 @@ func TestLoginStatusAndLogoutFlow(t *testing.T) {
 		t.Errorf("logout cookie = %#v", cleared)
 	}
 	assertResponse(t, handler, http.MethodGet, "/api/v1/status", "", cookie, http.StatusUnauthorized)
+}
+
+func TestDisabledAuthenticationAllowsAnonymousBusinessRequests(t *testing.T) {
+	tracker := flowstatus.NewTracker()
+	handler, err := httpapi.New(httpapi.Options{
+		AuthDisabled: true, Status: tracker, Queries: fixtureStatisticsQueries(),
+		CapabilitySource: fixtureCapabilitySource{}, Timezone: "Asia/Shanghai",
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	response := request(t, handler, http.MethodGet, "/api/v1/status", "", nil)
+	if response.Code != http.StatusOK {
+		t.Fatalf("anonymous status = %d, body=%q", response.Code, response.Body.String())
+	}
+	var body struct {
+		AuthEnabled bool `json:"auth_enabled"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("status JSON: %v", err)
+	}
+	if body.AuthEnabled {
+		t.Fatal("disabled authentication was reported as enabled")
+	}
+	assertResponse(t, handler, http.MethodGet, "/api/v1/not-implemented", "", nil, http.StatusNotFound)
 }
 
 func TestWrongAccessKeysReturnUniformUnauthorized(t *testing.T) {

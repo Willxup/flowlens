@@ -3,14 +3,17 @@ import type { ByteString } from "../../../api/contracts";
 import type { HistoricalChartPoint } from "../../history/model";
 import { TrafficChart } from "../TrafficChart";
 
-const chart = vi.hoisted(() => ({
-  setOption: vi.fn(),
-  resize: vi.fn(),
-  dispose: vi.fn(),
-}));
+const { chart, init } = vi.hoisted(() => {
+  const chartInstance = {
+    setOption: vi.fn(),
+    resize: vi.fn(),
+    dispose: vi.fn(),
+  };
+  return { chart: chartInstance, init: vi.fn(() => chartInstance) };
+});
 
 vi.mock("echarts/core", () => ({
-  init: vi.fn(() => chart),
+  init,
   use: vi.fn(),
 }));
 vi.mock("echarts/charts", () => ({ BarChart: {}, LineChart: {} }));
@@ -45,7 +48,10 @@ describe("TrafficChart", () => {
   });
 
   beforeEach(() => {
+    init.mockClear();
     chart.setOption.mockClear();
+    chart.resize.mockClear();
+    chart.dispose.mockClear();
   });
 
   afterAll(() => {
@@ -67,8 +73,14 @@ describe("TrafficChart", () => {
     await waitFor(() => expect(chart.setOption).toHaveBeenCalledOnce());
 
     const option = chart.setOption.mock.calls[0]![0] as {
+      animation: boolean;
+      xAxis: { axisLabel: { show: boolean } };
+      yAxis: { axisLabel: { formatter: (value: number) => string } };
       series: Array<Record<string, unknown>>;
     };
+    expect(option.animation).toBe(false);
+    expect(option.xAxis.axisLabel.show).toBe(true);
+    expect(option.yAxis.axisLabel.formatter(2048)).toBe("2 KiB/s");
     expect(option.series).toEqual([
       expect.objectContaining({
         name: "下载",
@@ -83,6 +95,60 @@ describe("TrafficChart", () => {
         connectNulls: false,
       }),
     ]);
+  });
+
+  it("updates live data without rebuilding the chart instance", async () => {
+    const { rerender, unmount } = render(
+      <TrafficChart
+        mode="live"
+        live={[{ timestamp: 1, upload: 1, download: 2 }]}
+      />,
+    );
+    await waitFor(() => expect(chart.setOption).toHaveBeenCalledOnce());
+
+    rerender(
+      <TrafficChart
+        mode="live"
+        live={[
+          { timestamp: 1, upload: 1, download: 2 },
+          { timestamp: 2, upload: 2, download: 4 },
+        ]}
+      />,
+    );
+    await waitFor(() => expect(chart.setOption).toHaveBeenCalledTimes(2));
+
+    expect(init).toHaveBeenCalledOnce();
+    expect(chart.dispose).not.toHaveBeenCalled();
+    const firstSeries = chart.setOption.mock.calls[0]![0] as {
+      series: Array<{ id?: string }>;
+    };
+    const secondUpdateOptions = chart.setOption.mock.calls[1]![1];
+    expect(firstSeries.series.map((series) => series.id)).toEqual([
+      "live-download",
+      "live-upload",
+    ]);
+    expect(secondUpdateOptions).toEqual({ lazyUpdate: true });
+    unmount();
+    expect(chart.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("limits realtime time labels to a compact set", async () => {
+    render(
+      <TrafficChart
+        mode="live"
+        live={Array.from({ length: 40 }, (_, index) => ({
+          timestamp: index + 1,
+          upload: index,
+          download: index * 2,
+        }))}
+      />,
+    );
+    await waitFor(() => expect(chart.setOption).toHaveBeenCalledOnce());
+
+    const option = chart.setOption.mock.calls[0]![0] as {
+      xAxis: { axisLabel: { interval: number } };
+    };
+    expect(option.xAxis.axisLabel.interval).toBe(3);
   });
 
   it("smooths historical speed but leaves cumulative traffic unsmoothed", async () => {
@@ -119,5 +185,9 @@ describe("TrafficChart", () => {
       series: Array<Record<string, unknown>>;
     };
     expect(traffic.series[2]).not.toHaveProperty("smooth");
+    expect(chart.setOption.mock.calls.at(-1)![1]).toEqual({
+      lazyUpdate: true,
+      replaceMerge: ["series"],
+    });
   });
 });

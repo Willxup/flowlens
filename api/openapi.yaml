@@ -5,7 +5,9 @@ info:
   description: |
     Same-origin API used by the embedded FlowLens dashboard. Unix timestamps are
     seconds unless a field explicitly says milliseconds. Historical global byte
-    totals are exact; dimensional breakdowns are approximate.
+    totals are exact; dimensional breakdowns are approximate. Session security
+    applies when `auth.enabled` is true. Trusted-LAN deployments may disable it,
+    in which case dashboard and business API routes are anonymous.
 servers:
   - url: /
 paths:
@@ -35,6 +37,7 @@ paths:
     post:
       operationId: createSession
       summary: Log in with the configured access key
+      description: Available only when `auth.enabled` is true.
       security: []
       parameters:
         - $ref: "#/components/parameters/Origin"
@@ -58,9 +61,11 @@ paths:
         "413": { $ref: "#/components/responses/JSONError" }
         "415": { $ref: "#/components/responses/JSONError" }
         "503": { $ref: "#/components/responses/JSONError" }
+        "404": { $ref: "#/components/responses/JSONError" }
     delete:
       operationId: deleteSession
       summary: Log out and invalidate the current session
+      description: Available only when `auth.enabled` is true.
       parameters:
         - $ref: "#/components/parameters/Origin"
       responses:
@@ -73,6 +78,7 @@ paths:
                 type: string
         "401": { $ref: "#/components/responses/JSONError" }
         "403": { $ref: "#/components/responses/JSONError" }
+        "404": { $ref: "#/components/responses/JSONError" }
   /api/v1/status:
     get:
       operationId: getStatus
@@ -400,11 +406,12 @@ components:
     StatusResponse:
       type: object
       additionalProperties: false
-      required: [status, reason, timezone, capabilities]
+      required: [status, reason, timezone, auth_enabled, capabilities]
       properties:
         status: { type: string, enum: [ok, degraded, failed] }
         reason: { type: string }
         timezone: { type: string }
+        auth_enabled: { type: boolean }
         capabilities: { $ref: "#/components/schemas/Capabilities" }
     Capabilities:
       type: object

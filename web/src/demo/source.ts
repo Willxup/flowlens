@@ -42,7 +42,7 @@ export class DemoReadOnlyError extends Error {
 }
 
 export class DemoDataSource implements FlowLensDataSource {
-  readonly demo = true;
+  readonly demo: boolean = true;
 
   now(): Date {
     return new Date(fixture.now * 1000);

@@ -4,6 +4,7 @@
     "status": "ok",
     "reason": "ready",
     "timezone": "Asia/Shanghai",
+    "auth_enabled": true,
     "capabilities": {
       "connection_id": true,
       "source": true,

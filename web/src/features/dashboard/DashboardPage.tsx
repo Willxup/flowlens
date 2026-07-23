@@ -32,6 +32,7 @@ const initialStatus: StatusResponse = {
   status: "degraded",
   reason: "starting",
   timezone: "UTC",
+  auth_enabled: false,
   capabilities: {
     connection_id: false,
     source: false,
@@ -147,6 +148,7 @@ export function DashboardPage({
     <Shell
       status={status.status}
       sourceMode={source.demo ? "demo" : "app"}
+      authEnabled={source.demo || status.auth_enabled}
       onLogout={() => void logout()}
       logoutFailed={logoutFailed}
     >

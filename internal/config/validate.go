@@ -47,15 +47,17 @@ func Validate(cfg *Config) error {
 		return fieldError("clash_api.max_response_size", "must be positive")
 	}
 
-	accessKey := cfg.Auth.AccessKey.Value()
-	if strings.TrimSpace(accessKey) == "" || utf8.RuneCountInString(accessKey) < 16 {
-		return fieldError("auth.access_key", "must contain at least 16 characters")
-	}
-	if accessKey == exampleAccessKeyPlaceholder {
-		return fieldError("auth.access_key", "must replace the example value")
-	}
-	if cfg.Auth.SessionTTL.Duration <= 0 {
-		return fieldError("auth.session_ttl", "must be positive")
+	if cfg.Auth.Enabled {
+		accessKey := cfg.Auth.AccessKey.Value()
+		if strings.TrimSpace(accessKey) == "" || utf8.RuneCountInString(accessKey) < 16 {
+			return fieldError("auth.access_key", "must contain at least 16 characters")
+		}
+		if accessKey == exampleAccessKeyPlaceholder {
+			return fieldError("auth.access_key", "must replace the example value")
+		}
+		if cfg.Auth.SessionTTL.Duration <= 0 {
+			return fieldError("auth.session_ttl", "must be positive")
+		}
 	}
 
 	if err := validateDataPath("storage.database_path", cfg.Storage.DatabasePath, false); err != nil {

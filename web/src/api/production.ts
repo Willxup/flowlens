@@ -326,6 +326,7 @@ function validResponse(value: unknown, shape: string | undefined): boolean {
         typeof value.status === "string" &&
         typeof value.reason === "string" &&
         typeof value.timezone === "string" &&
+        typeof value.auth_enabled === "boolean" &&
         isRecord(value.capabilities)
       );
     case "overview":

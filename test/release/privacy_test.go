@@ -12,7 +12,33 @@ import (
 	"testing"
 )
 
-var ipv4Pattern = regexp.MustCompile(`\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b`)
+var (
+	ipv4Pattern       = regexp.MustCompile(`\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b`)
+	credentialPattern = regexp.MustCompile(`(?im)\b(?:secret|access_key)\b["']?\s*[:=]\s*["']?([A-Za-z0-9+/=_-]{16,})`)
+)
+
+func TestCredentialPattern(t *testing.T) {
+	credential := "01234567" + "89abcdef"
+	tests := []struct {
+		name  string
+		input string
+		want  bool
+	}{
+		{name: "yaml secret", input: "secret: " + credential, want: true},
+		{name: "unquoted assignment", input: "access_key=" + credential, want: true},
+		{name: "json access key", input: `{"access_key": "` + credential + `"}`, want: true},
+		{name: "compact json secret", input: `{"secret":"` + credential + `"}`, want: true},
+		{name: "ordinary documentation", input: "Configure secret or access_key before deployment.", want: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := credentialPattern.MatchString(test.input); got != test.want {
+				t.Fatalf("credentialPattern.MatchString(%q) = %t, want %t", test.input, got, test.want)
+			}
+		})
+	}
+}
 
 func TestReleaseTreeContainsNoPrivateOrRuntimeMaterial(t *testing.T) {
 	files := releaseCandidateFiles(t)
@@ -55,7 +81,6 @@ func TestReleaseTreeContainsNoPrivateOrRuntimeMaterial(t *testing.T) {
 }
 
 func TestReleaseTreeContainsNoObviousLiveCredentials(t *testing.T) {
-	credential := regexp.MustCompile(`(?im)(?:secret|access_key)\s*[:=]\s*["']?([A-Za-z0-9+/=_-]{16,})`)
 	allowed := [][]byte{
 		[]byte("fixture-clash-secret"),
 		[]byte("fixture-access-key-123456"),
@@ -71,7 +96,7 @@ func TestReleaseTreeContainsNoObviousLiveCredentials(t *testing.T) {
 		for _, value := range allowed {
 			contents = bytes.ReplaceAll(contents, value, nil)
 		}
-		if match := credential.FindSubmatch(contents); len(match) != 0 {
+		if match := credentialPattern.FindSubmatch(contents); len(match) != 0 {
 			t.Errorf("%s contains an obvious credential assignment", path)
 		}
 	}
@@ -88,9 +113,17 @@ func releaseCandidateFiles(t *testing.T) []string {
 	parts := bytes.Split(output, []byte{0})
 	files := make([]string, 0, len(parts))
 	for _, part := range parts {
-		if len(part) != 0 {
-			files = append(files, string(part))
+		if len(part) == 0 {
+			continue
 		}
+		path := string(part)
+		if _, err := os.Stat(filepath.Join("..", "..", path)); err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			t.Fatalf("Stat(%q) error = %v", path, err)
+		}
+		files = append(files, path)
 	}
 	sort.Strings(files)
 	return files

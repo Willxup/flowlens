@@ -37,6 +37,12 @@ clash_api:
   max_response_size: "16MiB"
 
 auth:
+  # 是否启用 FlowLens Web 登录。省略时默认为 true。
+  # 仅可信局域网可设为 false；关闭后页面和全部 API 均可直接访问。
+  # 设为 false 时可以省略 access_key 和 session_ttl。
+  # 修改后需要重启 FlowLens。
+  enabled: true
+
   # FlowLens Web 登录使用的共享密钥，登录后拥有全部 FlowLens 权限。
   # 必须至少 16 个字符；建议使用 openssl rand -base64 16 生成。
   # 密钥以明文保存在此 YAML，但不会写入数据库、日志、Cookie 或 API 响应。

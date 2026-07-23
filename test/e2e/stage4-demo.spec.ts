@@ -241,12 +241,46 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
 
   await page.setViewportSize({ width: 320, height: 800 });
   await expect(page.getByRole("heading", { name: "历史流量" })).toBeVisible();
+  const mobileMinimumWidths = await page.evaluate(() => ({
+    html: getComputedStyle(document.documentElement).minWidth,
+    body: getComputedStyle(document.body).minWidth,
+  }));
+  expect(mobileMinimumWidths.html).not.toBe("320px");
+  expect(mobileMinimumWidths.body).not.toBe("320px");
   const overflow = await page.evaluate(
     () =>
       document.documentElement.scrollWidth -
       document.documentElement.clientWidth,
   );
   expect(overflow).toBeLessThanOrEqual(1);
+  const mobileFlow = page.locator(".topology-mobile-flow");
+  await expect(mobileFlow).toHaveCount(1);
+  await expect(mobileFlow).toBeVisible();
+  await expect(mobileFlow.locator(".mobile-target-path")).toHaveCount(3);
+  await expect(page.locator(".topology-desktop-flow")).toHaveCSS(
+    "display",
+    "none",
+  );
+  const topology = await page.locator(".topology").boundingBox();
+  const sourceOne = await page.locator(".node-source-one").boundingBox();
+  const sourceTwo = await page.locator(".node-source-two").boundingBox();
+  const gateway = await page.locator(".node-gateway").boundingBox();
+  const firstTopologyTarget = await page
+    .locator(".topology .node-target")
+    .first()
+    .boundingBox();
+  expect(topology).not.toBeNull();
+  expect(sourceOne).not.toBeNull();
+  expect(sourceTwo).not.toBeNull();
+  expect(gateway).not.toBeNull();
+  expect(firstTopologyTarget).not.toBeNull();
+  expect(Math.abs(sourceOne!.y - sourceTwo!.y)).toBeLessThan(2);
+  expect(sourceTwo!.x).toBeGreaterThan(sourceOne!.x + sourceOne!.width);
+  expect(gateway!.y).toBeGreaterThan(sourceOne!.y + sourceOne!.height);
+  expect(Math.abs(gateway!.width - topology!.width)).toBeLessThan(2);
+  expect(firstTopologyTarget!.y).toBeGreaterThan(
+    gateway!.y + gateway!.height,
+  );
   await expect(page.locator(".dashboard")).toHaveCSS(
     "grid-template-columns",
     /310px|300px|1fr/,

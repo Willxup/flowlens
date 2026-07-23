@@ -9,6 +9,7 @@ const status: StatusResponse = {
   status: "ok",
   reason: "ready",
   timezone: "UTC",
+  auth_enabled: true,
   capabilities: {
     connection_id: true,
     source: true,

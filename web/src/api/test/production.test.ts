@@ -79,6 +79,23 @@ describe("ProductionDataSource", () => {
     );
   });
 
+  it("requires the authentication mode in status responses", async () => {
+    const source = new ProductionDataSource(
+      vi.fn(async () =>
+        Response.json({
+          status: "ok",
+          reason: "ready",
+          timezone: "Asia/Shanghai",
+          capabilities: {},
+        }),
+      ) as typeof fetch,
+    );
+
+    await expect(source.status()).rejects.toThrow(
+      "FlowLens response is invalid",
+    );
+  });
+
   it("accepts the two documented fractional breakdown ratios", async () => {
     const source = new ProductionDataSource(
       vi.fn(async () =>

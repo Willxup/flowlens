@@ -27,6 +27,7 @@ type ClashAPI struct {
 }
 
 type Auth struct {
+	Enabled    bool     `yaml:"enabled"`
 	AccessKey  Secret   `yaml:"access_key"`
 	SessionTTL Duration `yaml:"session_ttl"`
 }

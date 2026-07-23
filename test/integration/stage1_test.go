@@ -154,6 +154,7 @@ func integrationConfig(clashURL, databasePath string) config.Config {
 			MaxResponseSize:     config.ByteSize(1 << 20),
 		},
 		Auth: config.Auth{
+			Enabled:    true,
 			AccessKey:  config.Secret("fixture-access-key-123456"),
 			SessionTTL: config.Duration{Duration: time.Hour},
 		},

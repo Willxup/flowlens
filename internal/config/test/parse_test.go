@@ -63,6 +63,9 @@ func TestExampleConfigLoads(t *testing.T) {
 	if cfg.Auth.AccessKey.Value() != fixtureAccessKey {
 		t.Fatal("access key was not parsed exactly")
 	}
+	if !cfg.Auth.Enabled {
+		t.Fatal("example authentication is disabled")
+	}
 	if cfg.Auth.SessionTTL.Duration != 24*time.Hour {
 		t.Fatalf("session TTL = %s", cfg.Auth.SessionTTL.Duration)
 	}
@@ -77,6 +80,36 @@ func TestExampleConfigLoads(t *testing.T) {
 	}
 	if cfg.Backup.LocalTime.Hour != 4 || cfg.Backup.LocalTime.Minute != 0 {
 		t.Fatalf("backup local time = %02d:%02d", cfg.Backup.LocalTime.Hour, cfg.Backup.LocalTime.Minute)
+	}
+}
+
+func TestAuthenticationDefaultsToEnabledWhenFieldIsOmitted(t *testing.T) {
+	input := strings.Replace(exampleYAML(t), "  enabled: true\n", "", 1)
+	input = strings.Replace(input, exampleAccessKey, fixtureAccessKey, 1)
+
+	cfg, err := config.Parse(strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if !cfg.Auth.Enabled {
+		t.Fatal("authentication did not default to enabled")
+	}
+}
+
+func TestAuthenticationCanBeDisabledWithoutLoginCredentials(t *testing.T) {
+	input := strings.Replace(exampleYAML(t), "  enabled: true", "  enabled: false", 1)
+	input = strings.Replace(input, "  access_key: \""+exampleAccessKey+"\"\n", "", 1)
+	input = strings.Replace(input, "  session_ttl: \"24h\"\n", "", 1)
+
+	cfg, err := config.Parse(strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if cfg.Auth.Enabled {
+		t.Fatal("authentication remained enabled")
+	}
+	if cfg.Auth.AccessKey.Value() != "" || cfg.Auth.SessionTTL.Duration != 0 {
+		t.Fatalf("disabled auth credentials = %#v", cfg.Auth)
 	}
 }
 
