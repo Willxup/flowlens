@@ -54,7 +54,7 @@ export function DashboardPage({
   const [selection, setSelection] = useState<TimeSelection>({ kind: "live" });
   const [by, setBy] = useState<BreakdownBy>("endpoint");
   const [historyChart, setHistoryChart] = useState<"traffic" | "speed">(
-    "traffic",
+    "speed",
   );
   const [storage, setStorage] = useState<StorageResponse | null>(null);
   const [labels, setLabels] = useState<LabelResponse[]>([]);

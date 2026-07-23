@@ -46,9 +46,9 @@ chmod 700 data
 让 sing-box 加入 `flowlens_private`，然后拉取并启动已发布镜像：
 
 ```bash
-FLOWLENS_IMAGE=ghcr.io/willxup/flowlens:v0.2.1 \
+FLOWLENS_IMAGE=ghcr.io/willxup/flowlens:v0.2.2 \
   docker compose -f docker-compose.example.yml pull
-FLOWLENS_IMAGE=ghcr.io/willxup/flowlens:v0.2.1 \
+FLOWLENS_IMAGE=ghcr.io/willxup/flowlens:v0.2.2 \
   docker compose -f docker-compose.example.yml up -d
 ```
 
@@ -96,9 +96,9 @@ docker compose -f docker-compose.example.yml run --rm flowlens \
 升级前建议先运行一次手动备份，然后更新镜像标签：
 
 ```bash
-FLOWLENS_IMAGE=ghcr.io/willxup/flowlens:v0.2.1 \
+FLOWLENS_IMAGE=ghcr.io/willxup/flowlens:v0.2.2 \
   docker compose -f docker-compose.example.yml pull
-FLOWLENS_IMAGE=ghcr.io/willxup/flowlens:v0.2.1 \
+FLOWLENS_IMAGE=ghcr.io/willxup/flowlens:v0.2.2 \
   docker compose -f docker-compose.example.yml up -d
 ```
 

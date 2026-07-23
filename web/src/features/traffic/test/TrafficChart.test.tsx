@@ -3,6 +3,17 @@ import type { ByteString } from "../../../api/contracts";
 import type { HistoricalChartPoint } from "../../history/model";
 import { TrafficChart } from "../TrafficChart";
 
+const tooltipTimestamp = Math.floor(
+  new Date(2026, 6, 23, 14, 5, 6).getTime() / 1000,
+);
+
+type TooltipParameter = {
+  axisValue: number;
+  marker: string;
+  seriesName: string;
+  value: number | null;
+};
+
 const { chart, init } = vi.hoisted(() => {
   const chartInstance = {
     setOption: vi.fn(),
@@ -188,6 +199,111 @@ describe("TrafficChart", () => {
     ).not.toContain(":");
   });
 
+  it("formats live tooltip time and rate units", async () => {
+    render(
+      <TrafficChart
+        mode="live"
+        live={[
+          {
+            timestamp: tooltipTimestamp,
+            download: 1536,
+            upload: 512,
+          },
+        ]}
+      />,
+    );
+    await waitFor(() => expect(chart.setOption).toHaveBeenCalledOnce());
+
+    const formatter = configuredTooltipFormatter();
+    const content = formatter([
+      {
+        axisValue: tooltipTimestamp,
+        marker: "<span></span>",
+        seriesName: "下载",
+        value: 1536,
+      },
+      {
+        axisValue: tooltipTimestamp,
+        marker: "<span></span>",
+        seriesName: "上传",
+        value: 512,
+      },
+    ]);
+
+    expect(content).toContain("2026-07-23 14:05:06");
+    expect(content).toContain("下载 1.5 KiB/s");
+    expect(content).toContain("上传 512 B/s");
+    expect(content).not.toContain(String(tooltipTimestamp));
+  });
+
+  it("formats historical speed tooltip time and rate units", async () => {
+    render(
+      <TrafficChart
+        mode="history"
+        historyView="speed"
+        history={[historicalTooltipPoint()]}
+      />,
+    );
+    await waitFor(() => expect(chart.setOption).toHaveBeenCalledOnce());
+
+    const content = configuredTooltipFormatter()([
+      {
+        axisValue: tooltipTimestamp,
+        marker: "<span></span>",
+        seriesName: "平均下载",
+        value: 2048,
+      },
+      {
+        axisValue: tooltipTimestamp,
+        marker: "<span></span>",
+        seriesName: "平均上传",
+        value: 768,
+      },
+    ]);
+
+    expect(content).toContain("2026-07-23 14:05");
+    expect(content).not.toContain("14:05:06");
+    expect(content).toContain("平均下载 2 KiB/s");
+    expect(content).toContain("平均上传 768 B/s");
+  });
+
+  it("formats historical traffic tooltip time and capacity units", async () => {
+    render(
+      <TrafficChart
+        mode="history"
+        historyView="traffic"
+        history={[historicalTooltipPoint()]}
+      />,
+    );
+    await waitFor(() => expect(chart.setOption).toHaveBeenCalledOnce());
+
+    const content = configuredTooltipFormatter()([
+      {
+        axisValue: tooltipTimestamp,
+        marker: "<span></span>",
+        seriesName: "下载",
+        value: 2048,
+      },
+      {
+        axisValue: tooltipTimestamp,
+        marker: "<span></span>",
+        seriesName: "上传",
+        value: 512,
+      },
+      {
+        axisValue: tooltipTimestamp,
+        marker: "<span></span>",
+        seriesName: "累计",
+        value: 4096,
+      },
+    ]);
+
+    expect(content).toContain("2026-07-23 14:05");
+    expect(content).toContain("下载 2 MiB");
+    expect(content).toContain("上传 512 KiB");
+    expect(content).toContain("累计 4 MiB");
+  });
+
   it("smooths historical speed but leaves cumulative traffic unsmoothed", async () => {
     const history: HistoricalChartPoint[] = [
       {
@@ -228,3 +344,26 @@ describe("TrafficChart", () => {
     });
   });
 });
+
+function configuredTooltipFormatter(): (params: TooltipParameter[]) => string {
+  const option = chart.setOption.mock.calls.at(-1)![0] as {
+    tooltip: {
+      formatter?: (params: TooltipParameter[]) => string;
+    };
+  };
+  expect(option.tooltip.formatter).toBeTypeOf("function");
+  return option.tooltip.formatter!;
+}
+
+function historicalTooltipPoint(): HistoricalChartPoint {
+  return {
+    start: tooltipTimestamp,
+    end: tooltipTimestamp + 3600,
+    upload: "524288" as ByteString,
+    download: "2097152" as ByteString,
+    cumulative: "4194304" as ByteString,
+    uploadRate: 768,
+    downloadRate: 2048,
+    resolution: 3600,
+  };
+}

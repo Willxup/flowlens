@@ -191,6 +191,32 @@ describe("DashboardPage", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("defaults historical ranges to speed while preserving manual switching", async () => {
+    render(
+      <DashboardPage source={new DemoDataSource()} onUnauthorized={vi.fn()} />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "今天" }));
+    expect(
+      await screen.findByRole("img", {
+        name: "历史平均上传和下载速度曲线",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "速度视图" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "流量视图" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "流量视图" }));
+    expect(
+      screen.getByRole("img", { name: "历史上传下载流量和累计曲线" }),
+    ).toBeInTheDocument();
+  });
+
   it("marks custom-range boundary approximation explicitly", async () => {
     render(
       <DashboardPage source={new DemoDataSource()} onUnauthorized={vi.fn()} />,

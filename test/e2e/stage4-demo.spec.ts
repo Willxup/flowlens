@@ -177,10 +177,18 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
   ]) {
     await expect(page.getByRole("button", { name: dimension })).toBeVisible();
   }
-  await page.getByRole("button", { name: "速度视图" }).click();
+  await expect(page.getByRole("button", { name: "速度视图" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await expect(
     page.getByRole("img", { name: "历史平均上传和下载速度曲线" }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "流量视图" }).click();
+  await expect(
+    page.getByRole("img", { name: "历史上传下载流量和累计曲线" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "速度视图" }).click();
   await page.getByRole("button", { name: "端口" }).click();
   await expect(page.getByLabel("端口分布")).toBeVisible();
   await expect(page.getByLabel(/流量拓扑/)).toHaveCount(0);

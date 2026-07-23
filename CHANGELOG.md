@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-07-23
+
+### Changed
+
+- Historical charts now open in the speed view while keeping the traffic view available as a manual toggle.
+
+### Fixed
+
+- Chart tooltips now show a readable timestamp and the appropriate speed or traffic unit.
+
 ## [0.2.1] - 2026-07-23
 
 ### Changed
@@ -46,7 +56,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Non-root scratch container and hardened Compose defaults.
 - Redaction boundaries for secrets, paths, session data, and public examples.
 
-[Unreleased]: https://github.com/Willxup/flowlens/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/Willxup/flowlens/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/Willxup/flowlens/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/Willxup/flowlens/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Willxup/flowlens/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Willxup/flowlens/releases/tag/v0.1.0

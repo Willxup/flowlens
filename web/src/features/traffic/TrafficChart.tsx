@@ -28,6 +28,13 @@ interface TrafficChartProps {
   history?: HistoricalChartPoint[];
 }
 
+interface TrafficTooltipParameter {
+  axisValue?: string | number;
+  marker?: unknown;
+  seriesName?: unknown;
+  value?: unknown;
+}
+
 export function TrafficChart({
   mode,
   historyView = "traffic",
@@ -77,6 +84,7 @@ export function TrafficChart({
           backgroundColor: "rgba(20, 21, 24, 0.94)",
           borderColor: "rgba(127, 127, 127, 0.24)",
           textStyle: { color: "#f7f7f5", fontSize: 11 },
+          formatter: createTooltipFormatter(mode, speedScale),
         },
         legend: {
           top: 0,
@@ -250,4 +258,43 @@ function formatTrafficScale(value: number): string {
   }
   const digits = scaled >= 10 || Number.isInteger(scaled) ? 0 : 1;
   return `${scaled.toFixed(digits)} ${units[unit]}`;
+}
+
+function createTooltipFormatter(
+  mode: "live" | "history",
+  speedScale: boolean,
+): (params: TrafficTooltipParameter | TrafficTooltipParameter[]) => string {
+  return (input) => {
+    const params = Array.isArray(input) ? input : [input];
+    const timestamp = formatTooltipTimestamp(params[0]?.axisValue, mode);
+    const formatValue = speedScale ? formatRate : formatTrafficScale;
+    const values = params.map((param) => {
+      const marker = typeof param.marker === "string" ? param.marker : "";
+      const name = typeof param.seriesName === "string" ? param.seriesName : "";
+      const value = typeof param.value === "number" ? param.value : Number.NaN;
+      return `${marker}${name} ${formatValue(value)}`;
+    });
+    return [`<strong>${timestamp}</strong>`, ...values].join("<br/>");
+  };
+}
+
+function formatTooltipTimestamp(
+  value: string | number | undefined,
+  mode: "live" | "history",
+): string {
+  const timestamp = Number(value);
+  if (!Number.isFinite(timestamp)) return "—";
+  const date = new Date(timestamp * 1000);
+  const datePart = [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join("-");
+  const time = [pad(date.getHours()), pad(date.getMinutes())];
+  if (mode === "live") time.push(pad(date.getSeconds()));
+  return `${datePart} ${time.join(":")}`;
+}
+
+function pad(value: number): string {
+  return String(value).padStart(2, "0");
 }
