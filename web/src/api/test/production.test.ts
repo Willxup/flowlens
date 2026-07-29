@@ -30,19 +30,37 @@ describe("ProductionDataSource", () => {
     expect(JSON.stringify(source)).not.toContain("fixture-access-key");
   });
 
-  it("builds exact historical query parameters and preserves byte strings", async () => {
+  it("sends semantic preset ranges without client timestamps", async () => {
     const fetcher = vi.fn(async (input: RequestInfo | URL) => {
-      expect(String(input)).toBe(
-        "/api/v1/series?from=10&to=20&resolution=auto",
-      );
+      expect(String(input)).toBe("/api/v1/series?range=30d&resolution=auto");
       return Response.json({ boundary_approximate: false, points: [] });
     });
     const source = new ProductionDataSource(fetcher as typeof fetch);
 
-    const value = await source.series({ from: 10, to: 20 });
+    const value = await source.series({ kind: "preset", preset: "30d" });
 
     expect(value).toEqual({ boundary_approximate: false, points: [] });
     expect(asByteString("9007199254740993")).toBe("9007199254740993");
+  });
+
+  it("sends custom calendar dates for server-side range planning", async () => {
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe(
+        "/api/v1/overview?range=custom&from=2026-07-01&to=2026-07-14",
+      );
+      return Response.json({
+        current: {},
+        previous: {},
+        boundary_approximate: false,
+      });
+    });
+    const source = new ProductionDataSource(fetcher as typeof fetch);
+
+    await source.overview({
+      kind: "custom",
+      from: "2026-07-01",
+      to: "2026-07-14",
+    });
   });
 
   it("classifies unauthorized and generic service failures", async () => {
@@ -116,7 +134,7 @@ describe("ProductionDataSource", () => {
     );
 
     await expect(
-      source.breakdown({ from: 10, to: 20 }, "endpoint"),
+      source.breakdown({ kind: "preset", preset: "today" }, "endpoint"),
     ).resolves.toMatchObject({
       connection_coverage: 0.924,
       dimension_retention: 0.884,

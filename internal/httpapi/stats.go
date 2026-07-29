@@ -14,6 +14,7 @@ import (
 
 // StatisticsQueries is the exact Stage 2 read-model boundary.
 type StatisticsQueries interface {
+	ResolveRange(query.RangeSelection) (rollup.Range, error)
 	Overview(context.Context, rollup.Range) (query.Overview, error)
 	Series(context.Context, rollup.Range) (query.Series, error)
 	Quality(context.Context, rollup.Range) (query.Quality, error)
@@ -104,8 +105,13 @@ func (h *handler) overviewResponse(writer http.ResponseWriter, request *http.Req
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	rangeValue, ok := strictRange(request, false)
+	selection, ok := strictRange(request, false)
 	if !ok {
+		writer.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	rangeValue, err := h.queries.ResolveRange(selection)
+	if err != nil {
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -134,8 +140,13 @@ func (h *handler) seriesResponse(writer http.ResponseWriter, request *http.Reque
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	rangeValue, ok := strictRange(request, true)
+	selection, ok := strictRange(request, true)
 	if !ok {
+		writer.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	rangeValue, err := h.queries.ResolveRange(selection)
+	if err != nil {
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -181,8 +192,13 @@ func (h *handler) qualityResponse(writer http.ResponseWriter, request *http.Requ
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	rangeValue, ok := strictRange(request, false)
+	selection, ok := strictRange(request, false)
 	if !ok {
+		writer.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	rangeValue, err := h.queries.ResolveRange(selection)
+	if err != nil {
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -231,32 +247,16 @@ func (h *handler) storageResponse(writer http.ResponseWriter, request *http.Requ
 	writeJSON(writer, response)
 }
 
-func strictRange(request *http.Request, allowResolution bool) (rollup.Range, bool) {
+func strictRange(request *http.Request, allowResolution bool) (query.RangeSelection, bool) {
 	values := request.URL.Query()
-	allowed := map[string]bool{"from": true, "to": true}
+	extras := make(map[string]bool)
 	if allowResolution {
-		allowed["resolution"] = true
-	}
-	for key, entries := range values {
-		if !allowed[key] || len(entries) != 1 {
-			return rollup.Range{}, false
-		}
-	}
-	if len(values["from"]) != 1 || len(values["to"]) != 1 {
-		return rollup.Range{}, false
-	}
-	from, err := strconv.ParseInt(values.Get("from"), 10, 64)
-	if err != nil || from <= 0 {
-		return rollup.Range{}, false
-	}
-	to, err := strconv.ParseInt(values.Get("to"), 10, 64)
-	if err != nil || to <= from {
-		return rollup.Range{}, false
+		extras["resolution"] = true
 	}
 	if resolution := values.Get("resolution"); resolution != "" && resolution != "auto" {
-		return rollup.Range{}, false
+		return query.RangeSelection{}, false
 	}
-	return rollup.Range{From: from, To: to}, true
+	return strictRangeSelection(values, extras)
 }
 
 func totalsDTO(value query.Totals) (totalsResponse, error) {

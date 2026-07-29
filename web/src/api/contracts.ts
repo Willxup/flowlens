@@ -16,6 +16,7 @@ export type TimeSelection =
   | { kind: "custom"; from: string; to: string };
 
 export type HistoricalRange = { from: number; to: number };
+export type HistoricalSelection = Exclude<TimeSelection, { kind: "live" }>;
 export type ServiceLevel = "ok" | "degraded" | "failed";
 
 export interface Capabilities {

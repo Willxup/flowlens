@@ -270,6 +270,19 @@ func newService(t *testing.T, store query.Store, now time.Time) *query.Service {
 	return newServiceWith(t, store, fakeLiveSource{}, now, 20, attribution.SourcePrefix)
 }
 
+func newServiceAtLocation(t *testing.T, store query.Store, now time.Time, location *time.Location) *query.Service {
+	t.Helper()
+	service, err := query.NewService(query.Options{
+		Store: store, Live: fakeLiveSource{}, Now: func() time.Time { return now },
+		Retention: config.Retention{TenSecondDays: 1, MinuteDays: 7, HalfHourDays: 365, HourDays: 1095, TopK: 20},
+		Location:  location, PrivacyMode: attribution.SourcePrefix,
+	})
+	if err != nil {
+		t.Fatalf("NewService() error = %v", err)
+	}
+	return service
+}
+
 func newServiceWith(t *testing.T, store query.Store, live query.LiveSource, now time.Time, topK int, privacy attribution.SourceMode) *query.Service {
 	t.Helper()
 	service, err := query.NewService(query.Options{

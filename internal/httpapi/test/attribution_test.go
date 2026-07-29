@@ -27,10 +27,10 @@ func TestStage3AttributionRoutesAuthenticateAndEncodeExplicitDTOs(t *testing.T) 
 		Targets: []query.LiveTarget{{RawEndpoint: "198.51.100.1:443", DisplayName: "API", NetworkCode: 1, UploadBytesPerSecond: 50, DownloadBytesPerSecond: 60}}}
 	queries.sessions = []query.RuntimeSessionRecord{{StartedAt: 10, LastSeenAt: 20, StartReason: "startup", SingBoxVersion: "fixture"}}
 	handler := statsHandler(t, queries)
-	assertResponse(t, handler, http.MethodGet, "/api/v1/breakdown?from=100&to=200&by=endpoint", "", nil, http.StatusUnauthorized)
+	assertResponse(t, handler, http.MethodGet, "/api/v1/breakdown?range=today&by=endpoint", "", nil, http.StatusUnauthorized)
 	cookie := loginCookie(t, handler)
 
-	breakdown := request(t, handler, http.MethodGet, "/api/v1/breakdown?from=100&to=200&by=endpoint", "", cookie)
+	breakdown := request(t, handler, http.MethodGet, "/api/v1/breakdown?range=today&by=endpoint", "", cookie)
 	if breakdown.Code != http.StatusOK || !strings.Contains(breakdown.Body.String(), `"upload_bytes":"18014398509481985"`) ||
 		!strings.Contains(breakdown.Body.String(), `"approximate":true`) || strings.Contains(breakdown.Body.String(), "UUID") {
 		t.Fatalf("breakdown = status:%d body:%q", breakdown.Code, breakdown.Body.String())
@@ -77,9 +77,9 @@ func TestStage3ReadRoutesRejectUnknownQueriesAndMethods(t *testing.T) {
 		method, path string
 		want         int
 	}{
-		{http.MethodPost, "/api/v1/breakdown?from=100&to=200&by=target", http.StatusMethodNotAllowed},
-		{http.MethodGet, "/api/v1/breakdown?from=100&to=200&by=bad", http.StatusBadRequest},
-		{http.MethodGet, "/api/v1/breakdown?from=100&to=200&by=target&extra=1", http.StatusBadRequest},
+		{http.MethodPost, "/api/v1/breakdown?range=today&by=target", http.StatusMethodNotAllowed},
+		{http.MethodGet, "/api/v1/breakdown?range=today&by=bad", http.StatusBadRequest},
+		{http.MethodGet, "/api/v1/breakdown?range=today&by=target&extra=1", http.StatusBadRequest},
 		{http.MethodGet, "/api/v1/connections/live?extra=1", http.StatusBadRequest},
 		{http.MethodGet, "/api/v1/runtime-sessions?limit=1", http.StatusBadRequest},
 	} {

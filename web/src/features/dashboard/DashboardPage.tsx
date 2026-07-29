@@ -107,7 +107,6 @@ export function DashboardPage({
   const history = useHistoryViewModel(
     source,
     selection,
-    status.timezone,
     by,
     onUnauthorized,
     aliasRevision,

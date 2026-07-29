@@ -364,6 +364,11 @@ select:focus-visible {
   height: 100%;
   overflow: visible;
 }
+.topology svg.topology-desktop-flow {
+  position: absolute;
+  inset: 0 132px;
+  width: calc(100% - 264px);
+}
 .topology-mobile-flow {
   display: none;
 }

@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -148,7 +147,7 @@ func TestStage3AttributionRollupAliasAndHTTPChain(t *testing.T) {
 		t.Fatalf("httpapi.New() error = %v", err)
 	}
 	cookie := stage3Login(t, handler)
-	path := "/api/v1/breakdown?from=" + strconv.FormatInt(rangeValue.From, 10) + "&to=" + strconv.FormatInt(rangeValue.To, 10) + "&by=endpoint"
+	path := "/api/v1/breakdown?range=custom&from=2026-01-01&to=2026-01-01&by=endpoint"
 	response := stage3Request(t, handler, http.MethodGet, path, "", cookie)
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"upload_bytes":"`) ||
 		!strings.Contains(response.Body.String(), "Fixture API") {

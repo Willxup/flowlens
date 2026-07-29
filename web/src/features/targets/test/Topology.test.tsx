@@ -30,3 +30,20 @@ it("draws the mobile target trunk only as far as the available targets", () => {
     "M150 120V128H14V212.5",
   );
 });
+
+it("stretches the desktop flow paths across wide historical panels", () => {
+  const { container } = render(<Topology targets={targets(3)} />);
+
+  const flow = container.querySelector(".topology-desktop-flow");
+  expect(flow).toHaveAttribute("preserveAspectRatio", "none");
+  expect(flow?.querySelector(".flow-path")?.getAttribute("d")).toMatch(/^M0 /);
+  expect(
+    Array.from(flow?.querySelectorAll(".flow-path.target") ?? []).map((path) =>
+      path.getAttribute("d"),
+    ),
+  ).toEqual([
+    "M450 150 C600 150 640 50 900 50",
+    "M450 150 C600 150 640 150 900 150",
+    "M450 150 C600 150 640 250 900 250",
+  ]);
+});

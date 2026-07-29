@@ -11,18 +11,19 @@ export function Topology({ targets }: { targets: HistoricalTargetRow[] }) {
       <svg
         className="topology-desktop-flow"
         viewBox="0 0 900 300"
+        preserveAspectRatio="none"
         aria-hidden="true"
       >
-        <path className="flow-path" d="M130 72 C300 72 300 150 450 150" />
+        <path className="flow-path" d="M0 72 C260 72 300 150 450 150" />
         <path
           className="flow-path secondary"
-          d="M130 232 C300 232 300 150 450 150"
+          d="M0 232 C260 232 300 150 450 150"
         />
         {nodes.map((_, index) => (
           <path
             key={index}
             className="flow-path target"
-            d={`M450 150 C610 150 610 ${50 + index * 100} 770 ${50 + index * 100}`}
+            d={`M450 150 C600 150 640 ${50 + index * 100} 900 ${50 + index * 100}`}
           />
         ))}
       </svg>

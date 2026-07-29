@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/Willxup/flowlens/internal/query"
-	"github.com/Willxup/flowlens/internal/rollup"
 	"github.com/Willxup/flowlens/internal/storage"
 )
 
@@ -60,8 +59,13 @@ func (handler *handler) breakdownResponse(writer http.ResponseWriter, request *h
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	rangeValue, by, ok := strictBreakdown(request)
+	selection, by, ok := strictBreakdown(request)
 	if !ok {
+		writer.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	rangeValue, err := handler.queries.ResolveRange(selection)
+	if err != nil {
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -154,29 +158,17 @@ func (handler *handler) runtimeSessionsResponse(writer http.ResponseWriter, requ
 	}{Sessions: sessions})
 }
 
-func strictBreakdown(request *http.Request) (rollup.Range, query.BreakdownBy, bool) {
+func strictBreakdown(request *http.Request) (query.RangeSelection, query.BreakdownBy, bool) {
 	values := request.URL.Query()
-	for key, entries := range values {
-		if (key != "from" && key != "to" && key != "by") || len(entries) != 1 {
-			return rollup.Range{}, "", false
-		}
-	}
-	if len(values) != 3 {
-		return rollup.Range{}, "", false
-	}
-	from, err := strconv.ParseInt(values.Get("from"), 10, 64)
-	if err != nil || from <= 0 {
-		return rollup.Range{}, "", false
-	}
-	to, err := strconv.ParseInt(values.Get("to"), 10, 64)
-	if err != nil || to <= from {
-		return rollup.Range{}, "", false
+	selection, ok := strictRangeSelection(values, map[string]bool{"by": true})
+	if !ok || len(values["by"]) != 1 {
+		return query.RangeSelection{}, "", false
 	}
 	by := query.BreakdownBy(values.Get("by"))
 	if by != query.ByTarget && by != query.ByEndpoint && by != query.ByPort && by != query.ByNetwork && by != query.BySource && by != query.ByDomain {
-		return rollup.Range{}, "", false
+		return query.RangeSelection{}, "", false
 	}
-	return rollup.Range{From: from, To: to}, by, true
+	return selection, by, true
 }
 
 func bytePairDTO(value storage.ByteTotals) bytePairResponse {

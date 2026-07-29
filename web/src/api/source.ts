@@ -1,7 +1,7 @@
 import type {
   BreakdownBy,
   BreakdownResponse,
-  HistoricalRange,
+  HistoricalSelection,
   LabelCandidateResponse,
   LabelResponse,
   LiveEvent,
@@ -27,17 +27,20 @@ export interface FlowLensDataSource {
   logout(signal?: AbortSignal): Promise<void>;
   status(signal?: AbortSignal): Promise<StatusResponse>;
   overview(
-    range: HistoricalRange,
+    range: HistoricalSelection,
     signal?: AbortSignal,
   ): Promise<OverviewResponse>;
-  series(range: HistoricalRange, signal?: AbortSignal): Promise<SeriesResponse>;
+  series(
+    range: HistoricalSelection,
+    signal?: AbortSignal,
+  ): Promise<SeriesResponse>;
   quality(
-    range: HistoricalRange,
+    range: HistoricalSelection,
     signal?: AbortSignal,
   ): Promise<QualityResponse>;
   storage(signal?: AbortSignal): Promise<StorageResponse>;
   breakdown(
-    range: HistoricalRange,
+    range: HistoricalSelection,
     by: BreakdownBy,
     signal?: AbortSignal,
   ): Promise<BreakdownResponse>;

@@ -6,14 +6,12 @@ import type {
 } from "../../api/contracts";
 import { UnauthorizedError } from "../../api/production";
 import type { FlowLensDataSource } from "../../api/source";
-import { toHistoricalRange } from "../../lib/time-range";
 import { buildTargetView } from "../targets/model";
 import { buildHistoricalView } from "./model";
 
 export function useHistoryViewModel(
   source: FlowLensDataSource,
   selection: TimeSelection,
-  timezone: string,
   by: BreakdownBy,
   onUnauthorized: () => void,
   refreshKey = 0,
@@ -32,6 +30,7 @@ export function useHistoryViewModel(
 
   useEffect(() => {
     if (selection.kind === "live") return;
+    const historicalSelection = selection;
     const controller = new AbortController();
     let active = true;
     let loaded = false;
@@ -42,12 +41,11 @@ export function useHistoryViewModel(
           : { loading: true, error: false, view: null, breakdown: null },
       );
       try {
-        const range = toHistoricalRange(selection, source.now(), timezone);
         const [overview, series, quality, breakdown] = await Promise.all([
-          source.overview(range, controller.signal),
-          source.series(range, controller.signal),
-          source.quality(range, controller.signal),
-          source.breakdown(range, by, controller.signal),
+          source.overview(historicalSelection, controller.signal),
+          source.series(historicalSelection, controller.signal),
+          source.quality(historicalSelection, controller.signal),
+          source.breakdown(historicalSelection, by, controller.signal),
         ]);
         if (active) {
           loaded = true;
@@ -79,7 +77,7 @@ export function useHistoryViewModel(
       controller.abort();
       if (interval !== undefined) window.clearInterval(interval);
     };
-  }, [by, onUnauthorized, refreshKey, selection, source, timezone]);
+  }, [by, onUnauthorized, refreshKey, selection, source]);
 
   return {
     ...state,

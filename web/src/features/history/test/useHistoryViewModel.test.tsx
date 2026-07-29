@@ -1,12 +1,15 @@
 import { renderHook, waitFor } from "@testing-library/react";
-import type { HistoricalRange, TimeSelection } from "../../../api/contracts";
+import type {
+  HistoricalSelection,
+  TimeSelection,
+} from "../../../api/contracts";
 import { DemoDataSource } from "../../../demo/source";
 import { useHistoryViewModel } from "../useHistoryViewModel";
 
 class FailingHistorySource extends DemoDataSource {
   fail = false;
 
-  override async overview(range: HistoricalRange) {
+  override async overview(range: HistoricalSelection) {
     if (this.fail) throw new Error("fixture unavailable");
     return super.overview(range);
   }
@@ -16,7 +19,7 @@ class CountingHistorySource extends DemoDataSource {
   breakdownCalls = 0;
 
   override async breakdown(
-    range: HistoricalRange,
+    range: HistoricalSelection,
     by: Parameters<DemoDataSource["breakdown"]>[1],
   ) {
     this.breakdownCalls += 1;
@@ -31,13 +34,7 @@ describe("useHistoryViewModel", () => {
     const initial: TimeSelection = { kind: "preset", preset: "today" };
     const { result, rerender } = renderHook(
       ({ selection }: { selection: TimeSelection }) =>
-        useHistoryViewModel(
-          source,
-          selection,
-          "Asia/Shanghai",
-          "endpoint",
-          onUnauthorized,
-        ),
+        useHistoryViewModel(source, selection, "endpoint", onUnauthorized),
       { initialProps: { selection: initial } },
     );
     await waitFor(() => expect(result.current.view).not.toBeNull());
@@ -59,7 +56,6 @@ describe("useHistoryViewModel", () => {
         useHistoryViewModel(
           source,
           selection,
-          "Asia/Shanghai",
           "endpoint",
           onUnauthorized,
           revision,

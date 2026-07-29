@@ -120,6 +120,9 @@ func stage4ReadSSEEvent(t *testing.T, reader *bufio.Reader) string {
 
 type stage4Queries struct{}
 
+func (stage4Queries) ResolveRange(query.RangeSelection) (rollup.Range, error) {
+	return rollup.Range{From: 100, To: 200}, nil
+}
 func (stage4Queries) Overview(context.Context, rollup.Range) (query.Overview, error) {
 	return query.Overview{}, nil
 }

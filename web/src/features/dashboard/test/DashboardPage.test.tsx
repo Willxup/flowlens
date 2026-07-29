@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type {
-  HistoricalRange,
+  HistoricalSelection,
   LiveTargetsResponse,
   OverviewResponse,
 } from "../../../api/contracts";
@@ -10,7 +10,9 @@ import { DemoDataSource } from "../../../demo/source";
 import { DashboardPage } from "../DashboardPage";
 
 class FailingHistorySource extends DemoDataSource {
-  override async overview(_range: HistoricalRange): Promise<OverviewResponse> {
+  override async overview(
+    _range: HistoricalSelection,
+  ): Promise<OverviewResponse> {
     throw new Error("fixture unavailable");
   }
 }

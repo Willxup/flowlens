@@ -19,8 +19,9 @@ test("production bundle works with the shipped CSP and named SSE events", async 
   const cspErrors: string[] = [];
   const apiRequests: string[] = [];
   page.on("request", (request) => {
-    const path = new URL(request.url()).pathname;
-    if (path.startsWith("/api/")) apiRequests.push(path);
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/"))
+      apiRequests.push(`${url.pathname}${url.search}`);
   });
   page.on("console", (message) => {
     if (/content security policy|refused to apply inline/i.test(message.text()))
@@ -55,10 +56,7 @@ test("production bundle works with the shipped CSP and named SSE events", async 
       });
       return;
     }
-    if (
-      path === "/api/v1/session" &&
-      route.request().method() === "DELETE"
-    ) {
+    if (path === "/api/v1/session" && route.request().method() === "DELETE") {
       await route.fulfill({ status: 503 });
       return;
     }
@@ -81,6 +79,34 @@ test("production bundle works with the shipped CSP and named SSE events", async 
     page.getByText("Fixture · 198.51.100.20:443").first(),
   ).toBeVisible();
   await expect(page.locator(".chart-shell svg")).toBeVisible();
+  await page.getByRole("button", { name: "30 天" }).click();
+  await expect(page.getByRole("heading", { name: "历史流量" })).toBeVisible();
+  await expect.poll(() => apiRequests).toContain("/api/v1/overview?range=30d");
+  await expect
+    .poll(() => apiRequests)
+    .toContain("/api/v1/series?range=30d&resolution=auto");
+  await expect
+    .poll(() => apiRequests)
+    .toContain("/api/v1/breakdown?range=30d&by=endpoint");
+  expect(apiRequests.some((request) => /[?&](from|to)=\d/.test(request))).toBe(
+    false,
+  );
+  await expect(page.locator(".topology-desktop-flow")).toHaveAttribute(
+    "preserveAspectRatio",
+    "none",
+  );
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(page.locator(".topology-desktop-flow")).toBeVisible();
+  const [flowBox, sourceBox, targetBox] = await Promise.all([
+    page.locator(".topology-desktop-flow").boundingBox(),
+    page.locator(".node-source-one").boundingBox(),
+    page.locator(".node-target-0").boundingBox(),
+  ]);
+  if (flowBox === null || sourceBox === null || targetBox === null)
+    throw new Error("missing topology boxes");
+  expect(sourceBox.x + sourceBox.width - flowBox.x).toBeCloseTo(4, 0);
+  expect(flowBox.x + flowBox.width - targetBox.x).toBeCloseTo(4, 0);
+  await page.setViewportSize({ width: 320, height: 720 });
   await page.locator(".logout-button").click();
   await expect(
     page.getByRole("button", { name: "退出失败，请重试" }),
@@ -151,6 +177,49 @@ function fixtureResponse(path: string): unknown {
           last_seen_at: 1_700_000_000,
           sing_box_version: "sing-box 1.12.0",
           data_gap_before_seconds: 0,
+        },
+      ],
+    };
+  if (path === "/api/v1/overview")
+    return {
+      current: {
+        upload_bytes: "10",
+        download_bytes: "20",
+        total_bytes: "30",
+        elapsed_seconds: 60,
+        observed_seconds: 60,
+      },
+      previous: {
+        upload_bytes: "5",
+        download_bytes: "10",
+        total_bytes: "15",
+        elapsed_seconds: 60,
+        observed_seconds: 60,
+      },
+      boundary_approximate: false,
+    };
+  if (path === "/api/v1/series")
+    return { boundary_approximate: false, points: [] };
+  if (path === "/api/v1/quality") return { events: [] };
+  if (path === "/api/v1/breakdown")
+    return {
+      by: "endpoint",
+      available: true,
+      approximate: true,
+      boundary_approximate: false,
+      no_traffic: false,
+      connection_coverage: 1,
+      dimension_retention: 1,
+      global: { upload_bytes: "10", download_bytes: "20" },
+      other: { upload_bytes: "0", download_bytes: "0" },
+      unattributed: { upload_bytes: "0", download_bytes: "0" },
+      items: [
+        {
+          raw_value: "198.51.100.20:443",
+          display_name: "Fixture · 198.51.100.20:443",
+          network_code: 1,
+          upload_bytes: "10",
+          download_bytes: "20",
         },
       ],
     };

@@ -1,5 +1,6 @@
 import { DemoDataSource, DemoReadOnlyError } from "../source";
 import { generateLiveSamples } from "../mock-history";
+import type { HistoricalSelection } from "../../api/contracts";
 
 describe("DemoDataSource", () => {
   it("generates continuous live traffic without sawtooth resets", () => {
@@ -35,8 +36,9 @@ describe("DemoDataSource", () => {
       .mockRejectedValue(new Error("network forbidden"));
     const source = new DemoDataSource();
 
-    const first = await source.series({ from: 1, to: 2 });
-    const second = await source.series({ from: 1, to: 2 });
+    const selection = { kind: "preset", preset: "today" } as const;
+    const first = await source.series(selection);
+    const second = await source.series(selection);
     expect(first).toEqual(second);
     expect(first).not.toBe(second);
     expect(fetchTrap).not.toHaveBeenCalled();
@@ -98,7 +100,10 @@ describe("DemoDataSource", () => {
       "source",
       "domain",
     ] as const) {
-      const breakdown = await source.breakdown({ from: 1, to: 2 }, by);
+      const breakdown = await source.breakdown(
+        { kind: "preset", preset: "today" },
+        by,
+      );
       if (by === "target" || by === "endpoint" || by === "domain")
         expect(breakdown.items.length).toBeGreaterThanOrEqual(5);
 
@@ -119,21 +124,20 @@ describe("DemoDataSource", () => {
 
   it("changes totals, series and quality by selected historical range", async () => {
     const source = new DemoDataSource();
-    const now = Math.floor(source.now().getTime() / 1000);
-    const ranges = [
-      { name: "today", range: { from: now - 46_800, to: now } },
+    const ranges: Array<{ name: string; range: HistoricalSelection }> = [
+      { name: "today", range: { kind: "preset", preset: "today" } },
       {
         name: "yesterday",
-        range: { from: now - 133_200, to: now - 46_800 },
+        range: { kind: "preset", preset: "yesterday" },
       },
-      { name: "7d", range: { from: now - 7 * 86_400, to: now } },
-      { name: "30d", range: { from: now - 30 * 86_400, to: now } },
-      { name: "90d", range: { from: now - 90 * 86_400, to: now } },
-      { name: "year", range: { from: 1_767_196_800, to: now } },
-      { name: "all", range: { from: 86_400, to: now } },
+      { name: "7d", range: { kind: "preset", preset: "7d" } },
+      { name: "30d", range: { kind: "preset", preset: "30d" } },
+      { name: "90d", range: { kind: "preset", preset: "90d" } },
+      { name: "year", range: { kind: "preset", preset: "year" } },
+      { name: "all", range: { kind: "preset", preset: "lifetime" } },
       {
         name: "custom",
-        range: { from: now - 15 * 86_400, to: now - 86_400 },
+        range: { kind: "custom", from: "2026-07-05", to: "2026-07-19" },
       },
     ];
     const results = await Promise.all(
@@ -176,13 +180,12 @@ describe("DemoDataSource", () => {
 
   it("keeps every range-aware dimensional projection conserved", async () => {
     const source = new DemoDataSource();
-    const now = Math.floor(source.now().getTime() / 1000);
-    const ranges = [
-      { from: now - 46_800, to: now },
-      { from: now - 7 * 86_400, to: now },
-      { from: now - 30 * 86_400, to: now },
-      { from: 86_400, to: now },
-      { from: now - 15 * 86_400, to: now - 86_400 },
+    const ranges: HistoricalSelection[] = [
+      { kind: "preset", preset: "today" },
+      { kind: "preset", preset: "7d" },
+      { kind: "preset", preset: "30d" },
+      { kind: "preset", preset: "lifetime" },
+      { kind: "custom", from: "2026-07-05", to: "2026-07-19" },
     ];
     for (const range of ranges) {
       const overview = await source.overview(range);

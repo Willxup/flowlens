@@ -3,6 +3,7 @@ import type {
   BreakdownBy,
   BreakdownResponse,
   HistoricalRange,
+  HistoricalSelection,
   LabelCandidateResponse,
   LabelResponse,
   LiveEvent,
@@ -17,6 +18,7 @@ import type {
 } from "../api/contracts";
 import type { FlowLensDataSource, LabelInput } from "../api/source";
 import { generateLiveSamples, mockHistory } from "./mock-history";
+import { toHistoricalRange } from "../lib/time-range";
 
 interface DemoFixture {
   now: number;
@@ -53,23 +55,25 @@ export class DemoDataSource implements FlowLensDataSource {
   async status(): Promise<StatusResponse> {
     return clone(fixture.status);
   }
-  async overview(_range: HistoricalRange): Promise<OverviewResponse> {
-    return clone(mockHistory(_range, fixture.now).overview);
+  async overview(selection: HistoricalSelection): Promise<OverviewResponse> {
+    return clone(mockHistory(this.resolve(selection), fixture.now).overview);
   }
-  async series(_range: HistoricalRange): Promise<SeriesResponse> {
-    return clone(mockHistory(_range, fixture.now).series);
+  async series(selection: HistoricalSelection): Promise<SeriesResponse> {
+    return clone(mockHistory(this.resolve(selection), fixture.now).series);
   }
-  async quality(_range: HistoricalRange): Promise<QualityResponse> {
-    return clone(mockHistory(_range, fixture.now).quality);
+  async quality(selection: HistoricalSelection): Promise<QualityResponse> {
+    return clone(mockHistory(this.resolve(selection), fixture.now).quality);
   }
   async storage(): Promise<StorageResponse> {
     return clone(fixture.storage);
   }
   async breakdown(
-    _range: HistoricalRange,
+    selection: HistoricalSelection,
     by: BreakdownBy,
   ): Promise<BreakdownResponse> {
-    return clone(mockHistory(_range, fixture.now).breakdowns[by]);
+    return clone(
+      mockHistory(this.resolve(selection), fixture.now).breakdowns[by],
+    );
   }
   async liveTargets(): Promise<LiveTargetsResponse> {
     return clone(fixture.liveTargets);
@@ -111,6 +115,10 @@ export class DemoDataSource implements FlowLensDataSource {
       ready: true,
     });
     return () => connection(false);
+  }
+
+  private resolve(selection: HistoricalSelection): HistoricalRange {
+    return toHistoricalRange(selection, this.now(), fixture.status.timezone);
   }
 }
 

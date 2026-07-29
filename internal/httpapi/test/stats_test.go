@@ -19,10 +19,10 @@ import (
 func TestStage2StatisticsRoutesRequireSessionAndEncodeExactBytes(t *testing.T) {
 	queries := fixtureStatisticsQueries()
 	handler := statsHandler(t, queries)
-	assertResponse(t, handler, http.MethodGet, "/api/v1/overview?from=100&to=200", "", nil, http.StatusUnauthorized)
+	assertResponse(t, handler, http.MethodGet, "/api/v1/overview?range=today", "", nil, http.StatusUnauthorized)
 	cookie := loginCookie(t, handler)
 
-	overview := request(t, handler, http.MethodGet, "/api/v1/overview?from=100&to=200", "", cookie)
+	overview := request(t, handler, http.MethodGet, "/api/v1/overview?range=today", "", cookie)
 	if overview.Code != http.StatusOK || overview.Header().Get("Content-Type") != "application/json" {
 		t.Fatalf("overview response = status:%d content-type:%q body:%q", overview.Code, overview.Header().Get("Content-Type"), overview.Body.String())
 	}
@@ -39,7 +39,7 @@ func TestStage2StatisticsRoutesRequireSessionAndEncodeExactBytes(t *testing.T) {
 		t.Fatalf("overview JSON = %#v", overviewBody)
 	}
 
-	series := request(t, handler, http.MethodGet, "/api/v1/series?from=100&to=200&resolution=auto", "", cookie)
+	series := request(t, handler, http.MethodGet, "/api/v1/series?range=today&resolution=auto", "", cookie)
 	if series.Code != http.StatusOK || !strings.Contains(series.Body.String(), `"upload_bytes":"18014398509481985"`) ||
 		!strings.Contains(series.Body.String(), `"source_resolution_sec":60`) ||
 		!strings.Contains(series.Body.String(), `"speed_upload_sample_sum":"60"`) ||
@@ -49,10 +49,18 @@ func TestStage2StatisticsRoutesRequireSessionAndEncodeExactBytes(t *testing.T) {
 		t.Fatalf("series response = status:%d body:%q", series.Code, series.Body.String())
 	}
 
-	quality := request(t, handler, http.MethodGet, "/api/v1/quality?from=100&to=200", "", cookie)
+	quality := request(t, handler, http.MethodGet, "/api/v1/quality?range=today", "", cookie)
 	if quality.Code != http.StatusOK || !strings.Contains(quality.Body.String(), `"code":"fixture_gap"`) ||
 		strings.Contains(quality.Body.String(), "fixture detail") {
 		t.Fatalf("quality response = status:%d body:%q", quality.Code, quality.Body.String())
+	}
+	custom := request(t, handler, http.MethodGet, "/api/v1/overview?range=custom&from=2026-07-01&to=2026-07-14", "", cookie)
+	if custom.Code != http.StatusOK {
+		t.Fatalf("custom overview response = status:%d body:%q", custom.Code, custom.Body.String())
+	}
+	wantSelection := query.RangeSelection{Kind: query.RangeCustom, FromDate: "2026-07-01", ToDate: "2026-07-14"}
+	if got := queries.selections[len(queries.selections)-1]; got != wantSelection {
+		t.Fatalf("custom selection = %#v, want %#v", got, wantSelection)
 	}
 
 	storageResponse := request(t, handler, http.MethodGet, "/api/v1/storage", "", cookie)
@@ -71,13 +79,14 @@ func TestStage2StatisticsRoutesRejectInvalidQueriesAndMethods(t *testing.T) {
 		path   string
 		want   int
 	}{
-		{method: http.MethodPost, path: "/api/v1/overview?from=100&to=200", want: http.StatusMethodNotAllowed},
+		{method: http.MethodPost, path: "/api/v1/overview?range=today", want: http.StatusMethodNotAllowed},
 		{method: http.MethodGet, path: "/api/v1/overview", want: http.StatusBadRequest},
-		{method: http.MethodGet, path: "/api/v1/overview?from=x&to=200", want: http.StatusBadRequest},
-		{method: http.MethodGet, path: "/api/v1/overview?from=200&to=100", want: http.StatusBadRequest},
-		{method: http.MethodGet, path: "/api/v1/overview?from=100&from=101&to=200", want: http.StatusBadRequest},
-		{method: http.MethodGet, path: "/api/v1/overview?from=100&to=200&extra=1", want: http.StatusBadRequest},
-		{method: http.MethodGet, path: "/api/v1/series?from=100&to=200&resolution=minute", want: http.StatusBadRequest},
+		{method: http.MethodGet, path: "/api/v1/overview?from=100&to=200", want: http.StatusBadRequest},
+		{method: http.MethodGet, path: "/api/v1/overview?range=tomorrow", want: http.StatusBadRequest},
+		{method: http.MethodGet, path: "/api/v1/overview?range=today&from=2026-07-01", want: http.StatusBadRequest},
+		{method: http.MethodGet, path: "/api/v1/overview?range=custom&from=2026-07-01", want: http.StatusBadRequest},
+		{method: http.MethodGet, path: "/api/v1/overview?range=today&extra=1", want: http.StatusBadRequest},
+		{method: http.MethodGet, path: "/api/v1/series?range=today&resolution=minute", want: http.StatusBadRequest},
 		{method: http.MethodGet, path: "/api/v1/storage?extra=1", want: http.StatusBadRequest},
 	}
 	for _, test := range tests {
@@ -94,9 +103,9 @@ func TestStage2StatisticsRoutesRedactInternalErrors(t *testing.T) {
 	handler := statsHandler(t, queries)
 	cookie := loginCookie(t, handler)
 	for _, path := range []string{
-		"/api/v1/overview?from=100&to=200",
-		"/api/v1/series?from=100&to=200",
-		"/api/v1/quality?from=100&to=200",
+		"/api/v1/overview?range=today",
+		"/api/v1/series?range=today",
+		"/api/v1/quality?range=today",
 		"/api/v1/storage",
 	} {
 		response := request(t, handler, http.MethodGet, path, "", cookie)
@@ -106,7 +115,21 @@ func TestStage2StatisticsRoutesRedactInternalErrors(t *testing.T) {
 	}
 }
 
+func TestStage2StatisticsRoutesRejectRangesRejectedByServerPlanner(t *testing.T) {
+	queries := fixtureStatisticsQueries()
+	queries.resolveErr = query.ErrRangeSelection
+	handler := statsHandler(t, queries)
+	cookie := loginCookie(t, handler)
+
+	response := request(t, handler, http.MethodGet, "/api/v1/overview?range=custom&from=2026-07-29&to=2026-07-30", "", cookie)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("invalid planned range = status:%d body:%q", response.Code, response.Body.String())
+	}
+}
+
 type statisticsQueries struct {
+	selections       []query.RangeSelection
+	resolveErr       error
 	overview         query.Overview
 	series           query.Series
 	quality          query.Quality
@@ -121,6 +144,14 @@ type statisticsQueries struct {
 	updateLabelErr   error
 	deleteLabelErr   error
 	deleteLabelFound *bool
+}
+
+func (q *statisticsQueries) ResolveRange(selection query.RangeSelection) (rollup.Range, error) {
+	q.selections = append(q.selections, selection)
+	if q.resolveErr != nil {
+		return rollup.Range{}, q.resolveErr
+	}
+	return rollup.Range{From: 100, To: 200}, nil
 }
 
 func (q *statisticsQueries) Breakdown(context.Context, rollup.Range, query.BreakdownBy) (query.Breakdown, error) {

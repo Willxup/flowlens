@@ -1,7 +1,7 @@
 import type {
   BreakdownBy,
   BreakdownResponse,
-  HistoricalRange,
+  HistoricalSelection,
   LabelCandidateResponse,
   LabelResponse,
   LiveEvent,
@@ -70,7 +70,7 @@ export class ProductionDataSource implements FlowLensDataSource {
   }
 
   overview(
-    range: HistoricalRange,
+    range: HistoricalSelection,
     signal?: AbortSignal,
   ): Promise<OverviewResponse> {
     return this.request(`/api/v1/overview?${rangeQuery(range)}`, "overview", {
@@ -79,7 +79,7 @@ export class ProductionDataSource implements FlowLensDataSource {
   }
 
   series(
-    range: HistoricalRange,
+    range: HistoricalSelection,
     signal?: AbortSignal,
   ): Promise<SeriesResponse> {
     return this.request(
@@ -90,7 +90,7 @@ export class ProductionDataSource implements FlowLensDataSource {
   }
 
   quality(
-    range: HistoricalRange,
+    range: HistoricalSelection,
     signal?: AbortSignal,
   ): Promise<QualityResponse> {
     return this.request(`/api/v1/quality?${rangeQuery(range)}`, "quality", {
@@ -103,7 +103,7 @@ export class ProductionDataSource implements FlowLensDataSource {
   }
 
   breakdown(
-    range: HistoricalRange,
+    range: HistoricalSelection,
     by: BreakdownBy,
     signal?: AbortSignal,
   ): Promise<BreakdownResponse> {
@@ -301,8 +301,10 @@ function validServiceLevel(value: unknown): value is StatusResponse["status"] {
   return value === "ok" || value === "degraded" || value === "failed";
 }
 
-function rangeQuery(range: HistoricalRange): string {
-  return `from=${range.from}&to=${range.to}`;
+function rangeQuery(range: HistoricalSelection): string {
+  if (range.kind === "preset")
+    return `range=${encodeURIComponent(range.preset)}`;
+  return `range=custom&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`;
 }
 
 function jsonWrite(
