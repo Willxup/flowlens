@@ -8,9 +8,10 @@
 /config/config.yaml
 /data/
 
-# Internal development plans
+# Keep internal development plans private; publish only allowlisted docs
 /docs/*
 !/docs/api-sse.md
+!/docs/operations.md
 
 # Go build and test outputs
 *.test
