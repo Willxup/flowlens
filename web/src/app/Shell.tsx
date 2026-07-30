@@ -22,13 +22,19 @@ export function Shell({
   return (
     <main className="app" data-source-mode={sourceMode}>
       <header className="topbar">
-        <div className="brand">
+        <a
+          className="brand"
+          href="https://github.com/Willxup/flowlens"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="FlowLens GitHub 仓库"
+        >
           <div className="brand-mark" aria-hidden="true" />
           <div>
             <strong>FlowLens</strong>
             <span className="eyebrow">edge telemetry</span>
           </div>
-        </div>
+        </a>
         <div className="top-actions">
           <span className={`live-status ${status}`}>
             <i />

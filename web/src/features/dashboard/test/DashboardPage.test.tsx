@@ -54,6 +54,9 @@ describe("DashboardPage", () => {
       <DashboardPage source={new DemoDataSource()} onUnauthorized={vi.fn()} />,
     );
     expect(await screen.findByText("FlowLens")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "FlowLens GitHub 仓库" }),
+    ).toHaveAttribute("href", "https://github.com/Willxup/flowlens");
     expect(screen.getByText("采集正常")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "跟随系统" }),

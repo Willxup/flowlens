@@ -19,9 +19,17 @@
   z-index: 20;
 }
 .brand {
+  width: fit-content;
   display: flex;
   align-items: center;
   gap: 12px;
+  border-radius: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+.brand:focus-visible {
+  outline: 3px solid var(--download-soft);
+  outline-offset: 4px;
 }
 .brand > div:last-child {
   display: flex;
