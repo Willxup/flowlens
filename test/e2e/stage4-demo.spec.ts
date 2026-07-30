@@ -129,7 +129,18 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
   await expect(
     page.getByRole("heading", { name: "历史流量" }),
   ).toBeVisible();
-  await expect(page.getByText("SQLite 聚合 · 自动选择分辨率")).toBeVisible();
+  await expect(
+    page.getByText("SQLite 聚合 · 自动选择分辨率"),
+  ).toHaveCount(0);
+  const historyDescription = page.getByRole("button", {
+    name: "查看“历史流量”说明",
+  });
+  await historyDescription.hover();
+  await expect(page.getByRole("tooltip")).toHaveText(
+    "SQLite 聚合 · 自动选择分辨率",
+  );
+  await page.mouse.move(0, 0);
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
   await expect(page.getByText("sing-box 1.12.0").first()).toBeVisible();
   await expect(page.getByText("当前运行")).toBeVisible();
   await expect(page.getByText("精确边界")).toBeVisible();
@@ -175,7 +186,9 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
     "来源网段",
     "域名",
   ]) {
-    await expect(page.getByRole("button", { name: dimension })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: dimension, exact: true }),
+    ).toBeVisible();
   }
   await expect(page.getByRole("button", { name: "速度视图" })).toHaveAttribute(
     "aria-pressed",
@@ -189,10 +202,12 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
     page.getByRole("img", { name: "历史上传下载流量和累计曲线" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "速度视图" }).click();
-  await page.getByRole("button", { name: "端口" }).click();
+  await page.getByRole("button", { name: "端口", exact: true }).click();
   await expect(page.getByLabel("端口分布")).toBeVisible();
   await expect(page.getByLabel(/流量拓扑/)).toHaveCount(0);
-  await page.getByRole("button", { name: "Endpoint" }).click();
+  await page
+    .getByRole("button", { name: "Endpoint", exact: true })
+    .click();
   await expect(page.getByLabel(/流量拓扑/)).toBeVisible();
 
   await page.getByRole("button", { name: "7 天" }).click();
