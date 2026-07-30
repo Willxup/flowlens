@@ -1,4 +1,10 @@
-# FlowLens
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/flowlens-brand-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/flowlens-brand-light.svg">
+    <img src="assets/flowlens-brand-light.svg" alt="FlowLens — Edge Telemetry" width="380">
+  </picture>
+</p>
 
 FlowLens 是一个面向 sing-box Clash API 的自托管流量仪表盘。它将可靠的全局累计流量保存到 SQLite，同时展示实时速度、历史趋势、连接归因、数据质量和存储状态。
 

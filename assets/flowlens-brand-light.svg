@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 200" role="img" aria-labelledby="flowlens-brand-title">
+  <title id="flowlens-brand-title">FlowLens — Edge Telemetry</title>
+  <defs>
+    <linearGradient id="flowlens-icon-light" x1="98" y1="70" x2="158" y2="132" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6d5dfc"/>
+      <stop offset="0.36" stop-color="#3f8efc"/>
+      <stop offset="0.62" stop-color="#24a99a"/>
+      <stop offset="0.82" stop-color="#f2b84b"/>
+      <stop offset="1" stop-color="#f29a3f"/>
+    </linearGradient>
+    <linearGradient id="flowlens-outline-light" x1="88" y1="54" x2="180" y2="146" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#635bff" stop-opacity="0.52"/>
+      <stop offset="0.48" stop-color="#2c9eb2" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#ec8c38" stop-opacity="0.48"/>
+    </linearGradient>
+    <filter id="flowlens-shadow-light" x="0" y="0" width="640" height="200" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#1b1c22" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <rect x="50" y="20" width="540" height="160" rx="52" fill="#f7f7f4" stroke="#deded8" filter="url(#flowlens-shadow-light)"/>
+  <rect x="88" y="54" width="92" height="92" rx="28" fill="#ffffff" stroke="url(#flowlens-outline-light)" stroke-width="1.5"/>
+  <rect x="110" y="76" width="48" height="48" rx="13" fill="url(#flowlens-icon-light)"/>
+
+  <text x="218" y="92" fill="#151619" font-family="Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="43" font-weight="760" letter-spacing="-1.4">FlowLens</text>
+  <text x="218" y="136" fill="#74767b" font-family="Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="24" font-weight="720" letter-spacing="5.2">EDGE TELEMETRY</text>
+</svg>
