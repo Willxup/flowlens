@@ -1,4 +1,5 @@
 import type { StorageResponse } from "../../api/contracts";
+import { InfoTooltip } from "../../components/Tooltip";
 import { formatBytes } from "../../lib/format";
 
 export function StoragePanel({ value }: { value: StorageResponse | null }) {
@@ -15,8 +16,10 @@ export function StoragePanel({ value }: { value: StorageResponse | null }) {
     <section className="panel storage-panel" aria-labelledby="storage-title">
       <div className="storage-lead">
         <span className="eyebrow">Storage health</span>
-        <h2 id="storage-title">存储健康</h2>
-        <p>{summary}</p>
+        <div className="heading-with-tooltip">
+          <h2 id="storage-title">存储健康</h2>
+          <InfoTooltip content={summary} label="查看“存储健康”说明" />
+        </div>
       </div>
       <div className="storage-stat">
         <span>SQLite</span>

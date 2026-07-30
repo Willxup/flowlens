@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Tooltip } from "../../components/Tooltip";
 
 export type Theme = "system" | "light" | "dark";
 const storageKey = "flowlens-theme";
@@ -69,15 +70,16 @@ function ThemeButton({
   children: React.ReactNode;
 }) {
   return (
-    <button
-      className="theme-button"
-      type="button"
-      aria-label={label}
-      title={label}
-      aria-pressed={selected}
-      onClick={onClick}
-    >
-      {children}
-    </button>
+    <Tooltip content={label}>
+      <button
+        className="theme-button"
+        type="button"
+        aria-label={label}
+        aria-pressed={selected}
+        onClick={onClick}
+      >
+        {children}
+      </button>
+    </Tooltip>
   );
 }

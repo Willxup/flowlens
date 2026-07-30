@@ -301,7 +301,7 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 18px;
 }
 .panel-head h2,
 .confidence-panel h2,
@@ -309,11 +309,6 @@
   margin: 4px 0;
   font-size: 1.02rem;
   letter-spacing: -0.025em;
-}
-.panel-head p,
-.storage-panel p {
-  margin-bottom: 0;
-  font-size: 0.72rem;
 }
 .panel-head select {
   min-height: 32px;
@@ -539,13 +534,26 @@
     gap: 6px;
   }
   .chart-summary .chart-value {
-    padding: 9px;
+    padding: 8px;
   }
   .chart-summary .chart-value strong {
-    font-size: 1rem;
+    font-size: clamp(0.78rem, 3.6vw, 0.88rem);
+    line-height: 1.15;
+  }
+  .chart-summary .chart-value span,
+  .metric-grid .chart-value span {
+    margin-bottom: 4px;
+    font-size: 0.64rem;
   }
   .metric-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .metric-grid .chart-value {
+    padding: 9px 10px;
+  }
+  .metric-grid .chart-value strong {
+    font-size: clamp(0.8rem, 3.6vw, 0.9rem);
+    line-height: 1.2;
   }
   .chart-shell {
     height: 210px;

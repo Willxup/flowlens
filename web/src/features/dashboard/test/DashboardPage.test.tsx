@@ -115,13 +115,24 @@ describe("DashboardPage", () => {
   });
 
   it("keeps realtime and historical modes visibly separate", async () => {
+    const user = userEvent.setup();
     render(
       <DashboardPage source={new DemoDataSource()} onUnauthorized={vi.fn()} />,
     );
     expect(
       await screen.findByRole("heading", { name: "实时吞吐" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("最近 60 分钟 · 1 秒采样")).toBeInTheDocument();
+    expect(
+      screen.queryByText("最近 60 分钟 · 1 秒采样"),
+    ).not.toBeInTheDocument();
+    const liveDescription = screen.getByRole("button", {
+      name: "查看“实时吞吐”说明",
+    });
+    await user.hover(liveDescription);
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
+      "最近 60 分钟 · 1 秒采样",
+    );
+    await user.unhover(liveDescription);
     expect(screen.getByText("可归因覆盖")).toBeInTheDocument();
     expect(
       screen.getByRole("progressbar", { name: "可归因覆盖" }),
@@ -141,11 +152,19 @@ describe("DashboardPage", () => {
     expect(screen.getByText(/占全局 51\.6%/)).toBeInTheDocument();
     expect(screen.getByLabelText("第 1 名")).toHaveTextContent("1");
     expect(screen.getByLabelText("第 6 名")).toHaveTextContent("6");
-    await userEvent.click(screen.getByRole("button", { name: "今天" }));
+    await user.click(screen.getByRole("button", { name: "今天" }));
     expect(
       await screen.findByRole("heading", { name: "历史流量" }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/SQLite 聚合/)).toBeInTheDocument();
+    expect(screen.queryByText(/SQLite 聚合/)).not.toBeInTheDocument();
+    const historyDescription = screen.getByRole("button", {
+      name: "查看“历史流量”说明",
+    });
+    await user.hover(historyDescription);
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
+      "SQLite 聚合 · 自动选择分辨率",
+    );
+    await user.unhover(historyDescription);
     expect(screen.getByText("排行覆盖")).toBeInTheDocument();
     expect(screen.getByText("未归因流量")).toBeInTheDocument();
     expect(screen.getByText("Top K 之外")).toBeInTheDocument();

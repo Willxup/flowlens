@@ -4,6 +4,7 @@ import type {
   LabelResponse,
 } from "../../api/contracts";
 import type { FlowLensDataSource } from "../../api/source";
+import { InfoTooltip, Tooltip } from "../../components/Tooltip";
 
 export function AliasDialog({
   source,
@@ -106,14 +107,21 @@ export function AliasDialog({
         <header className="dialog-head">
           <div>
             <span className="eyebrow">Display aliases</span>
-            <h2 id="alias-title">目标别名</h2>
-            <p>别名只改变 FlowLens 展示；清空后保存即可恢复原始名称。</p>
+            <div className="heading-with-tooltip">
+              <h2 id="alias-title">目标别名</h2>
+              <InfoTooltip
+                content="别名只改变 FlowLens 展示；清空后保存即可恢复原始名称。"
+                label="查看“目标别名”说明"
+              />
+            </div>
           </div>
-          <button type="button" aria-label="关闭别名" onClick={onClose}>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="m7 7 10 10M17 7 7 17" />
-            </svg>
-          </button>
+          <Tooltip content="关闭别名">
+            <button type="button" aria-label="关闭别名" onClick={onClose}>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m7 7 10 10M17 7 7 17" />
+              </svg>
+            </button>
+          </Tooltip>
         </header>
         <div className="dialog-body">
           {source.demo ? (

@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from "react";
 import type { FlowLensDataSource } from "../../api/source";
+import { InfoTooltip } from "../../components/Tooltip";
 import { ThemeSelect } from "../theme/ThemeSelect";
 
 interface LoginPageProps {
@@ -38,8 +39,13 @@ export function LoginPage({ source, onAuthenticated }: LoginPageProps) {
       <section className="login-card" aria-labelledby="login-title">
         <div className="brand-mark" aria-hidden="true" />
         <span className="eyebrow">Private network observatory</span>
-        <h1 id="login-title">进入 FlowLens</h1>
-        <p>使用配置文件中的共享访问密钥继续。密钥只用于本次登录请求。</p>
+        <div className="heading-with-tooltip">
+          <h1 id="login-title">进入 FlowLens</h1>
+          <InfoTooltip
+            content="使用配置文件中的共享访问密钥继续。密钥只用于本次登录请求。"
+            label="查看登录说明"
+          />
+        </div>
         <form onSubmit={submit}>
           <label className="field">
             <span>共享访问密钥</span>

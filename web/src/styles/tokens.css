@@ -74,16 +74,22 @@
   box-sizing: border-box;
 }
 html {
-  background: var(--page);
+  min-height: 100%;
+  background:
+    radial-gradient(
+      circle at 8% -4rem,
+      var(--download-soft),
+      transparent 44rem
+    ),
+    radial-gradient(circle at 94% 7rem, var(--upload-soft), transparent 42rem),
+    var(--page);
+  background-repeat: no-repeat;
 }
 body {
   margin: 0;
   min-height: 100vh;
   color: var(--ink);
-  background:
-    radial-gradient(circle at 8% -10%, var(--download-soft), transparent 34rem),
-    radial-gradient(circle at 94% 12%, var(--upload-soft), transparent 32rem),
-    var(--page);
+  background: transparent;
 }
 button,
 input,

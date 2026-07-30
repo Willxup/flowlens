@@ -17,6 +17,7 @@ import type {
 import { UnauthorizedError } from "../../api/production";
 import type { FlowLensDataSource } from "../../api/source";
 import { Shell } from "../../app/Shell";
+import { InfoTooltip, Tooltip } from "../../components/Tooltip";
 import { AliasDialog } from "../aliases/AliasDialog";
 import { RangeSelector } from "../history/RangeSelector";
 import { useHistoryViewModel } from "../history/useHistoryViewModel";
@@ -143,6 +144,18 @@ export function DashboardPage({
 
   const liveMode = selection.kind === "live";
   const topologicalDimension = by === "target" || by === "endpoint";
+  const trafficTitle = liveMode ? "实时吞吐" : "历史流量";
+  const trafficDescription = liveMode
+    ? "最近 60 分钟 · 1 秒采样"
+    : "SQLite 聚合 · 自动选择分辨率";
+  const topologyTitle = liveMode ? "实时目标分析" : `${dimensionLabel(by)}分析`;
+  const topologyDescription = `${
+    liveMode ? "当前目标速率" : "所选周期累计流量"
+  } · 近似归因`;
+  const targetsTitle = liveMode ? "当前目标排行" : "历史维度排行";
+  const targetsDescription = liveMode
+    ? "按当前速率排序，别名后保留原始端点。"
+    : "按所选周期累计流量排序，结果为近似归因。";
   return (
     <Shell
       status={status.status}
@@ -173,12 +186,13 @@ export function DashboardPage({
               <span className="eyebrow">
                 {liveMode ? "Live throughput" : "Historical traffic"}
               </span>
-              <h2>{liveMode ? "实时吞吐" : "历史流量"}</h2>
-              <p>
-                {liveMode
-                  ? "最近 60 分钟 · 1 秒采样"
-                  : "SQLite 聚合 · 自动选择分辨率"}
-              </p>
+              <div className="heading-with-tooltip">
+                <h2>{trafficTitle}</h2>
+                <InfoTooltip
+                  content={trafficDescription}
+                  label={`查看“${trafficTitle}”说明`}
+                />
+              </div>
             </div>
             <span className="micro">
               {liveMode
@@ -329,8 +343,13 @@ export function DashboardPage({
           <header className="panel-head">
             <div>
               <span className="eyebrow">Traffic topology</span>
-              <h2>{liveMode ? "实时目标分析" : `${dimensionLabel(by)}分析`}</h2>
-              <p>{liveMode ? "当前目标速率" : "所选周期累计流量"} · 近似归因</p>
+              <div className="heading-with-tooltip">
+                <h2>{topologyTitle}</h2>
+                <InfoTooltip
+                  content={topologyDescription}
+                  label={`查看“${topologyTitle}”说明`}
+                />
+              </div>
             </div>
             {!liveMode ? <DimensionSelect value={by} onChange={setBy} /> : null}
           </header>
@@ -384,23 +403,26 @@ export function DashboardPage({
           <header className="panel-head">
             <div>
               <span className="eyebrow">Observed targets</span>
-              <h2>{liveMode ? "当前目标排行" : "历史维度排行"}</h2>
-              <p>
-                {liveMode
-                  ? "按当前速率排序，别名后保留原始端点。"
-                  : "按所选周期累计流量排序，结果为近似归因。"}
-              </p>
+              <div className="heading-with-tooltip">
+                <h2>{targetsTitle}</h2>
+                <InfoTooltip
+                  content={targetsDescription}
+                  label={`查看“${targetsTitle}”说明`}
+                />
+              </div>
             </div>
-            <button
-              className="icon-button"
-              type="button"
-              aria-label="管理别名"
-              onClick={() => setAliasesOpen(true)}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="m4 16-.8 4.8L8 20l10.6-10.6a2 2 0 0 0-2.8-2.8L5.2 17.2M14.5 8l2.8 2.8" />
-              </svg>
-            </button>
+            <Tooltip content="管理别名">
+              <button
+                className="icon-button"
+                type="button"
+                aria-label="管理别名"
+                onClick={() => setAliasesOpen(true)}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m4 16-.8 4.8L8 20l10.6-10.6a2 2 0 0 0-2.8-2.8L5.2 17.2M14.5 8l2.8 2.8" />
+                </svg>
+              </button>
+            </Tooltip>
           </header>
           {liveMode ? (
             <TargetList
@@ -461,10 +483,13 @@ function ConfidencePanel({
   return (
     <aside className="panel confidence-panel">
       <span className="eyebrow">Data confidence</span>
-      <h2>数据质量</h2>
-      <p className="confidence-intro">
-        全局总量精确；下面说明目标排行能解释其中多少流量。
-      </p>
+      <div className="heading-with-tooltip">
+        <h2>数据质量</h2>
+        <InfoTooltip
+          content="全局总量精确；下面说明目标排行能解释其中多少流量。"
+          label="查看“数据质量”说明"
+        />
+      </div>
       <div className="coverage-list">
         <CoverageRow
           label="可归因覆盖"
@@ -553,8 +578,10 @@ function RuntimeSessions({ sessions }: { sessions: RuntimeSessionResponse[] }) {
   return (
     <section className="runtime-sessions" aria-label="最近运行">
       <div className="runtime-sessions-head">
-        <strong>最近运行</strong>
-        <span>采集进程上下文</span>
+        <span className="label-with-tooltip">
+          <strong>最近运行</strong>
+          <InfoTooltip content="采集进程上下文" label="查看“最近运行”说明" />
+        </span>
       </div>
       {sessions.length === 0 ? (
         <p className="empty-state">暂无运行记录。</p>
@@ -606,7 +633,10 @@ function CoverageRow({
   return (
     <div className="coverage-row">
       <div className="coverage-label">
-        <strong>{label}</strong>
+        <span className="label-with-tooltip">
+          <strong>{label}</strong>
+          <InfoTooltip content={detail} label={`查看“${label}”说明`} />
+        </span>
         <span>{formatRatio(value)}</span>
       </div>
       <div
@@ -625,7 +655,6 @@ function CoverageRow({
           }
         />
       </div>
-      <p>{detail}</p>
     </div>
   );
 }

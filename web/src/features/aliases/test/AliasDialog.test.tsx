@@ -17,7 +17,8 @@ const candidate: LabelCandidateResponse = {
 };
 
 describe("AliasDialog", () => {
-  it("separates the compact header, scrolling body and row controls", () => {
+  it("moves the header description into the shared tooltip", async () => {
+    const user = userEvent.setup();
     const source = new DemoDataSource();
     const { container } = render(
       <AliasDialog
@@ -35,6 +36,17 @@ describe("AliasDialog", () => {
     expect(
       screen.getByRole("button", { name: "关闭别名" }).querySelector("svg"),
     ).not.toBeNull();
+    expect(
+      screen.queryByText(
+        "别名只改变 FlowLens 展示；清空后保存即可恢复原始名称。",
+      ),
+    ).not.toBeInTheDocument();
+    await user.hover(
+      screen.getByRole("button", { name: "查看“目标别名”说明" }),
+    );
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
+      "别名只改变 FlowLens 展示；清空后保存即可恢复原始名称。",
+    );
   });
 
   it("creates and updates aliases through the server source of truth", async () => {
