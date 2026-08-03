@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as echarts from "echarts/core";
 import { BarChart, LineChart } from "echarts/charts";
 import {
@@ -45,6 +45,7 @@ export function TrafficChart({
   const reference = useRef<HTMLDivElement>(null);
   const chartReference = useRef<ReturnType<typeof echarts.init> | null>(null);
   const seriesShapeReference = useRef<string | null>(null);
+  const [themeRevision, setThemeRevision] = useState(0);
   useEffect(() => {
     const element = reference.current;
     if (element === null || element.clientWidth === 0) return;
@@ -56,6 +57,17 @@ export function TrafficChart({
       window.removeEventListener("resize", resize);
       chartReference.current = null;
       chart.dispose();
+    };
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia?.("(prefers-color-scheme: dark)");
+    const update = () => setThemeRevision((current) => current + 1);
+    window.addEventListener("flowlens-theme-change", update);
+    media?.addEventListener("change", update);
+    return () => {
+      window.removeEventListener("flowlens-theme-change", update);
+      media?.removeEventListener("change", update);
     };
   }, []);
 
@@ -72,18 +84,20 @@ export function TrafficChart({
       seriesShapeReference.current !== null &&
       seriesShapeReference.current !== seriesShape;
     seriesShapeReference.current = seriesShape;
+    const palette = chartPalette();
     chart.setOption(
       {
         animation:
           mode !== "live" &&
           !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-        color: ["#6d5dfc", "#f29a3f", "#24a99a"],
+        color: [palette.download, palette.upload, palette.green],
+        textStyle: { fontFamily: palette.fontFamily },
         grid: { left: 52, right: 14, top: 34, bottom: 28 },
         tooltip: {
           trigger: "axis",
-          backgroundColor: "rgba(20, 21, 24, 0.94)",
-          borderColor: "rgba(127, 127, 127, 0.24)",
-          textStyle: { color: "#f7f7f5", fontSize: 11 },
+          backgroundColor: palette.tooltipBackground,
+          borderColor: palette.lineStrong,
+          textStyle: { color: palette.tooltipInk, fontSize: 11 },
           formatter: createTooltipFormatter(mode, speedScale),
         },
         legend: {
@@ -91,14 +105,14 @@ export function TrafficChart({
           right: 4,
           itemWidth: 14,
           itemHeight: 7,
-          textStyle: { color: "#7b7d82", fontSize: 10 },
+          textStyle: { color: palette.muted, fontSize: 10 },
         },
         xAxis: {
           type: "category",
           data: labels,
           boundaryGap: mode === "history" && historyView === "traffic",
           axisTick: { show: false },
-          axisLine: { lineStyle: { color: "rgba(127, 127, 127, 0.2)" } },
+          axisLine: { lineStyle: { color: palette.line } },
           axisLabel: {
             show: true,
             hideOverlap: true,
@@ -106,7 +120,7 @@ export function TrafficChart({
               0,
               Math.ceil(labels.length / (mode === "live" ? 10 : 8)) - 1,
             ),
-            color: "#8a8c91",
+            color: palette.muted,
             fontSize: 10,
             formatter: (value: string) =>
               formatTimestamp(value, mode, historyLabelMode),
@@ -115,13 +129,13 @@ export function TrafficChart({
         yAxis: {
           type: "value",
           axisLabel: {
-            color: "#8a8c91",
+            color: palette.muted,
             fontSize: 10,
             formatter: speedScale ? formatRate : formatTrafficScale,
           },
           axisLine: { show: false },
           axisTick: { show: false },
-          splitLine: { lineStyle: { color: "rgba(127, 127, 127, 0.16)" } },
+          splitLine: { lineStyle: { color: palette.line } },
         },
         series:
           mode === "live"
@@ -213,7 +227,7 @@ export function TrafficChart({
         ? { lazyUpdate: true, replaceMerge: ["series"] }
         : { lazyUpdate: true },
     );
-  }, [history, historyLabelMode, historyView, live, mode]);
+  }, [history, historyLabelMode, historyView, live, mode, themeRevision]);
   return (
     <div
       ref={reference}
@@ -228,6 +242,26 @@ export function TrafficChart({
       }
     />
   );
+}
+
+function chartPalette() {
+  const styles = getComputedStyle(document.documentElement);
+  const value = (name: string, fallback: string) =>
+    styles.getPropertyValue(name).trim() || fallback;
+  return {
+    download: value("--download", "#2563eb"),
+    upload: value("--upload", "#d97706"),
+    green: value("--green", "#0f9d78"),
+    muted: value("--muted", "#667085"),
+    line: value("--line", "#dfe5ed"),
+    lineStrong: value("--line-strong", "#cbd4e1"),
+    tooltipBackground: value("--chart-tooltip-bg", "#172033"),
+    tooltipInk: value("--chart-tooltip-ink", "#f8fafc"),
+    fontFamily: value(
+      "--font-sans",
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    ),
+  };
 }
 
 function formatTimestamp(

@@ -1,29 +1,30 @@
 .app {
-  width: min(1320px, calc(100% - 40px));
-  margin: 18px auto 36px;
+  width: min(1360px, calc(100% - 48px));
+  margin: 20px auto 48px;
 }
 .topbar {
-  min-height: 72px;
-  padding: 12px 16px;
+  min-height: 64px;
+  padding: 10px 12px 10px 16px;
   display: grid;
   grid-template-columns: minmax(190px, 1fr) auto;
   align-items: center;
-  gap: 20px;
+  gap: 24px;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--surface);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(24px);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   position: sticky;
-  top: 14px;
+  top: 12px;
   z-index: 20;
 }
 .brand {
   width: fit-content;
   display: flex;
   align-items: center;
-  gap: 12px;
-  border-radius: 12px;
+  gap: 11px;
+  border-radius: 10px;
   color: inherit;
   text-decoration: none;
 }
@@ -34,73 +35,96 @@
 .brand > div:last-child {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
+}
+.brand strong {
+  color: var(--ink);
+  font-size: 0.98rem;
+  font-weight: 720;
+  letter-spacing: -0.025em;
 }
 .brand-mark {
-  width: 34px;
-  height: 34px;
-  border-radius: 11px;
+  width: 36px;
+  height: 36px;
+  position: relative;
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
   background: conic-gradient(
-    from 210deg,
+    from 215deg,
     var(--download),
     var(--cyan),
     var(--green),
     var(--upload),
     var(--download)
   );
-  box-shadow: inset 0 0 0 7px var(--surface-strong);
+  box-shadow:
+    inset 0 0 0 7px var(--surface-strong),
+    0 4px 12px var(--download-soft);
+}
+.brand-mark::after {
+  content: "";
+  position: absolute;
+  inset: 13px;
+  border-radius: 50%;
+  background: var(--ink);
 }
 .segmented button {
   border: 0;
-  border-radius: 10px;
+  border-radius: 9px;
   background: transparent;
   color: var(--muted);
-  padding: 6px 9px;
-  font-size: 0.72rem;
-  font-weight: 700;
+  min-height: 36px;
+  padding: 7px 11px;
+  font-size: 0.74rem;
+  font-weight: 650;
   white-space: nowrap;
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
+}
+.segmented button:hover {
+  color: var(--ink);
+  background: var(--surface-soft);
 }
 .segmented button[aria-pressed="true"] {
-  color: var(--ink);
+  color: var(--download-strong);
   background: var(--surface-strong);
-  box-shadow: 0 5px 16px rgba(20, 21, 24, 0.08);
+  box-shadow: var(--shadow-soft);
 }
 .top-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
 }
 .page-head {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 18px;
-  margin: 24px 4px 12px;
+  gap: 24px;
+  margin: 32px 4px 16px;
 }
 .page-title {
   width: fit-content;
-  margin: 7px 0 8px;
+  margin: 8px 0 2px;
   display: flex;
   align-items: center;
-  gap: 9px;
-  font-size: clamp(1.5rem, 2.1vw, 1.9rem);
-  line-height: 1.08;
-  letter-spacing: -0.04em;
+  gap: 10px;
+  font-size: clamp(1.65rem, 2.2vw, 2.05rem);
+  font-weight: 740;
+  line-height: 1.05;
+  letter-spacing: -0.045em;
 }
 .page-title::before {
   content: "";
-  width: 5px;
-  height: 0.82em;
+  width: 7px;
+  height: 7px;
   flex: 0 0 auto;
-  border-radius: 99px;
-  background: linear-gradient(
-    180deg,
-    var(--download),
-    var(--cyan) 48%,
-    var(--upload)
-  );
-  box-shadow: 0 0 0 4px var(--download-soft);
+  border-radius: 50%;
+  background: var(--download);
+  box-shadow: 0 0 0 5px var(--download-soft);
 }
 .range-wrap {
   position: relative;
@@ -117,28 +141,30 @@
   display: flex;
   overflow-x: auto;
   border: 1px solid var(--line);
-  border-radius: 13px;
-  background: var(--surface);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
   scrollbar-width: none;
 }
 .custom-range-dialog {
   position: absolute;
   top: calc(100% + 12px);
   right: 0;
-  width: min(420px, calc(100vw - 36px));
-  padding: 14px;
+  width: min(430px, calc(100vw - 36px));
+  padding: 16px;
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: var(--radius-lg);
   background: var(--surface-strong);
-  box-shadow: 0 24px 64px rgba(20, 21, 24, 0.2);
-  backdrop-filter: blur(24px);
+  box-shadow: var(--shadow-float);
+  backdrop-filter: blur(20px);
 }
 .custom-range-head {
   text-align: center;
 }
 .custom-range-head h2 {
   margin: 0;
-  font-size: 0.98rem;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
 }
 .custom-range-head span {
   display: block;
@@ -156,7 +182,8 @@
   min-width: 0;
   display: grid;
   gap: 4px;
-  padding: 9px 11px;
+  min-height: 58px;
+  padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 12px;
   color: var(--ink);
@@ -164,9 +191,9 @@
   text-align: left;
 }
 .custom-date-card[aria-pressed="true"] {
-  border-color: var(--muted);
+  border-color: var(--download);
   background: var(--surface-strong);
-  box-shadow: 0 0 0 2px var(--line-strong);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 .custom-date-card span {
   color: var(--muted);
@@ -196,8 +223,8 @@
   font-size: 0.8rem;
 }
 .calendar-head button {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   border: 1px solid var(--line);
   border-radius: 10px;
   color: var(--ink);
@@ -223,7 +250,7 @@
 }
 .calendar-day {
   min-width: 0;
-  height: 28px;
+  height: 30px;
   border: 0;
   border-radius: 9px;
   color: var(--ink);
@@ -238,14 +265,14 @@
   background: var(--line);
 }
 .calendar-day.range-endpoint {
-  color: var(--surface-strong);
-  background: var(--ink);
+  color: white;
+  background: var(--download);
 }
 .calendar-day:hover {
   background: var(--download-soft);
 }
 .calendar-day.range-endpoint:hover {
-  background: var(--ink);
+  background: var(--download-strong);
 }
 .custom-range-actions {
   display: flex;
@@ -261,23 +288,24 @@
   gap: 8px;
 }
 .custom-range-actions button {
-  min-height: 30px;
-  padding: 5px 10px;
+  min-height: 38px;
+  padding: 7px 12px;
   border-radius: 10px;
   font-size: 0.72rem;
 }
 .dashboard {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 .panel {
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: var(--surface);
-  box-shadow: 0 8px 26px rgba(27, 28, 31, 0.055);
-  backdrop-filter: blur(18px);
-  padding: clamp(15px, 1.4vw, 18px);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(16px) saturate(135%);
+  -webkit-backdrop-filter: blur(16px) saturate(135%);
+  padding: clamp(18px, 1.6vw, 22px);
   overflow: hidden;
 }
 .hero-panel,
@@ -309,47 +337,50 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 .panel-head h2,
 .confidence-panel h2,
 .storage-panel h2 {
   margin: 4px 0;
-  font-size: 1.02rem;
-  letter-spacing: -0.025em;
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 710;
+  letter-spacing: -0.03em;
 }
 .panel-head select {
-  min-height: 32px;
-  padding: 5px 8px;
-  font-size: 0.7rem;
+  min-height: 38px;
+  padding: 7px 10px;
+  font-size: 0.74rem;
 }
 .panel-head .icon-button {
-  width: 34px;
-  min-height: 34px;
+  width: 40px;
+  min-height: 40px;
 }
 .chart-summary {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 7px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 7px;
-  margin-bottom: 8px;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 .metric-grid .chart-value {
-  padding: 10px 12px;
+  min-height: 66px;
+  padding: 11px 12px;
 }
 .metric-grid .chart-value strong {
-  font-size: 0.96rem;
+  font-size: 0.94rem;
 }
 .chart-toggle,
 .dimension-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 3px;
   padding: 4px;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -361,40 +392,90 @@
 }
 .chart-toggle button,
 .dimension-tabs button {
-  min-height: 28px;
+  min-height: 34px;
   border: 0;
   border-radius: 8px;
   color: var(--muted);
   background: transparent;
-  padding: 5px 8px;
-  font-size: 0.68rem;
-  font-weight: 750;
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  font-weight: 680;
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
+}
+.chart-toggle button:hover,
+.dimension-tabs button:hover {
+  color: var(--ink);
 }
 .chart-toggle button[aria-pressed="true"],
 .dimension-tabs button[aria-pressed="true"] {
-  color: var(--ink);
+  color: var(--download-strong);
   background: var(--surface-strong);
-  box-shadow: 0 4px 12px rgba(20, 21, 24, 0.08);
+  box-shadow: var(--shadow-soft);
 }
 .chart-value {
-  padding: 10px;
+  min-width: 0;
+  padding: 13px 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  background: var(--surface-soft);
+  background: var(--surface-raised);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+.chart-summary .chart-value:first-child {
+  border-color: var(--download-card-border);
+  background: linear-gradient(
+    135deg,
+    var(--download-card-tint),
+    var(--surface-raised)
+  );
+}
+.chart-summary .chart-value:nth-child(2) {
+  border-color: var(--upload-card-border);
+  background: linear-gradient(
+    135deg,
+    var(--upload-card-tint),
+    var(--surface-raised)
+  );
+}
+.chart-summary .chart-value:nth-child(3) {
+  border-color: var(--success-card-border);
+  background: linear-gradient(
+    135deg,
+    var(--success-card-tint),
+    var(--surface-raised)
+  );
 }
 .chart-value span {
   display: block;
   margin-bottom: 5px;
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 540;
 }
 .chart-value strong {
-  font-size: clamp(1.05rem, 1.8vw, 1.55rem);
-  letter-spacing: -0.035em;
+  display: block;
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: clamp(1.08rem, 1.8vw, 1.58rem);
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chart-summary .chart-value:first-child strong {
+  color: var(--download-strong);
+}
+.chart-summary .chart-value:nth-child(2) strong {
+  color: var(--upload-strong);
 }
 .chart-shell {
   width: 100%;
-  height: 228px;
+  height: 250px;
+  margin-top: 4px;
 }
 .confidence-panel {
   display: flex;
@@ -403,16 +484,23 @@
 .storage-panel {
   display: grid;
   grid-template-columns: minmax(210px, 1.5fr) repeat(5, minmax(96px, 0.65fr));
-  gap: 8px;
+  gap: 10px;
   align-items: stretch;
-  padding: 12px;
+  padding: 14px;
 }
 .storage-lead,
 .storage-stat {
-  padding: 10px 12px;
+  padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  background: var(--surface-soft);
+  background: var(--surface-raised);
+}
+.storage-lead {
+  background: linear-gradient(
+    135deg,
+    var(--success-card-tint),
+    var(--surface-raised)
+  );
 }
 .storage-stat {
   display: flex;
@@ -425,17 +513,19 @@
   font-size: 0.7rem;
 }
 .storage-stat strong {
-  font-size: 0.95rem;
+  color: var(--ink-soft);
+  font-size: 0.94rem;
+  font-variant-numeric: tabular-nums;
 }
 .login-page {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
   padding: 24px;
   position: relative;
 }
 .loading-screen {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
   color: var(--muted);
@@ -447,19 +537,20 @@
 }
 .login-card {
   width: min(430px, 100%);
-  padding: 40px;
+  padding: 42px;
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
-  background: var(--surface);
+  background: var(--surface-strong);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(28px);
+  backdrop-filter: blur(20px);
 }
 .login-card .brand-mark {
   margin-bottom: 34px;
 }
 .login-card h1 {
   margin: 10px 0;
-  font-size: 2.25rem;
+  font-size: 2.1rem;
+  font-weight: 740;
   letter-spacing: -0.05em;
 }
 .login-card form {
@@ -470,7 +561,7 @@
 
 @media (max-width: 980px) {
   .app {
-    width: calc(100% - 28px);
+    width: calc(100% - 32px);
   }
   .topbar {
     grid-template-columns: 1fr auto;
@@ -478,6 +569,7 @@
   .page-head {
     align-items: stretch;
     flex-direction: column;
+    margin-top: 28px;
   }
   .range-wrap {
     align-items: stretch;
@@ -512,11 +604,13 @@
 @media (max-width: 620px) {
   .app {
     width: calc(100% - 20px);
-    margin-top: 10px;
+    margin-top: 8px;
+    margin-bottom: 28px;
   }
   .topbar {
     top: 6px;
-    padding: 10px;
+    min-height: 60px;
+    padding: 8px 9px 8px 12px;
     gap: 10px;
   }
   .brand .eyebrow,
@@ -525,24 +619,25 @@
     display: none;
   }
   .top-actions {
-    gap: 5px;
+    gap: 4px;
   }
   .page-head {
-    margin-top: 28px;
+    margin: 26px 2px 14px;
   }
   .page-title {
-    font-size: 1.65rem;
+    font-size: 1.72rem;
   }
   .panel {
-    border-radius: 16px;
-    padding: 14px;
+    border-radius: 15px;
+    padding: 16px;
   }
   .chart-summary {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
   }
   .chart-summary .chart-value {
-    padding: 8px;
+    min-height: 68px;
+    padding: 10px;
   }
   .chart-summary .chart-value strong {
     font-size: clamp(0.78rem, 3.6vw, 0.88rem);
@@ -557,14 +652,15 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .metric-grid .chart-value {
-    padding: 9px 10px;
+    min-height: 64px;
+    padding: 10px;
   }
   .metric-grid .chart-value strong {
     font-size: clamp(0.8rem, 3.6vw, 0.9rem);
     line-height: 1.2;
   }
   .chart-shell {
-    height: 210px;
+    height: 220px;
   }
   .storage-panel {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -574,6 +670,7 @@
   }
   .custom-range-dialog {
     width: 100%;
+    padding: 14px;
   }
   .custom-date-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -587,6 +684,24 @@
   }
   .login-card {
     padding: 28px 22px;
+  }
+
+  .segmented button,
+  .chart-toggle button,
+  .dimension-tabs button {
+    min-height: 44px;
+  }
+
+  .calendar-head button,
+  .calendar-day,
+  .custom-range-actions button {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 340px) {
+  .brand > div:last-child {
+    display: none;
   }
 }
 

@@ -21,6 +21,7 @@ export function ThemeSelect() {
     if (value === "system")
       document.documentElement.removeAttribute("data-theme");
     else document.documentElement.dataset.theme = value;
+    window.dispatchEvent(new Event("flowlens-theme-change"));
   }
 
   return (
