@@ -18,7 +18,9 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
     "data-source-mode",
     "demo",
   );
-  await expect(page.getByText("FlowLens")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "FlowLens GitHub 仓库" }),
+  ).toBeVisible();
   await expect(page.getByText("采集正常")).toBeVisible();
   await expect(page.locator(".live-status.ok i")).toHaveCSS(
     "animation-name",

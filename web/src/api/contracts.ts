@@ -32,6 +32,7 @@ export interface StatusResponse {
   status: ServiceLevel;
   reason: string;
   timezone: string;
+  version: string;
   auth_enabled: boolean;
   capabilities: Capabilities;
 }

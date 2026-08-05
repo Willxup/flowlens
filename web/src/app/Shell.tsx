@@ -1,10 +1,12 @@
 import type { ReactNode } from "react";
 import type { ServiceLevel } from "../api/contracts";
+import { AppFooter } from "../components/AppFooter";
 import { Tooltip } from "../components/Tooltip";
 import { ThemeSelect } from "../features/theme/ThemeSelect";
 
 export function Shell({
   status,
+  version,
   sourceMode,
   authEnabled,
   onLogout,
@@ -12,6 +14,7 @@ export function Shell({
   children,
 }: {
   status: ServiceLevel;
+  version: string;
   sourceMode: "app" | "demo";
   authEnabled: boolean;
   onLogout: () => void;
@@ -63,6 +66,7 @@ export function Shell({
         </div>
       </header>
       {children}
+      <AppFooter version={version} />
     </main>
   );
 }

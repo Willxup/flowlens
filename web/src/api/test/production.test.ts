@@ -104,6 +104,25 @@ describe("ProductionDataSource", () => {
           status: "ok",
           reason: "ready",
           timezone: "Asia/Shanghai",
+          version: "v0.2.5",
+          capabilities: {},
+        }),
+      ) as typeof fetch,
+    );
+
+    await expect(source.status()).rejects.toThrow(
+      "FlowLens response is invalid",
+    );
+  });
+
+  it("requires the injected build version in status responses", async () => {
+    const source = new ProductionDataSource(
+      vi.fn(async () =>
+        Response.json({
+          status: "ok",
+          reason: "ready",
+          timezone: "Asia/Shanghai",
+          auth_enabled: true,
           capabilities: {},
         }),
       ) as typeof fetch,

@@ -74,6 +74,21 @@ test("production bundle works with the shipped CSP and named SSE events", async 
     "app",
   );
   await expect(page.getByRole("heading", { name: "实时吞吐" })).toBeVisible();
+  const footer = page.locator("footer.app-footer");
+  await expect(footer.getByText("© 2026")).toBeVisible();
+  await expect(footer.getByRole("link", { name: "FlowLens" })).toHaveAttribute(
+    "href",
+    "https://github.com/Willxup/flowlens",
+  );
+  await expect(footer.getByRole("link", { name: "License" })).toHaveAttribute(
+    "href",
+    "https://github.com/Willxup/flowlens/blob/main/LICENSE",
+  );
+  await expect(
+    footer.getByRole("link", { name: "Willxup GitHub 主页" }),
+  ).toHaveAttribute("href", "https://github.com/Willxup");
+  await expect(footer.getByText("Version: v0.2.5")).toBeVisible();
+  await expect(footer.locator(".app-footer-version-separator")).toBeHidden();
   await expect.poll(() => apiRequests).toContain("/api/v1/connections/live");
   await expect(
     page.getByText("Fixture · 198.51.100.20:443").first(),
@@ -127,6 +142,7 @@ function fixtureResponse(path: string): unknown {
       status: "ok",
       reason: "ready",
       timezone: "UTC",
+      version: "v0.2.5",
       auth_enabled: true,
       capabilities: {
         connection_id: true,
