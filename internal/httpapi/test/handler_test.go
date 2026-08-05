@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Willxup/flowlens/internal/buildinfo"
 	"github.com/Willxup/flowlens/internal/clashapi"
 	"github.com/Willxup/flowlens/internal/httpapi"
 	flowstatus "github.com/Willxup/flowlens/internal/status"
@@ -58,13 +59,15 @@ func TestLoginStatusAndLogoutFlow(t *testing.T) {
 		Status       string          `json:"status"`
 		Reason       string          `json:"reason"`
 		Timezone     string          `json:"timezone"`
+		Version      string          `json:"version"`
 		AuthEnabled  bool            `json:"auth_enabled"`
 		Capabilities map[string]bool `json:"capabilities"`
 	}
 	if err := json.Unmarshal(statusResponse.Body.Bytes(), &body); err != nil {
 		t.Fatalf("status JSON: %v", err)
 	}
-	if body.Status != "ok" || body.Reason != "ready" || body.Timezone != "Asia/Shanghai" || !body.AuthEnabled ||
+	if body.Status != "ok" || body.Reason != "ready" || body.Timezone != "Asia/Shanghai" ||
+		body.Version != buildinfo.Version || !body.AuthEnabled ||
 		len(body.Capabilities) != 6 || !body.Capabilities["connection_id"] {
 		t.Errorf("status body = %#v", body)
 	}

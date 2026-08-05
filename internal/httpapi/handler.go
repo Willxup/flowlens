@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Willxup/flowlens/internal/buildinfo"
 	"github.com/Willxup/flowlens/internal/clashapi"
 	"github.com/Willxup/flowlens/internal/collector"
 	flowstatus "github.com/Willxup/flowlens/internal/status"
@@ -307,6 +308,7 @@ func (h *handler) statusResponse(writer http.ResponseWriter, request *http.Reque
 		Status       flowstatus.Level `json:"status"`
 		Reason       string           `json:"reason"`
 		Timezone     string           `json:"timezone"`
+		Version      string           `json:"version"`
 		AuthEnabled  bool             `json:"auth_enabled"`
 		Capabilities struct {
 			ConnectionID bool `json:"connection_id"`
@@ -317,7 +319,8 @@ func (h *handler) statusResponse(writer http.ResponseWriter, request *http.Reque
 			Domain       bool `json:"domain"`
 		} `json:"capabilities"`
 	}{
-		Status: snapshot.Level, Reason: snapshot.Reason, Timezone: h.timezone, AuthEnabled: !h.authDisabled,
+		Status: snapshot.Level, Reason: snapshot.Reason, Timezone: h.timezone,
+		Version: buildinfo.Version, AuthEnabled: !h.authDisabled,
 		Capabilities: struct {
 			ConnectionID bool `json:"connection_id"`
 			Source       bool `json:"source"`

@@ -406,11 +406,12 @@ components:
     StatusResponse:
       type: object
       additionalProperties: false
-      required: [status, reason, timezone, auth_enabled, capabilities]
+      required: [status, reason, timezone, version, auth_enabled, capabilities]
       properties:
         status: { type: string, enum: [ok, degraded, failed] }
         reason: { type: string }
         timezone: { type: string }
+        version: { type: string }
         auth_enabled: { type: boolean }
         capabilities: { $ref: "#/components/schemas/Capabilities" }
     Capabilities:
