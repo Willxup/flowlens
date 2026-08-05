@@ -4,6 +4,10 @@
 # Project-local development workspace
 .flowlens-dev/
 
+# Project-local Codex workflow and linked worktrees
+/.agents/
+/.worktrees/
+
 # Real deployment configuration and runtime data
 /config/config.yaml
 /data/
