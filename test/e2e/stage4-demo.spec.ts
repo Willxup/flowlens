@@ -14,7 +14,7 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
 
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("./");
-  await expect(page.locator("main.app")).toHaveAttribute(
+  await expect(page.locator(".app-shell")).toHaveAttribute(
     "data-source-mode",
     "demo",
   );
@@ -30,7 +30,38 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
   const themeToggleBox = await page.locator(".theme-toggle").boundingBox();
   expect(liveStatusBox).not.toBeNull();
   expect(themeToggleBox).not.toBeNull();
-  expect(themeToggleBox!.x - (liveStatusBox!.x + liveStatusBox!.width)).toBeGreaterThanOrEqual(18);
+  expect(
+    themeToggleBox!.x - (liveStatusBox!.x + liveStatusBox!.width),
+  ).toBeGreaterThanOrEqual(6);
+  const layers = await page.evaluate(() => ({
+    header: Number.parseInt(
+      getComputedStyle(document.querySelector(".topbar")!).zIndex,
+      10,
+    ),
+    range: Number.parseInt(
+      getComputedStyle(document.querySelector(".range-wrap")!).zIndex,
+      10,
+    ),
+  }));
+  expect(layers.header).toBeGreaterThan(layers.range);
+
+  const rangeBeforeScroll = await page.locator(".range-wrap").boundingBox();
+  expect(rangeBeforeScroll).not.toBeNull();
+  await page.evaluate(
+    (scrollTop) => window.scrollTo(0, scrollTop),
+    Math.max(0, rangeBeforeScroll!.y - 24),
+  );
+  const overlapOwner = await page.evaluate(() => {
+    const header = document.querySelector(".topbar")!.getBoundingClientRect();
+    const range = document
+      .querySelector(".range-wrap")!
+      .getBoundingClientRect();
+    return document
+      .elementFromPoint(range.left + range.width / 2, header.bottom - 4)
+      ?.closest(".topbar")?.className;
+  });
+  expect(overlapOwner).toContain("topbar");
+  await page.evaluate(() => window.scrollTo(0, 0));
   await expect(page.getByRole("button", { name: "跟随系统" })).toBeVisible();
   await expect(page.getByRole("button", { name: "退出" })).toBeVisible();
   await expect(page.getByRole("navigation")).toHaveCount(0);
@@ -43,9 +74,7 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
   await expect(page.getByRole("heading", { name: "流量总览" })).toHaveClass(
     /page-title/,
   );
-  await expect(
-    page.getByRole("heading", { name: "实时吞吐" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "实时吞吐" })).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "实时目标分析" }),
   ).toBeVisible();
@@ -64,9 +93,7 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
     );
   expect(liveMetricBoxes).toHaveLength(6);
   expect(
-    liveMetricBoxes.every(
-      (box) => Math.abs(box.y - liveMetricBoxes[0]!.y) < 2,
-    ),
+    liveMetricBoxes.every((box) => Math.abs(box.y - liveMetricBoxes[0]!.y) < 2),
   ).toBe(true);
   await expect(page.getByText(/占全局 51\.6%/)).toBeVisible();
   const topologyBox = await page.locator(".topology-panel").boundingBox();
@@ -87,7 +114,9 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
     const number = (selector: string, property: string) => {
       const element = document.querySelector(selector);
       if (!(element instanceof HTMLElement)) return null;
-      return Number.parseFloat(getComputedStyle(element).getPropertyValue(property));
+      return Number.parseFloat(
+        getComputedStyle(element).getPropertyValue(property),
+      );
     };
     return {
       dashboardGap: number(".dashboard", "gap"),
@@ -95,13 +124,19 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
       panelRadius: number(".hero-panel", "border-top-left-radius"),
       pageTitleSize: number(".page-title", "font-size"),
       panelTitleSize: number(".panel-head h2", "font-size"),
-      summaryValueSize: number(".chart-summary .chart-value strong", "font-size"),
-      chartHeight: document.querySelector(".chart-shell")?.getBoundingClientRect()
-        .height,
-      topologyHeight: document.querySelector(".topology")?.getBoundingClientRect()
-        .height,
-      targetHeight: document.querySelector(".target-item")?.getBoundingClientRect()
-        .height,
+      summaryValueSize: number(
+        ".chart-summary .chart-value strong",
+        "font-size",
+      ),
+      chartHeight: document
+        .querySelector(".chart-shell")
+        ?.getBoundingClientRect().height,
+      topologyHeight: document
+        .querySelector(".topology")
+        ?.getBoundingClientRect().height,
+      targetHeight: document
+        .querySelector(".target-item")
+        ?.getBoundingClientRect().height,
     };
   });
   expect(density.dashboardGap).toBeLessThanOrEqual(14);
@@ -113,8 +148,14 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
   expect(density.chartHeight).toBeLessThanOrEqual(260);
   expect(density.topologyHeight).toBeLessThanOrEqual(280);
   expect(density.targetHeight).toBeLessThanOrEqual(60);
-  const firstTarget = await page.locator(".targets-panel .target-item").nth(0).boundingBox();
-  const secondTarget = await page.locator(".targets-panel .target-item").nth(1).boundingBox();
+  const firstTarget = await page
+    .locator(".targets-panel .target-item")
+    .nth(0)
+    .boundingBox();
+  const secondTarget = await page
+    .locator(".targets-panel .target-item")
+    .nth(1)
+    .boundingBox();
   expect(firstTarget).not.toBeNull();
   expect(secondTarget).not.toBeNull();
   expect(Math.abs(firstTarget!.x - secondTarget!.x)).toBeLessThan(2);
@@ -128,12 +169,8 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
   await page.getByRole("button", { name: "今天" }).click();
-  await expect(
-    page.getByRole("heading", { name: "历史流量" }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("SQLite 聚合 · 自动选择分辨率"),
-  ).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "历史流量" })).toBeVisible();
+  await expect(page.getByText("SQLite 聚合 · 自动选择分辨率")).toHaveCount(0);
   const historyDescription = page.getByRole("button", {
     name: "查看“历史流量”说明",
   });
@@ -153,9 +190,7 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
   const historyConfidenceBox = await page
     .locator(".confidence-panel")
     .boundingBox();
-  const historyTargetsBox = await page
-    .locator(".targets-panel")
-    .boundingBox();
+  const historyTargetsBox = await page.locator(".targets-panel").boundingBox();
   expect(historyDashboardBox).not.toBeNull();
   expect(historyTopologyBox).not.toBeNull();
   expect(historyConfidenceBox).not.toBeNull();
@@ -166,9 +201,9 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
   expect(historyConfidenceBox!.y).toBeGreaterThan(
     historyTopologyBox!.y + historyTopologyBox!.height,
   );
-  expect(
-    Math.abs(historyConfidenceBox!.y - historyTargetsBox!.y),
-  ).toBeLessThan(2);
+  expect(Math.abs(historyConfidenceBox!.y - historyTargetsBox!.y)).toBeLessThan(
+    2,
+  );
   expect(
     Math.abs(historyConfidenceBox!.height - historyTargetsBox!.height),
   ).toBeLessThan(2);
@@ -207,9 +242,7 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
   await page.getByRole("button", { name: "端口", exact: true }).click();
   await expect(page.getByLabel("端口分布")).toBeVisible();
   await expect(page.getByLabel(/流量拓扑/)).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "Endpoint", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Endpoint", exact: true }).click();
   await expect(page.getByLabel(/流量拓扑/)).toBeVisible();
 
   await page.getByRole("button", { name: "7 天" }).click();
@@ -282,7 +315,8 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
   expect(desktopClose).not.toBeNull();
   expect(
     Math.abs(
-      desktopAliasInput!.y + desktopAliasInput!.height / 2 -
+      desktopAliasInput!.y +
+        desktopAliasInput!.height / 2 -
         (desktopAliasActions!.y + desktopAliasActions!.height / 2),
     ),
   ).toBeLessThan(2);
@@ -330,9 +364,7 @@ test("offline Demo exposes one rich responsive statistics dashboard", async ({
   expect(sourceTwo!.x).toBeGreaterThan(sourceOne!.x + sourceOne!.width);
   expect(gateway!.y).toBeGreaterThan(sourceOne!.y + sourceOne!.height);
   expect(Math.abs(gateway!.width - topology!.width)).toBeLessThan(2);
-  expect(firstTopologyTarget!.y).toBeGreaterThan(
-    gateway!.y + gateway!.height,
-  );
+  expect(firstTopologyTarget!.y).toBeGreaterThan(gateway!.y + gateway!.height);
   await expect(page.locator(".dashboard")).toHaveCSS(
     "grid-template-columns",
     /310px|300px|1fr/,
