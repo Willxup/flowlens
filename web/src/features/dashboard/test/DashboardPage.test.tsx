@@ -61,6 +61,12 @@ describe("DashboardPage", () => {
       "href",
       "https://github.com/Willxup/flowlens",
     );
+    const globalHeader = brand.closest("header");
+    const main = screen.getByRole("main");
+    expect(globalHeader).toHaveClass("topbar");
+    expect(main).toHaveClass("app");
+    expect(main).not.toContainElement(globalHeader);
+    expect(globalHeader?.parentElement).toBe(main.parentElement);
     expect(screen.getByText("采集正常")).toBeInTheDocument();
     expect(await screen.findByText("© 2026")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "License" })).toHaveAttribute(

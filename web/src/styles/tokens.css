@@ -60,6 +60,10 @@
   --motion-fast: 160ms;
   --motion-base: 220ms;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --layer-page-control: 30;
+  --layer-header: 40;
+  --layer-modal: 50;
+  --layer-tooltip: 100;
 }
 
 :root[data-theme="dark"] {

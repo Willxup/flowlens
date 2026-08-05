@@ -23,7 +23,7 @@ export function Shell({
 }) {
   const logoutLabel = logoutFailed ? "退出失败，请重试" : "退出";
   return (
-    <main className="app" data-source-mode={sourceMode}>
+    <div className="app-shell" data-source-mode={sourceMode}>
       <header className="topbar">
         <a
           className="brand"
@@ -35,7 +35,7 @@ export function Shell({
           <div className="brand-mark" aria-hidden="true" />
           <div>
             <strong>FlowLens</strong>
-            <span className="eyebrow">edge telemetry</span>
+            <span className="eyebrow">network telemetry</span>
           </div>
         </a>
         <div className="top-actions">
@@ -65,8 +65,8 @@ export function Shell({
           ) : null}
         </div>
       </header>
-      {children}
+      <main className="app">{children}</main>
       <AppFooter version={version} />
-    </main>
+    </div>
   );
 }
