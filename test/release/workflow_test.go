@@ -1,9 +1,63 @@
 package release_test
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
+
+func TestWorkflowsUseNode24ActionReleases(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		want []string
+	}{
+		{
+			name: "CI",
+			path: ".github/workflows/ci.yml",
+			want: []string{
+				"actions/checkout@v5",
+				"actions/setup-go@v6",
+				"actions/setup-node@v5",
+				"pnpm/action-setup@v5",
+				"gitleaks/gitleaks-action@v3",
+			},
+		},
+		{
+			name: "release",
+			path: ".github/workflows/release.yml",
+			want: []string{
+				"actions/checkout@v5",
+				"docker/setup-buildx-action@v4",
+				"docker/login-action@v4",
+				"docker/metadata-action@v6",
+				"docker/build-push-action@v7",
+				"actions/upload-artifact@v6",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			contents := readRepositoryFile(t, test.path)
+			if got := workflowActionReferences(contents); !reflect.DeepEqual(got, test.want) {
+				t.Errorf("workflow action references = %#v, want Node.js 24 releases %#v", got, test.want)
+			}
+		})
+	}
+}
+
+func workflowActionReferences(contents string) []string {
+	var references []string
+	for _, line := range strings.Split(contents, "\n") {
+		line = strings.TrimSpace(line)
+		line = strings.TrimPrefix(line, "- ")
+		if reference, found := strings.CutPrefix(line, "uses: "); found {
+			references = append(references, reference)
+		}
+	}
+	return references
+}
 
 func TestCIWorkflowRunsProductAndReleaseChecksWithoutDeploymentPermissions(t *testing.T) {
 	contents := readRepositoryFile(t, ".github/workflows/ci.yml")
