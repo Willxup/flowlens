@@ -58,25 +58,56 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Topbar - Apple Dynamic Island / Frosted Glass Bar */
+/* Topbar - iOS 26 Liquid Glass Capsule Bar */
 .topbar {
   min-height: 58px;
-  padding: 8px 14px 8px 18px;
+  padding: 8px 16px 8px 20px;
   display: grid;
   grid-template-columns: minmax(190px, 1fr) auto;
   align-items: center;
   gap: 16px;
-  border: 1px solid var(--glass-border);
-  border-radius: 20px;
-  background: var(--surface);
-  box-shadow: var(--glass-highlight), var(--shadow-soft);
-  backdrop-filter: blur(28px) saturate(190%);
-  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid var(--topbar-border);
+  border-radius: 9999px;
+  background: var(--topbar-surface);
+  box-shadow: var(--topbar-shadow);
+  backdrop-filter: blur(2px) contrast(112%) brightness(106%) saturate(125%);
+  -webkit-backdrop-filter: blur(2px) contrast(112%) brightness(106%)
+    saturate(125%);
   position: sticky;
   top: 12px;
   z-index: var(--layer-header);
   isolation: isolate;
-  transition: box-shadow var(--motion-base) var(--ease-out);
+  overflow: hidden;
+  transition:
+    box-shadow var(--motion-base) var(--ease-out),
+    border-color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.topbar::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 20px;
+  right: 20px;
+  height: 48%;
+  border-radius: 9999px 9999px 40px 40px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(255, 255, 255, 0.06) 75%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+html[data-theme="dark"] .topbar::after {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(255, 255, 255, 0.02) 75%,
+    transparent 100%
+  );
 }
 
 .brand {
@@ -170,8 +201,14 @@
 .topbar .theme-toggle {
   padding: 3px;
   border-radius: 12px;
-  background: var(--surface-soft);
+  background: rgba(0, 0, 0, 0.04);
   border: 1px solid var(--line);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+html[data-theme="dark"] .topbar .theme-toggle {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .topbar .theme-button {
@@ -185,10 +222,16 @@
   min-height: 36px;
   justify-content: center;
   border: 1px solid var(--line);
-  border-radius: 11px;
-  background: var(--surface-soft);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.04);
   padding: 0;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   transition: all var(--motion-fast) var(--ease-spring);
+}
+
+html[data-theme="dark"] .topbar .logout-button {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .topbar .logout-button:hover {
