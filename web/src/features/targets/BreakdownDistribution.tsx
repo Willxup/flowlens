@@ -39,7 +39,25 @@ export function BreakdownDistribution({
                     : ""}
                 </span>
               </div>
-              <strong>{formatBytes(row.totalBytes)}</strong>
+              <div className="distribution-metrics">
+                <div className="distribution-detail">
+                  <span aria-label={`下载 ${formatBytes(row.downloadBytes)}`}>
+                    <b className="target-download" aria-hidden="true">
+                      ↓
+                    </b>{" "}
+                    {formatBytes(row.downloadBytes)}
+                  </span>
+                  <span aria-label={`上传 ${formatBytes(row.uploadBytes)}`}>
+                    <b className="target-upload" aria-hidden="true">
+                      ↑
+                    </b>{" "}
+                    {formatBytes(row.uploadBytes)}
+                  </span>
+                </div>
+                <strong className="distribution-total">
+                  {formatBytes(row.totalBytes)}
+                </strong>
+              </div>
             </div>
             <div className="distribution-track" aria-hidden="true">
               <i
@@ -50,10 +68,6 @@ export function BreakdownDistribution({
                 className="distribution-upload"
                 style={{ width: `${share(row.uploadBytes, max)}%` }}
               />
-            </div>
-            <div className="distribution-detail">
-              <span>↓ {formatBytes(row.downloadBytes)}</span>
-              <span>↑ {formatBytes(row.uploadBytes)}</span>
             </div>
           </div>
         ))
