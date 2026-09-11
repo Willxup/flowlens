@@ -1,65 +1,115 @@
 :root {
   color-scheme: light;
   font-family:
-    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
     "PingFang SC", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
   --font-sans:
-    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
     "PingFang SC", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
   --font-mono:
     "SFMono-Regular", "SF Mono", ui-monospace, Menlo, Monaco, Consolas,
     monospace;
-  --page: #f1f4f8;
-  --page-deep: #e7ecf3;
-  --page-glow-primary: rgba(37, 99, 235, 0.1);
-  --page-glow-accent: rgba(217, 119, 6, 0.09);
-  --surface: rgba(255, 255, 255, 0.92);
+
+  /* iOS Light Palette & Luminous Atmosphere */
+  --page: #f2f2f7;
+  --page-deep: #e5e5ea;
+  --page-glow-primary: rgba(0, 122, 255, 0.14);
+  --page-glow-accent: rgba(175, 82, 222, 0.12);
+  --page-glow-warm: rgba(255, 149, 0, 0.1);
+  --page-glow-cyan: rgba(50, 173, 230, 0.1);
+  --page-glow-green: rgba(52, 199, 89, 0.08);
+
+  /* Apple Ultra-Frosted Glass Materials */
+  --surface: rgba(255, 255, 255, 0.78);
   --surface-strong: #ffffff;
-  --surface-soft: #f6f8fb;
-  --surface-raised: #fbfcfe;
-  --ink: #172033;
-  --ink-soft: #344054;
-  --muted: #667085;
-  --faint: #8993a4;
-  --line: #dfe5ed;
-  --line-strong: #cbd4e1;
+  --surface-soft: rgba(118, 118, 128, 0.14);
+  --surface-raised: rgba(255, 255, 255, 0.75);
+  --surface-subtle: rgba(255, 255, 255, 0.55);
+
+  /* iOS Typography Hierarchy */
+  --ink: #000000;
+  --ink-soft: #1c1c1e;
+  --muted: rgba(60, 60, 67, 0.65);
+  --faint: rgba(60, 60, 67, 0.38);
+  --line: rgba(60, 60, 67, 0.12);
+  --line-strong: rgba(60, 60, 67, 0.22);
+  --glass-border: rgba(255, 255, 255, 0.85);
+
+  /* iOS 26 Liquid Glass Capsule Topbar */
+  --topbar-surface: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.28) 0%,
+    rgba(255, 255, 255, 0.05) 45%,
+    rgba(255, 255, 255, 0.01) 55%,
+    rgba(255, 255, 255, 0.16) 100%
+  );
+  --topbar-border: rgba(255, 255, 255, 0.6);
+  --topbar-shadow:
+    0 12px 36px 0 rgba(0, 0, 0, 0.07), 0 2px 6px 0 rgba(0, 0, 0, 0.03),
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 16px 20px -8px rgba(255, 255, 255, 0.7),
+    inset 0 -10px 18px -8px rgba(0, 0, 0, 0.07),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+
+  /* iOS Multi-Layer Floating Shadows & Highlights */
   --shadow:
-    0 1px 2px rgba(16, 24, 40, 0.04), 0 12px 32px rgba(16, 24, 40, 0.07);
+    0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 16px 40px -4px rgba(0, 0, 0, 0.07);
   --shadow-soft:
-    0 1px 2px rgba(16, 24, 40, 0.035), 0 6px 18px rgba(16, 24, 40, 0.045);
-  --shadow-float: 0 20px 56px rgba(16, 24, 40, 0.16);
-  --download: #2563eb;
-  --download-strong: #1d4ed8;
-  --download-soft: rgba(37, 99, 235, 0.1);
-  --download-card-tint: rgba(37, 99, 235, 0.1);
-  --download-card-border: color-mix(in srgb, var(--download) 22%, var(--line));
-  --upload: #d97706;
-  --upload-strong: #b45309;
-  --upload-soft: rgba(217, 119, 6, 0.11);
-  --upload-card-tint: rgba(217, 119, 6, 0.1);
-  --upload-card-border: color-mix(in srgb, var(--upload) 22%, var(--line));
-  --green: #0f9d78;
-  --green-soft: rgba(15, 157, 120, 0.11);
-  --success-card-tint: rgba(15, 157, 120, 0.09);
-  --success-card-border: color-mix(in srgb, var(--green) 20%, var(--line));
-  --cyan: #0891b2;
-  --cyan-soft: rgba(8, 145, 178, 0.1);
-  --violet: #7c3aed;
-  --danger: #c4323e;
-  --danger-soft: rgba(196, 50, 62, 0.1);
-  --focus-ring: rgba(37, 99, 235, 0.24);
-  --chart-tooltip-bg: #172033;
-  --chart-tooltip-ink: #f8fafc;
+    0 2px 8px -1px rgba(0, 0, 0, 0.04), 0 8px 20px -2px rgba(0, 0, 0, 0.05);
+  --shadow-float:
+    0 24px 64px -8px rgba(0, 0, 0, 0.16), 0 0 1px rgba(0, 0, 0, 0.12);
+  --glass-highlight: inset 0 1px 1.5px rgba(255, 255, 255, 0.9);
+
+  /* iOS System Colors */
+  --download: #007aff;
+  --download-strong: #0062cc;
+  --download-soft: rgba(0, 122, 255, 0.12);
+  --download-card-tint: rgba(0, 122, 255, 0.09);
+  --download-card-border: rgba(0, 122, 255, 0.28);
+
+  --upload: #ff9500;
+  --upload-strong: #d97706;
+  --upload-soft: rgba(255, 149, 0, 0.13);
+  --upload-card-tint: rgba(255, 149, 0, 0.09);
+  --upload-card-border: rgba(255, 149, 0, 0.28);
+
+  --green: #34c759;
+  --green-strong: #248a3d;
+  --green-soft: rgba(52, 199, 89, 0.13);
+  --success-card-tint: rgba(52, 199, 89, 0.09);
+  --success-card-border: rgba(52, 199, 89, 0.28);
+
+  --cyan: #32ade6;
+  --cyan-soft: rgba(50, 173, 230, 0.12);
+  --violet: #af52de;
+  --violet-soft: rgba(175, 82, 222, 0.12);
+  --indigo: #5856d6;
+  --danger: #ff3b30;
+  --danger-soft: rgba(255, 59, 48, 0.12);
+
+  --focus-ring: rgba(0, 122, 255, 0.38);
+  --chart-tooltip-bg: rgba(28, 28, 30, 0.92);
+  --chart-tooltip-ink: #ffffff;
+
+  /* Corner Radii */
   --radius-xl: 20px;
   --radius-lg: 16px;
-  --radius-md: 12px;
-  --radius-sm: 9px;
+  --radius-md: 13px;
+  --radius-sm: 10px;
+  --radius-pill: 9999px;
+
+  /* iOS Physics Timing & Spring Easing */
   --motion-fast: 160ms;
-  --motion-base: 220ms;
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-base: 240ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.25, 1, 0.5, 1);
+
+  /* Layers */
   --layer-page-control: 30;
   --layer-header: 40;
   --layer-modal: 50;
@@ -68,89 +118,142 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --page: #101012;
-  --page-deep: #09090b;
-  --page-glow-primary: rgba(255, 255, 255, 0.018);
-  --page-glow-accent: rgba(255, 255, 255, 0.008);
-  --surface: rgba(24, 24, 27, 0.94);
-  --surface-strong: #1f1f22;
-  --surface-soft: #27272a;
-  --surface-raised: #2d2d31;
-  --ink: #fafafa;
-  --ink-soft: #e4e4e7;
-  --muted: #a1a1aa;
-  --faint: #71717a;
-  --line: #343438;
-  --line-strong: #4a4a50;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 18px 46px rgba(0, 0, 0, 0.28);
-  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.18), 0 8px 24px rgba(0, 0, 0, 0.2);
-  --shadow-float: 0 24px 64px rgba(0, 0, 0, 0.46);
-  --download: #60a5fa;
-  --download-strong: #93c5fd;
-  --download-soft: rgba(96, 165, 250, 0.13);
-  --download-card-tint: rgba(255, 255, 255, 0.012);
-  --download-card-border: var(--line);
-  --upload: #fbbf24;
-  --upload-strong: #fcd34d;
-  --upload-soft: rgba(251, 191, 36, 0.13);
-  --upload-card-tint: rgba(255, 255, 255, 0.012);
-  --upload-card-border: var(--line);
-  --green: #34d399;
-  --green-soft: rgba(52, 211, 153, 0.13);
-  --success-card-tint: rgba(255, 255, 255, 0.012);
-  --success-card-border: var(--line);
-  --cyan: #22d3ee;
-  --cyan-soft: rgba(34, 211, 238, 0.12);
-  --violet: #a78bfa;
-  --danger: #fb7185;
-  --danger-soft: rgba(251, 113, 133, 0.13);
-  --focus-ring: rgba(96, 165, 250, 0.3);
-  --chart-tooltip-bg: #020617;
-  --chart-tooltip-ink: #f8fafc;
+
+  /* iOS Dark Palette & Glowing Nebula Atmosphere */
+  --page: #000000;
+  --page-deep: #070709;
+  --page-glow-primary: rgba(10, 132, 255, 0.18);
+  --page-glow-accent: rgba(191, 90, 242, 0.14);
+  --page-glow-warm: rgba(255, 159, 10, 0.12);
+  --page-glow-cyan: rgba(100, 210, 255, 0.1);
+  --page-glow-green: rgba(48, 209, 88, 0.1);
+
+  /* Apple Dark Frosted Glass Materials */
+  --surface: rgba(28, 28, 30, 0.78);
+  --surface-strong: #1c1c1e;
+  --surface-soft: rgba(118, 118, 128, 0.24);
+  --surface-raised: rgba(44, 44, 46, 0.72);
+  --surface-subtle: rgba(255, 255, 255, 0.05);
+
+  /* iOS Dark Typography */
+  --ink: #ffffff;
+  --ink-soft: #f2f2f7;
+  --muted: rgba(235, 235, 245, 0.62);
+  --faint: rgba(235, 235, 245, 0.35);
+  --line: rgba(255, 255, 255, 0.1);
+  --line-strong: rgba(255, 255, 255, 0.2);
+  --glass-border: rgba(255, 255, 255, 0.14);
+
+  /* iOS 26 Dark Obsidian Liquid Glass Topbar */
+  --topbar-surface: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.02) 45%,
+    rgba(0, 0, 0, 0.15) 55%,
+    rgba(255, 255, 255, 0.06) 100%
+  );
+  --topbar-border: rgba(255, 255, 255, 0.16);
+  --topbar-shadow:
+    0 16px 44px 0 rgba(0, 0, 0, 0.65), 0 2px 6px 0 rgba(0, 0, 0, 0.4),
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 16px 20px -8px rgba(255, 255, 255, 0.18),
+    inset 0 -12px 20px -8px rgba(0, 0, 0, 0.65),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+
+  /* Dark Multi-Layer Shadows & Specular Glow */
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 20px 48px -4px rgba(0, 0, 0, 0.65);
+  --shadow-soft:
+    0 2px 8px rgba(0, 0, 0, 0.3), 0 10px 28px -2px rgba(0, 0, 0, 0.45);
+  --shadow-float:
+    0 28px 72px -10px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.18);
+  --glass-highlight: inset 0 1px 1.5px rgba(255, 255, 255, 0.16);
+
+  /* iOS Dark System Colors */
+  --download: #0a84ff;
+  --download-strong: #409cff;
+  --download-soft: rgba(10, 132, 255, 0.18);
+  --download-card-tint: rgba(10, 132, 255, 0.12);
+  --download-card-border: rgba(10, 132, 255, 0.35);
+
+  --upload: #ff9f0a;
+  --upload-strong: #ffb340;
+  --upload-soft: rgba(255, 159, 10, 0.18);
+  --upload-card-tint: rgba(255, 159, 10, 0.12);
+  --upload-card-border: rgba(255, 159, 10, 0.35);
+
+  --green: #30d158;
+  --green-strong: #4cd964;
+  --green-soft: rgba(48, 209, 88, 0.18);
+  --success-card-tint: rgba(48, 209, 88, 0.12);
+  --success-card-border: rgba(48, 209, 88, 0.35);
+
+  --cyan: #64d2ff;
+  --cyan-soft: rgba(100, 210, 255, 0.18);
+  --violet: #bf5af2;
+  --violet-soft: rgba(191, 90, 242, 0.18);
+  --indigo: #5e5ce6;
+  --danger: #ff453a;
+  --danger-soft: rgba(255, 69, 58, 0.18);
+
+  --focus-ring: rgba(10, 132, 255, 0.5);
+  --chart-tooltip-bg: rgba(15, 15, 17, 0.95);
+  --chart-tooltip-ink: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --page: #101012;
-    --page-deep: #09090b;
-    --page-glow-primary: rgba(255, 255, 255, 0.018);
-    --page-glow-accent: rgba(255, 255, 255, 0.008);
-    --surface: rgba(24, 24, 27, 0.94);
-    --surface-strong: #1f1f22;
-    --surface-soft: #27272a;
-    --surface-raised: #2d2d31;
-    --ink: #fafafa;
-    --ink-soft: #e4e4e7;
-    --muted: #a1a1aa;
-    --faint: #71717a;
-    --line: #343438;
-    --line-strong: #4a4a50;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 18px 46px rgba(0, 0, 0, 0.28);
-    --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.18), 0 8px 24px rgba(0, 0, 0, 0.2);
-    --shadow-float: 0 24px 64px rgba(0, 0, 0, 0.46);
-    --download: #60a5fa;
-    --download-strong: #93c5fd;
-    --download-soft: rgba(96, 165, 250, 0.13);
-    --download-card-tint: rgba(255, 255, 255, 0.012);
-    --download-card-border: var(--line);
-    --upload: #fbbf24;
-    --upload-strong: #fcd34d;
-    --upload-soft: rgba(251, 191, 36, 0.13);
-    --upload-card-tint: rgba(255, 255, 255, 0.012);
-    --upload-card-border: var(--line);
-    --green: #34d399;
-    --green-soft: rgba(52, 211, 153, 0.13);
-    --success-card-tint: rgba(255, 255, 255, 0.012);
-    --success-card-border: var(--line);
-    --cyan: #22d3ee;
-    --cyan-soft: rgba(34, 211, 238, 0.12);
-    --violet: #a78bfa;
-    --danger: #fb7185;
-    --danger-soft: rgba(251, 113, 133, 0.13);
-    --focus-ring: rgba(96, 165, 250, 0.3);
-    --chart-tooltip-bg: #020617;
-    --chart-tooltip-ink: #f8fafc;
+    --page: #000000;
+    --page-deep: #070709;
+    --page-glow-primary: rgba(10, 132, 255, 0.18);
+    --page-glow-accent: rgba(191, 90, 242, 0.14);
+    --page-glow-warm: rgba(255, 159, 10, 0.12);
+    --page-glow-cyan: rgba(100, 210, 255, 0.1);
+    --page-glow-green: rgba(48, 209, 88, 0.1);
+    --surface: rgba(28, 28, 30, 0.78);
+    --surface-strong: #1c1c1e;
+    --surface-soft: rgba(118, 118, 128, 0.24);
+    --surface-raised: rgba(44, 44, 46, 0.72);
+    --surface-subtle: rgba(255, 255, 255, 0.05);
+    --ink: #ffffff;
+    --ink-soft: #f2f2f7;
+    --muted: rgba(235, 235, 245, 0.62);
+    --faint: rgba(235, 235, 245, 0.35);
+    --line: rgba(255, 255, 255, 0.1);
+    --line-strong: rgba(255, 255, 255, 0.2);
+    --glass-border: rgba(255, 255, 255, 0.14);
+    --shadow:
+      0 4px 20px rgba(0, 0, 0, 0.4), 0 20px 48px -4px rgba(0, 0, 0, 0.65);
+    --shadow-soft:
+      0 2px 8px rgba(0, 0, 0, 0.3), 0 10px 28px -2px rgba(0, 0, 0, 0.45);
+    --shadow-float:
+      0 28px 72px -10px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.18);
+    --glass-highlight: inset 0 1px 1.5px rgba(255, 255, 255, 0.16);
+    --download: #0a84ff;
+    --download-strong: #409cff;
+    --download-soft: rgba(10, 132, 255, 0.18);
+    --download-card-tint: rgba(10, 132, 255, 0.12);
+    --download-card-border: rgba(10, 132, 255, 0.35);
+    --upload: #ff9f0a;
+    --upload-strong: #ffb340;
+    --upload-soft: rgba(255, 159, 10, 0.18);
+    --upload-card-tint: rgba(255, 159, 10, 0.12);
+    --upload-card-border: rgba(255, 159, 10, 0.35);
+    --green: #30d158;
+    --green-strong: #4cd964;
+    --green-soft: rgba(48, 209, 88, 0.18);
+    --success-card-tint: rgba(48, 209, 88, 0.12);
+    --success-card-border: rgba(48, 209, 88, 0.35);
+    --cyan: #64d2ff;
+    --cyan-soft: rgba(100, 210, 255, 0.18);
+    --violet: #bf5af2;
+    --violet-soft: rgba(191, 90, 242, 0.18);
+    --indigo: #5e5ce6;
+    --danger: #ff453a;
+    --danger-soft: rgba(255, 69, 58, 0.18);
+    --focus-ring: rgba(10, 132, 255, 0.5);
+    --chart-tooltip-bg: rgba(15, 15, 17, 0.95);
+    --chart-tooltip-ink: #ffffff;
   }
 }
 
@@ -160,20 +263,7 @@
 
 html {
   min-height: 100%;
-  background:
-    radial-gradient(
-      circle at 4% 0,
-      var(--page-glow-primary),
-      transparent 34rem
-    ),
-    radial-gradient(
-      circle at 96% 4rem,
-      var(--page-glow-accent),
-      transparent 30rem
-    ),
-    linear-gradient(180deg, var(--page) 0, var(--page-deep) 100%);
-  background-attachment: fixed;
-  background-repeat: no-repeat;
+  background-color: var(--page);
 }
 
 body {
@@ -182,7 +272,56 @@ body {
   color: var(--ink);
   background: transparent;
   font-family: var(--font-sans);
-  font-size: 16px;
+  font-size: 14px;
+  line-height: 1.45;
+  letter-spacing: -0.012em;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at 20% 20%,
+      var(--page-glow-primary) 0%,
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 80% 25%,
+      var(--page-glow-accent) 0%,
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 45% 65%,
+      var(--page-glow-cyan) 0%,
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 85% 80%,
+      var(--page-glow-warm) 0%,
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 15% 85%,
+      var(--page-glow-green) 0%,
+      transparent 40%
+    );
+  animation: ambient-drift 24s ease-in-out infinite alternate;
+}
+
+@keyframes ambient-drift {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-3%, 2%) scale(1.04);
+  }
+  100% {
+    transform: translate(2%, -3%) scale(1.02);
+  }
 }
 
 button,
@@ -199,6 +338,8 @@ select {
 button {
   cursor: pointer;
   touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 h1,
@@ -210,7 +351,7 @@ p {
 
 p {
   color: var(--muted);
-  line-height: 1.6;
+  line-height: 1.55;
 }
 
 .eyebrow {
@@ -218,7 +359,7 @@ p {
   color: var(--muted);
   font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.11em;
+  letter-spacing: 0.08em;
   line-height: 1.25;
   text-transform: uppercase;
 }
@@ -227,21 +368,31 @@ p {
   color: var(--muted);
   font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 ::selection {
-  color: white;
+  color: #ffffff;
   background: var(--download);
 }
 
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  border: 3px solid transparent;
+  border: 2px solid transparent;
   border-radius: 999px;
   background: var(--line-strong);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
   background-clip: padding-box;
 }
