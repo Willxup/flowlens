@@ -73,8 +73,8 @@ test("production bundle works with the shipped CSP and named SSE events", async 
     "data-source-mode",
     "app",
   );
-  await expect(page.getByRole("heading", { name: "实时吞吐" })).toBeVisible();
-  const footer = page.locator("footer.app-footer");
+  await expect(page.getByRole("heading", { name: "当前吞吐" })).toBeVisible();
+  const footer = page.locator(".mobile-footer footer.app-footer");
   await expect(footer.getByText("© 2026")).toBeVisible();
   await expect(footer.getByRole("link", { name: "FlowLens" })).toHaveAttribute(
     "href",
@@ -91,9 +91,13 @@ test("production bundle works with the shipped CSP and named SSE events", async 
   await expect(footer.locator(".app-footer-version-separator")).toBeHidden();
   await expect.poll(() => apiRequests).toContain("/api/v1/connections/live");
   await expect(
-    page.getByText("Fixture · 198.51.100.20:443").first(),
+    page.locator(".flow-target-name").getByText("Fixture"),
   ).toBeVisible();
   await expect(page.locator(".chart-shell svg")).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "移动工作区" })
+    .getByRole("button", { name: "历史分析" })
+    .click();
   await page.getByRole("button", { name: "30 天" }).click();
   await expect(page.getByRole("heading", { name: "历史流量" })).toBeVisible();
   await expect.poll(() => apiRequests).toContain("/api/v1/overview?range=30d");
@@ -106,21 +110,21 @@ test("production bundle works with the shipped CSP and named SSE events", async 
   expect(apiRequests.some((request) => /[?&](from|to)=\d/.test(request))).toBe(
     false,
   );
-  await expect(page.locator(".topology-desktop-flow")).toHaveAttribute(
+  await page
+    .getByRole("navigation", { name: "移动工作区" })
+    .getByRole("button", { name: "实时总览" })
+    .click();
+  await expect(page.locator(".flow-network")).toHaveAttribute(
     "preserveAspectRatio",
     "none",
   );
   await page.setViewportSize({ width: 1280, height: 900 });
-  await expect(page.locator(".topology-desktop-flow")).toBeVisible();
-  const [flowBox, sourceBox, targetBox] = await Promise.all([
-    page.locator(".topology-desktop-flow").boundingBox(),
-    page.locator(".node-source-one").boundingBox(),
-    page.locator(".node-target-0").boundingBox(),
-  ]);
-  if (flowBox === null || sourceBox === null || targetBox === null)
-    throw new Error("missing topology boxes");
-  expect(sourceBox.x + sourceBox.width - flowBox.x).toBeCloseTo(4, 0);
-  expect(flowBox.x + flowBox.width - targetBox.x).toBeCloseTo(4, 0);
+  await expect(page.locator(".flow-network")).toBeVisible();
+  await expect(page.locator(".flow-target-branch .flow-ribbon")).toHaveCount(1);
+  await expect(page.locator(".flow-rest-branch .flow-ribbon")).toHaveAttribute(
+    "d",
+    /107/,
+  );
   await page.setViewportSize({ width: 320, height: 720 });
   await page.locator(".logout-button").click();
   await expect(
