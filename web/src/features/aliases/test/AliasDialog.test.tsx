@@ -17,6 +17,39 @@ const candidate: LabelCandidateResponse = {
 };
 
 describe("AliasDialog", () => {
+  it("contains keyboard focus, closes on Escape, and restores the opener", async () => {
+    const user = userEvent.setup();
+    const source = new DemoDataSource();
+    const opener = document.createElement("button");
+    document.body.append(opener);
+    opener.focus();
+    const onClose = vi.fn();
+    const previousOverflow = document.body.style.overflow;
+    const { unmount } = render(
+      <AliasDialog
+        source={source}
+        labels={[]}
+        candidates={[candidate]}
+        onChanged={vi.fn()}
+        onClose={onClose}
+      />,
+    );
+    const close = screen.getByRole("button", { name: "关闭别名" });
+    const help = screen.getByRole("button", { name: "查看“目标别名”说明" });
+    expect(screen.getByRole("dialog")).toHaveFocus();
+    expect(document.body.style.overflow).toBe("hidden");
+    await user.tab();
+    expect(help).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(close).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(onClose).toHaveBeenCalledOnce();
+    unmount();
+    expect(opener).toHaveFocus();
+    expect(document.body.style.overflow).toBe(previousOverflow);
+    opener.remove();
+  });
+
   it("moves the header description into the shared tooltip", async () => {
     const user = userEvent.setup();
     const source = new DemoDataSource();
