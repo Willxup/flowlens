@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type {
   HistoricalSelection,
@@ -9,6 +9,27 @@ import { UnauthorizedError } from "../../../api/production";
 import { DemoDataSource } from "../../../demo/source";
 import { DashboardPage } from "../DashboardPage";
 
+vi.mock("../../traffic/TrafficChart", () => ({
+  TrafficChart: ({
+    mode,
+    historyView,
+  }: {
+    mode: "live" | "history";
+    historyView?: "traffic" | "speed";
+  }) => (
+    <div
+      role="img"
+      aria-label={
+        mode === "live"
+          ? "实时上传和下载速度曲线"
+          : historyView === "speed"
+            ? "历史平均上传和下载速度曲线"
+            : "历史上传下载流量和累计曲线"
+      }
+    />
+  ),
+}));
+
 class FailingHistorySource extends DemoDataSource {
   override async overview(
     _range: HistoricalSelection,
@@ -16,7 +37,6 @@ class FailingHistorySource extends DemoDataSource {
     throw new Error("fixture unavailable");
   }
 }
-
 class DifferentWindowLiveSource extends DemoDataSource {
   override async liveTargets(): Promise<LiveTargetsResponse> {
     const value = await super.liveTargets();
@@ -27,195 +47,124 @@ class DifferentWindowLiveSource extends DemoDataSource {
     };
   }
 }
-
+class FailingTargetsSource extends DemoDataSource {
+  override async liveTargets(): Promise<LiveTargetsResponse> {
+    throw new Error("fixture unavailable");
+  }
+}
 class FailingLogoutSource extends DemoDataSource {
   override async logout(): Promise<void> {
     throw new Error("fixture unavailable");
   }
 }
-
 class UnauthorizedLogoutSource extends DemoDataSource {
   override async logout(): Promise<void> {
     throw new UnauthorizedError();
   }
 }
-
 class NoAuthSource extends DemoDataSource {
   override readonly demo = false;
-
   override async status() {
     return { ...(await super.status()), auth_enabled: false };
   }
 }
 
+function navigation() {
+  return within(screen.getByRole("navigation", { name: "工作区" }));
+}
+
 describe("DashboardPage", () => {
-  it("keeps the approved header and exposes one complete dashboard", async () => {
-    render(
-      <DashboardPage source={new DemoDataSource()} onUnauthorized={vi.fn()} />,
-    );
-    const brand = await screen.findByRole("link", {
-      name: "FlowLens GitHub 仓库",
+  beforeAll(() => {
+    Object.defineProperty(window, "scrollTo", {
+      configurable: true,
+      value: vi.fn(),
     });
-    expect(brand).toHaveTextContent("FlowLens");
-    expect(brand).toHaveAttribute(
-      "href",
-      "https://github.com/Willxup/flowlens",
-    );
-    const globalHeader = brand.closest("header");
-    const main = screen.getByRole("main");
-    expect(globalHeader).toHaveClass("topbar");
-    expect(main).toHaveClass("app");
-    expect(main).not.toContainElement(globalHeader);
-    expect(globalHeader?.parentElement).toBe(main.parentElement);
-    expect(screen.getByText("采集正常")).toBeInTheDocument();
-    expect(await screen.findByText("© 2026")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "License" })).toHaveAttribute(
-      "href",
-      "https://github.com/Willxup/flowlens/blob/main/LICENSE",
-    );
-    expect(
-      screen.getByRole("link", { name: "Willxup GitHub 主页" }),
-    ).toHaveAttribute("href", "https://github.com/Willxup");
-    expect(await screen.findByText("Version: v0.2.5")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "跟随系统" }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "退出" })).toBeInTheDocument();
-    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Overview" }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "流量总览" })).toHaveClass(
-      "page-title",
-    );
-    expect(
-      screen.queryByText(
-        "从当前速度到长期累计，把流量、连接、去向和数据质量放在一起看。",
-      ),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "全部" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "实时吞吐" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "实时目标分析" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "数据质量" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "存储健康" }),
-    ).toBeInTheDocument();
-    const topology = document.querySelector(".topology-panel");
-    const confidence = document.querySelector(".confidence-panel");
-    const targets = document.querySelector(".targets-panel");
-    expect(topology).not.toBeNull();
-    expect(confidence).not.toBeNull();
-    expect(targets).not.toBeNull();
-    expect(
-      topology!.compareDocumentPosition(confidence!) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).not.toBe(0);
-    expect(
-      confidence!.compareDocumentPosition(targets!) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).not.toBe(0);
   });
-
-  it("hides logout when authentication is disabled", async () => {
-    render(
-      <DashboardPage source={new NoAuthSource()} onUnauthorized={vi.fn()} />,
-    );
-
-    await waitFor(() =>
-      expect(
-        screen.queryByRole("button", { name: "退出" }),
-      ).not.toBeInTheDocument(),
-    );
-  });
-
-  it("keeps realtime and historical modes visibly separate", async () => {
+  it("starts with the live signal and navigates four separate workspaces", async () => {
     const user = userEvent.setup();
     render(
       <DashboardPage source={new DemoDataSource()} onUnauthorized={vi.fn()} />,
     );
     expect(
-      await screen.findByRole("heading", { name: "实时吞吐" }),
+      screen.getByRole("link", { name: "FlowLens GitHub 仓库" }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText("最近 60 分钟 · 1 秒采样"),
-    ).not.toBeInTheDocument();
-    const liveDescription = screen.getByRole("button", {
-      name: "查看“实时吞吐”说明",
-    });
-    await user.hover(liveDescription);
-    expect(screen.getByRole("tooltip")).toHaveTextContent(
-      "最近 60 分钟 · 1 秒采样",
-    );
-    await user.unhover(liveDescription);
-    expect(screen.getByText("可归因覆盖")).toBeInTheDocument();
+      screen.getByRole("heading", { name: "实时总览" }),
+    ).toBeInTheDocument();
     expect(
-      screen.getByRole("progressbar", { name: "可归因覆盖" }),
-    ).toHaveAttribute("aria-valuenow", "94.7");
-    expect(document.querySelector(".quality-ring")).not.toBeInTheDocument();
-    for (const label of [
-      "1 分钟平均下载",
-      "1 分钟平均上传",
-      "5 分钟平均下载",
-      "5 分钟平均上传",
-      "60 分钟峰值下载",
-      "60 分钟峰值上传",
-    ]) {
-      expect(screen.getByText(label)).toBeInTheDocument();
-    }
-    expect(screen.getByText(/10\.0 秒采样/)).toBeInTheDocument();
-    expect(screen.getByText(/占全局 51\.6%/)).toBeInTheDocument();
-    expect(screen.getByLabelText("第 1 名")).toHaveTextContent("1");
-    expect(screen.getByLabelText("第 6 名")).toHaveTextContent("6");
-    await user.click(screen.getByRole("button", { name: "今天" }));
+      screen.getByRole("heading", { name: "当前吞吐" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "实时上传和下载速度曲线" }),
+    ).toBeInTheDocument();
+    expect(await screen.findByText(/目标快照正常/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "流向构成" }),
+    ).toBeInTheDocument();
+    expect(document.querySelectorAll(".flow-ribbon").length).toBeGreaterThan(0);
+    expect(
+      navigation().getByRole("button", { name: /实时总览/ }),
+    ).toHaveAttribute("aria-current", "page");
+    await user.click(navigation().getByRole("button", { name: /目标探索/ }));
+    expect(
+      screen.getByRole("heading", { name: "目标探索" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "当前吞吐" }),
+    ).not.toBeInTheDocument();
+    await user.click(navigation().getByRole("button", { name: /历史分析/ }));
+    expect(
+      screen.getByRole("heading", { name: "历史分析" }),
+    ).toBeInTheDocument();
     expect(
       await screen.findByRole("heading", { name: "历史流量" }),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/SQLite 聚合/)).not.toBeInTheDocument();
-    const historyDescription = screen.getByRole("button", {
-      name: "查看“历史流量”说明",
-    });
-    await user.hover(historyDescription);
-    expect(screen.getByRole("tooltip")).toHaveTextContent(
-      "SQLite 聚合 · 自动选择分辨率",
-    );
-    await user.unhover(historyDescription);
-    expect(screen.getByText("排行覆盖")).toBeInTheDocument();
-    expect(screen.getByText("未归因流量")).toBeInTheDocument();
+    await user.click(navigation().getByRole("button", { name: /质量与存储/ }));
+    expect(
+      screen.getByRole("heading", { name: "质量与存储" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "存储健康" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Top K 之外")).toBeInTheDocument();
-    for (const label of [
-      "总流量",
-      "较上一周期",
-      "平均下载",
-      "平均上传",
-      "峰值下载",
-      "峰值上传",
-      "平均连接",
-      "峰值连接",
-      "数据完整率",
-      "恢复流量",
-      "重置次数",
-      "质量事件",
-      "边界估算",
-      "最近运行",
-    ]) {
-      expect((await screen.findAllByText(label)).length).toBeGreaterThan(0);
-    }
-    expect(screen.getByText("精确边界")).toBeInTheDocument();
+    expect(screen.getAllByText("sing-box 1.12.0")).toHaveLength(2);
+  });
+
+  it("searches targets and keeps aliases available", async () => {
+    const user = userEvent.setup();
+    render(
+      <DashboardPage source={new DemoDataSource()} onUnauthorized={vi.fn()} />,
+    );
+    await user.click(navigation().getByRole("button", { name: /目标探索/ }));
+    expect(await screen.findAllByLabelText("第 1 名")).toHaveLength(1);
+    expect(document.querySelectorAll(".target-item")).toHaveLength(6);
+    await user.type(
+      screen.getByRole("searchbox", { name: "搜索目标" }),
+      "Media API",
+    );
+    expect(document.querySelectorAll(".target-item")).toHaveLength(1);
+    expect(screen.getByText("Media API")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "管理别名" }));
     expect(
-      screen.getByRole("button", { name: "流量视图" }),
+      screen.getByText("Demo 为只读，别名修改仅在生产模式提供。"),
     ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "关闭别名" }));
+  });
+
+  it("keeps historical dimensions, ranges and both chart modes", async () => {
+    const user = userEvent.setup();
+    render(
+      <DashboardPage source={new DemoDataSource()} onUnauthorized={vi.fn()} />,
+    );
+    await user.click(navigation().getByRole("button", { name: /历史分析/ }));
     expect(
-      screen.getByRole("button", { name: "速度视图" }),
+      await screen.findByRole("img", { name: "历史平均上传和下载速度曲线" }),
     ).toBeInTheDocument();
-    for (const dimension of [
+    await user.click(screen.getByRole("button", { name: "流量视图" }));
+    expect(
+      screen.getByRole("img", { name: "历史上传下载流量和累计曲线" }),
+    ).toBeInTheDocument();
+    for (const name of [
       "目标 IP",
       "Endpoint",
       "端口",
@@ -223,142 +172,84 @@ describe("DashboardPage", () => {
       "来源网段",
       "域名",
     ]) {
-      expect(
-        screen.getByRole("button", { name: dimension }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name })).toBeInTheDocument();
     }
-    expect(screen.getAllByText("sing-box 1.12.0")).toHaveLength(2);
-    expect(screen.getByText("当前运行")).toBeInTheDocument();
-    expect(
-      screen.queryByText("最近 60 分钟 · 1 秒采样"),
-    ).not.toBeInTheDocument();
-  });
-
-  it("defaults historical ranges to speed while preserving manual switching", async () => {
-    render(
-      <DashboardPage source={new DemoDataSource()} onUnauthorized={vi.fn()} />,
-    );
-
-    await userEvent.click(screen.getByRole("button", { name: "今天" }));
-    expect(
-      await screen.findByRole("img", {
-        name: "历史平均上传和下载速度曲线",
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "速度视图" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(screen.getByRole("button", { name: "流量视图" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
-
-    await userEvent.click(screen.getByRole("button", { name: "流量视图" }));
-    expect(
-      screen.getByRole("img", { name: "历史上传下载流量和累计曲线" }),
-    ).toBeInTheDocument();
-  });
-
-  it("marks custom-range boundary approximation explicitly", async () => {
-    render(
-      <DashboardPage source={new DemoDataSource()} onUnauthorized={vi.fn()} />,
-    );
-    await userEvent.click(screen.getByRole("button", { name: "自定义" }));
-    await userEvent.click(screen.getByRole("button", { name: "2026-07-16" }));
-    await userEvent.click(screen.getByRole("button", { name: "2026-07-18" }));
-    await userEvent.click(screen.getByRole("button", { name: "应用" }));
+    await user.click(screen.getByRole("button", { name: "端口" }));
+    expect(await screen.findAllByText("443")).not.toHaveLength(0);
+    await user.click(screen.getByRole("button", { name: "全部" }));
+    expect(screen.getByText("不适用")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "自定义" }));
+    await user.click(screen.getByRole("button", { name: "2026-07-16" }));
+    await user.click(screen.getByRole("button", { name: "2026-07-18" }));
+    await user.click(screen.getByRole("button", { name: "应用" }));
     expect(await screen.findByText("已近似")).toBeInTheDocument();
   });
 
-  it("uses topology only for target-like dimensions", async () => {
-    render(
-      <DashboardPage source={new DemoDataSource()} onUnauthorized={vi.fn()} />,
-    );
-    await userEvent.click(screen.getByRole("button", { name: "今天" }));
-    expect(await screen.findByLabelText(/流量拓扑/)).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "端口" }));
-    expect(await screen.findByLabelText("端口分布")).toBeInTheDocument();
-    expect(screen.queryByLabelText(/流量拓扑/)).not.toBeInTheDocument();
-    expect(screen.getAllByText("443").length).toBeGreaterThan(0);
-  });
-
-  it("exposes target and Demo read-only alias views on the same page", async () => {
-    render(
-      <DashboardPage source={new DemoDataSource()} onUnauthorized={vi.fn()} />,
-    );
-    expect(
-      (await screen.findAllByText("Media API · 198.51.100.20:443")).length,
-    ).toBeGreaterThanOrEqual(1);
-    expect(
-      await screen.findByRole("heading", { name: "实时目标分析" }),
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText(/流量拓扑/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "管理别名" }));
-    expect(
-      screen.getByText("Demo 为只读，别名修改仅在生产模式提供。"),
-    ).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "关闭别名" }));
-    expect(screen.getByText("42.8 MiB")).toBeInTheDocument();
-  });
-
-  it("shows an explicit error instead of stale historical data", async () => {
-    render(
-      <DashboardPage
-        source={new FailingHistorySource()}
-        onUnauthorized={vi.fn()}
-      />,
-    );
-
-    await userEvent.click(screen.getByRole("button", { name: "今天" }));
-
-    expect(await screen.findByText("历史数据加载失败")).toBeInTheDocument();
-  });
-
-  it("uses the target snapshot window for realtime shares", async () => {
+  it("uses target snapshot global rate for approximate shares", async () => {
+    const user = userEvent.setup();
     render(
       <DashboardPage
         source={new DifferentWindowLiveSource()}
         onUnauthorized={vi.fn()}
       />,
     );
-
+    await user.click(navigation().getByRole("button", { name: /目标探索/ }));
     expect(await screen.findByText(/占全局 25\.8%/)).toBeInTheDocument();
   });
 
-  it("keeps the session visible when logout fails", async () => {
-    const onUnauthorized = vi.fn();
+  it("distinguishes unavailable target and history data", async () => {
+    const user = userEvent.setup();
+    const view = render(
+      <DashboardPage
+        source={new FailingTargetsSource()}
+        onUnauthorized={vi.fn()}
+      />,
+    );
+    await user.click(navigation().getByRole("button", { name: /目标探索/ }));
+    expect(
+      await screen.findByText("目标数据暂时无法加载。"),
+    ).toBeInTheDocument();
+    view.unmount();
     render(
+      <DashboardPage
+        source={new FailingHistorySource()}
+        onUnauthorized={vi.fn()}
+      />,
+    );
+    await user.click(navigation().getByRole("button", { name: /历史分析/ }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("历史查询失败");
+  });
+
+  it("respects disabled authentication and handles logout failure", async () => {
+    const noAuth = render(
+      <DashboardPage source={new NoAuthSource()} onUnauthorized={vi.fn()} />,
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("button", { name: "退出" }),
+      ).not.toBeInTheDocument(),
+    );
+    noAuth.unmount();
+    const onUnauthorized = vi.fn();
+    const failed = render(
       <DashboardPage
         source={new FailingLogoutSource()}
         onUnauthorized={onUnauthorized}
       />,
     );
-
     await userEvent.click(screen.getByRole("button", { name: "退出" }));
-
     expect(onUnauthorized).not.toHaveBeenCalled();
     expect(
       await screen.findByRole("button", { name: "退出失败，请重试" }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  });
-
-  it("leaves the dashboard when logout reports an unavailable session", async () => {
-    const onUnauthorized = vi.fn();
+    failed.unmount();
     render(
       <DashboardPage
         source={new UnauthorizedLogoutSource()}
         onUnauthorized={onUnauthorized}
       />,
     );
-
     await userEvent.click(screen.getByRole("button", { name: "退出" }));
-
     expect(onUnauthorized).toHaveBeenCalledOnce();
-    expect(
-      screen.queryByRole("button", { name: "退出失败，请重试" }),
-    ).not.toBeInTheDocument();
   });
 });

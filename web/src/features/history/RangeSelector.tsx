@@ -17,6 +17,7 @@ const presets: Array<{ label: string; value: TimeSelection }> = [
   { label: "30 天", value: { kind: "preset", preset: "30d" } },
   { label: "90 天", value: { kind: "preset", preset: "90d" } },
   { label: "今年", value: { kind: "preset", preset: "year" } },
+  { label: "全部", value: { kind: "preset", preset: "lifetime" } },
 ];
 const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
 

@@ -5,15 +5,18 @@ import { RangeSelector } from "../RangeSelector";
 describe("RangeSelector", () => {
   const now = new Date("2026-07-22T04:00:00Z");
 
-  it("temporarily hides the all-data range", () => {
+  it("offers the complete history range", async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
     render(
       <RangeSelector value={{ kind: "live" }} now={now} onChange={onChange} />,
     );
     expect(screen.queryByText("生命周期")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "全部" }),
-    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "全部" }));
+    expect(onChange).toHaveBeenCalledWith({
+      kind: "preset",
+      preset: "lifetime",
+    });
     expect(screen.getByRole("button", { name: "今年" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "自定义" })).toBeInTheDocument();
   });

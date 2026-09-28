@@ -48,12 +48,15 @@ export function TrafficChart({
   const [themeRevision, setThemeRevision] = useState(0);
   useEffect(() => {
     const element = reference.current;
-    if (element === null || element.clientWidth === 0) return;
+    if (element === null) return;
     const chart = echarts.init(element, undefined, { renderer: "svg" });
     chartReference.current = chart;
     const resize = () => chart.resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(element);
     window.addEventListener("resize", resize);
     return () => {
+      observer.disconnect();
       window.removeEventListener("resize", resize);
       chartReference.current = null;
       chart.dispose();
