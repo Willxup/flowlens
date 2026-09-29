@@ -37,7 +37,14 @@ export function LoginPage({ source, onAuthenticated }: LoginPageProps) {
         <ThemeSelect />
       </div>
       <section className="login-card" aria-labelledby="login-title">
-        <div className="brand-mark" aria-hidden="true" />
+        <img
+          className="brand-mark"
+          src={`${import.meta.env.BASE_URL}favicon.svg`}
+          width="36"
+          height="36"
+          alt=""
+          aria-hidden="true"
+        />
         <span className="eyebrow">Private network observatory</span>
         <div className="heading-with-tooltip">
           <h1 id="login-title">进入 FlowLens</h1>

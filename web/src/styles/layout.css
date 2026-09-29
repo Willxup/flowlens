@@ -2,6 +2,7 @@
   min-height: 100vh;
 }
 .app-shell {
+  --shell-header-height: 68px;
   min-height: 100vh;
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
@@ -19,67 +20,43 @@
 .skip-link:focus {
   top: 12px;
 }
+.sidebar-rail {
+  min-width: 0;
+  align-self: stretch;
+  border-right: 1px solid var(--line);
+  background: var(--page-deep);
+}
 .sidebar {
   position: sticky;
   top: 0;
   height: 100dvh;
-  min-height: 620px;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--line);
-  padding: 27px 15px 17px;
-  background: var(--page-deep);
+  overflow-y: auto;
+}
+.sidebar-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 38px 15px 17px;
 }
 .brand {
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 0;
-  margin: 0 11px 62px;
+  height: var(--shell-header-height);
+  flex-shrink: 0;
+  padding: 0 26px;
+  border-bottom: 1px solid var(--line);
   color: var(--ink);
   text-decoration: none;
 }
 .brand-mark {
-  width: 35px;
-  height: 35px;
-  display: grid;
-  place-items: center;
+  width: 36px;
+  height: 36px;
+  display: block;
   flex: 0 0 auto;
-  border: 1px solid var(--download-card-border);
-  border-radius: 9px;
-  background: var(--download-soft);
-  position: relative;
-  overflow: hidden;
-}
-.brand-mark::before {
-  content: "";
-  position: absolute;
-  width: 44px;
-  height: 44px;
-  border: 1px solid var(--download);
-  border-radius: 50%;
-  left: 10px;
-  top: 10px;
-  opacity: 0.65;
-}
-.brand-mark::after {
-  content: "";
-  position: absolute;
-  width: 22px;
-  height: 22px;
-  border: 1px solid var(--download);
-  border-radius: 50%;
-  right: 12px;
-  bottom: 12px;
-  opacity: 0.75;
-}
-.brand-mark span {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--download);
-  box-shadow: 0 0 14px var(--download);
-  z-index: 1;
 }
 .brand-type {
   display: grid;
@@ -232,7 +209,7 @@
   min-width: 0;
 }
 .topbar {
-  height: 68px;
+  height: var(--shell-header-height);
   position: sticky;
   top: 0;
   z-index: var(--layer-header);
@@ -899,12 +876,12 @@
   .app-shell {
     grid-template-columns: 74px minmax(0, 1fr);
   }
-  .sidebar {
-    padding: 18px 10px;
-    min-height: 0;
+  .sidebar-content {
+    padding: 24px 10px 17px;
   }
   .brand {
-    margin: 0 auto 48px;
+    justify-content: center;
+    padding: 0;
   }
   .brand-type,
   .sidebar-section-label,
@@ -943,7 +920,7 @@
   .app-shell {
     display: block;
   }
-  .sidebar {
+  .sidebar-rail {
     display: none;
   }
   .topbar {

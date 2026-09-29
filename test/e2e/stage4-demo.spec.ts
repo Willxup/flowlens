@@ -26,6 +26,35 @@ test("offline observatory works across workspaces, themes and viewports", async 
   await expect(page.locator(".flow-rest-branch")).toHaveCount(1);
   await expect(page.getByText("可归因覆盖 94.7%")).toBeVisible();
   await expect(page.locator(".chart-shell svg")).toBeVisible();
+  await expect(page.locator(".brand-mark")).toHaveAttribute(
+    "src",
+    "./favicon.svg",
+  );
+  const shellGeometry = await page.evaluate(() => {
+    const box = (selector: string) =>
+      document.querySelector(selector)!.getBoundingClientRect();
+    return {
+      brandBottom: box(".brand").bottom,
+      headerBottom: box(".topbar").bottom,
+      railBottom: box(".sidebar-rail").bottom,
+      workspaceBottom: box(".workspace-shell").bottom,
+    };
+  });
+  expect(
+    Math.abs(shellGeometry.brandBottom - shellGeometry.headerBottom),
+  ).toBeLessThanOrEqual(1);
+  expect(
+    Math.abs(shellGeometry.railBottom - shellGeometry.workspaceBottom),
+  ).toBeLessThanOrEqual(1);
+  await page.evaluate(() =>
+    window.scrollTo(0, document.documentElement.scrollHeight),
+  );
+  expect(
+    await page
+      .locator(".sidebar")
+      .evaluate((element) => Math.abs(element.getBoundingClientRect().top)),
+  ).toBeLessThanOrEqual(1);
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.getByRole("button", { name: "深色模式" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.locator(".page-title").click();

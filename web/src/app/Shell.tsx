@@ -81,66 +81,75 @@ export function Shell({
       <a className="skip-link" href="#workspace-content">
         跳转到内容
       </a>
-      <aside className="sidebar" aria-label="工作台侧栏">
-        <a
-          className="brand"
-          href="https://github.com/Willxup/flowlens"
-          target="_blank"
-          rel="noreferrer"
-          aria-label="FlowLens GitHub 仓库"
-        >
-          <span className="brand-mark" aria-hidden="true">
-            <span />
-          </span>
-          <span className="brand-type">
-            <strong>FlowLens</strong>
-            <small>TRAFFIC OBSERVATORY</small>
-          </span>
-        </a>
-        <div className="sidebar-section-label">
-          WORKSPACES <span>01 — 04</span>
-        </div>
-        <nav className="side-nav" aria-label="工作区">
-          {navigation.map((item, index) => (
-            <button
-              key={item.id}
-              type="button"
-              className="nav-item"
-              aria-current={workspace === item.id ? "page" : undefined}
-              onClick={() => onNavigate(item.id)}
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                {item.icon}
-              </svg>
-              <span className="nav-copy">
-                <strong>{item.title}</strong>
-                <small>{item.caption}</small>
-              </span>
-              <span className="nav-index">0{index + 1}</span>
-            </button>
-          ))}
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="sidebar-note">
-            <span className="note-glyph" aria-hidden="true">
-              ↗
+      <div className="sidebar-rail">
+        <aside className="sidebar" aria-label="工作台侧栏">
+          <a
+            className="brand"
+            href="https://github.com/Willxup/flowlens"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="FlowLens GitHub 仓库"
+          >
+            <img
+              className="brand-mark"
+              src={`${import.meta.env.BASE_URL}favicon.svg`}
+              width="36"
+              height="36"
+              alt=""
+              aria-hidden="true"
+            />
+            <span className="brand-type">
+              <strong>FlowLens</strong>
+              <small>EDGE TELEMETRY</small>
             </span>
-            <div>
-              <strong>全局流量精确记录</strong>
-              <span>目标归因来自连接采样</span>
+          </a>
+          <div className="sidebar-content">
+            <div className="sidebar-section-label">
+              WORKSPACES <span>01 — 04</span>
+            </div>
+            <nav className="side-nav" aria-label="工作区">
+              {navigation.map((item, index) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="nav-item"
+                  aria-current={workspace === item.id ? "page" : undefined}
+                  onClick={() => onNavigate(item.id)}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    {item.icon}
+                  </svg>
+                  <span className="nav-copy">
+                    <strong>{item.title}</strong>
+                    <small>{item.caption}</small>
+                  </span>
+                  <span className="nav-index">0{index + 1}</span>
+                </button>
+              ))}
+            </nav>
+            <div className="sidebar-bottom">
+              <div className="sidebar-note">
+                <span className="note-glyph" aria-hidden="true">
+                  ↗
+                </span>
+                <div>
+                  <strong>全局流量精确记录</strong>
+                  <span>目标归因来自连接采样</span>
+                </div>
+              </div>
+              <AppFooter version={version} />
             </div>
           </div>
-          <AppFooter version={version} />
-        </div>
-      </aside>
+        </aside>
+      </div>
       <div className="workspace-shell">
         <header className="topbar">
           <div className="topbar-context">
