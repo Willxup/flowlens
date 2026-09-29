@@ -26,6 +26,14 @@ test("offline observatory works across workspaces, themes and viewports", async 
   await expect(page.locator(".flow-rest-branch")).toHaveCount(1);
   await expect(page.getByText("可归因覆盖 94.7%")).toBeVisible();
   await expect(page.locator(".chart-shell svg")).toBeVisible();
+  await expect(
+    page.getByText("正在加载 24 小时历史，实时样本仍正常显示。"),
+  ).toHaveCount(0);
+  await expect(page.locator(".navigator-download")).not.toHaveAttribute(
+    "d",
+    "",
+  );
+  await expect(page.getByText("跟随实时 · 最近 60 分钟")).toBeVisible();
   await expect(page.locator(".brand-mark")).toHaveAttribute(
     "src",
     "./favicon.svg",
@@ -73,6 +81,34 @@ test("offline observatory works across workspaces, themes and viewports", async 
     fullPage: true,
     animations: "disabled",
   });
+
+  await page.getByRole("button", { name: "查看 24 小时" }).click();
+  await expect(page.getByText("浏览历史 · 已暂停跟随")).toBeVisible();
+  await expect(page.locator(".timeline-range")).toContainText(
+    "秒级样本 + 历史聚合",
+  );
+  await page.getByRole("slider", { name: "预览结束时间" }).press("ArrowLeft");
+  await expect(page.getByText("浏览历史 · 已暂停跟随")).toBeVisible();
+  await page.getByRole("button", { name: "回到实时" }).click();
+  const navigator = await page.locator(".timeline-navigator svg").boundingBox();
+  if (!navigator) throw new Error("missing timeline navigator");
+  await page.mouse.move(
+    navigator.x + navigator.width * 0.98,
+    navigator.y + navigator.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    navigator.x + navigator.width * 0.5,
+    navigator.y + navigator.height / 2,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  await expect(page.getByText("浏览历史 · 已暂停跟随")).toBeVisible();
+  await expect(page.locator(".timeline-range")).toContainText(
+    "历史聚合 · 非秒级",
+  );
+  await page.getByRole("button", { name: "回到实时" }).click();
+  await expect(page.locator(".timeline-range")).toContainText("秒级样本");
 
   const side = page.getByRole("navigation", { name: "工作区" });
   await side.getByRole("button", { name: /目标探索/ }).click();

@@ -27,6 +27,7 @@ import { useLiveViewModel } from "../live/useLiveViewModel";
 import { StoragePanel } from "../storage/StoragePanel";
 import { FlowMap } from "../targets/FlowMap";
 import { TargetList, type HistoricalTargetRow } from "../targets/TargetList";
+import { LiveTrafficExplorer } from "../traffic/LiveTrafficExplorer";
 import { TrafficChart } from "../traffic/TrafficChart";
 
 const initialStatus: StatusResponse = {
@@ -253,7 +254,7 @@ export function DashboardPage({
             <div>
               <strong>{sampleStale ? "实时信号中断" : "实时信号已连接"}</strong>
               <small>
-                {sampleStale ? "显示最后观测值" : "最近 60 分钟 · 逐秒采样"}
+                {sampleStale ? "显示最后观测值" : "秒级实时 · 24 小时回看"}
               </small>
             </div>
           </div>
@@ -310,10 +311,11 @@ export function DashboardPage({
                 </div>
               </div>
               <div className="signal-chart">
-                <div className="chart-caption">
-                  <span>THROUGHPUT / LAST 60 MIN</span>
-                </div>
-                <TrafficChart mode="live" live={live.chart} />
+                <LiveTrafficExplorer
+                  source={source}
+                  live={live.chart}
+                  onUnauthorized={onUnauthorized}
+                />
               </div>
             </div>
             <div className="stage-metrics">

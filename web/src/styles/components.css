@@ -919,3 +919,159 @@ input::placeholder {
     grid-template-columns: 1fr;
   }
 }
+
+/* The overview belongs to the same plot; native range controls keep zooming
+   usable on touch screens and by keyboard without tiny draggable handles. */
+.traffic-explorer {
+  min-width: 0;
+}
+.timeline-toolbar,
+.timeline-range,
+.timeline-overview-head,
+.timeline-axis {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.timeline-toolbar {
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.timeline-mode {
+  color: var(--download);
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+.timeline-actions {
+  display: flex;
+  gap: 6px;
+}
+.timeline-actions button,
+.timeline-notice button {
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--surface-subtle);
+  color: var(--ink-soft);
+  padding: 6px 9px;
+  font-size: 0.66rem;
+  cursor: pointer;
+}
+.timeline-actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.timeline-range {
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-variant-numeric: tabular-nums;
+}
+.timeline-overview-head {
+  margin: 8px 0 6px;
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+.timeline-overview-head strong {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+.timeline-navigator {
+  height: 64px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface-subtle);
+  overflow: hidden;
+}
+.timeline-navigator svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: pan-y;
+}
+.timeline-navigator svg:active {
+  cursor: grabbing;
+}
+.navigator-download,
+.navigator-upload {
+  fill: none;
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+.navigator-download {
+  stroke: var(--download);
+}
+.navigator-upload {
+  stroke: var(--upload);
+}
+.navigator-mask {
+  fill: var(--page);
+  opacity: 0.58;
+}
+.navigator-selection {
+  fill: var(--download-soft);
+  stroke: var(--download);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.timeline-axis {
+  color: var(--muted);
+  font-size: 0.58rem;
+  margin-top: 5px;
+}
+.timeline-sliders {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 4px;
+}
+.timeline-sliders label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+.timeline-sliders input {
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  accent-color: var(--download);
+  cursor: ew-resize;
+}
+.timeline-sliders label > span {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.timeline-footnote,
+.timeline-notice {
+  font-size: 0.61rem;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 5px 0 0;
+}
+.timeline-notice {
+  color: var(--upload);
+}
+.timeline-notice button {
+  margin-left: 8px;
+}
+@media (max-width: 650px) {
+  .timeline-actions button {
+    min-height: 36px;
+  }
+  .timeline-toolbar {
+    align-items: flex-start;
+  }
+  .timeline-sliders {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .timeline-sliders input {
+    min-height: 38px;
+  }
+  .timeline-range {
+    font-size: 0.62rem;
+  }
+}

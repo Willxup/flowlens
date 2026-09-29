@@ -6,6 +6,7 @@ import type {
 
 export interface LiveChartPoint {
   timestamp: number;
+  resolution?: number;
   upload: number | null;
   download: number | null;
 }

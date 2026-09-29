@@ -367,3 +367,36 @@ function historicalTooltipPoint(): HistoricalChartPoint {
     resolution: 3600,
   };
 }
+
+it("positions mixed-resolution live data on a real time axis and labels aggregate precision", async () => {
+  chart.setOption.mockClear();
+  render(
+    <TrafficChart
+      mode="live"
+      liveBounds={[100, 4000]}
+      live={[
+        { timestamp: 100, upload: 3, download: 4, resolution: 60 },
+        { timestamp: 3700, upload: 5, download: 6, resolution: 1 },
+      ]}
+    />,
+  );
+  await waitFor(() => expect(chart.setOption).toHaveBeenCalled());
+  const option = chart.setOption.mock.calls.at(-1)![0];
+  expect(option.xAxis).toMatchObject({
+    type: "time",
+    min: 100000,
+    max: 4000000,
+  });
+  expect(option.series[0].data[1].value).toEqual([3700000, 6]);
+  expect(option.series[0].smooth).toBe(false);
+  const tooltip = option.tooltip.formatter([
+    {
+      axisValue: 100000,
+      seriesName: "下载",
+      value: [100000, 4],
+      data: { resolution: 60 },
+    },
+  ]);
+  expect(tooltip).toContain("历史聚合 · 60 秒均值");
+  expect(tooltip).toContain("4 B/s");
+});
