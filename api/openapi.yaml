@@ -114,7 +114,6 @@ paths:
       operationId: getOverview
       summary: Compare exact totals with the previous equal-duration range
       parameters:
-        - $ref: "#/components/parameters/Range"
         - $ref: "#/components/parameters/From"
         - $ref: "#/components/parameters/To"
       responses:
@@ -132,7 +131,6 @@ paths:
       operationId: getSeries
       summary: Read an automatically resolved historical series
       parameters:
-        - $ref: "#/components/parameters/Range"
         - $ref: "#/components/parameters/From"
         - $ref: "#/components/parameters/To"
         - name: resolution
@@ -157,7 +155,6 @@ paths:
       operationId: getQuality
       summary: Read data-quality events intersecting a range
       parameters:
-        - $ref: "#/components/parameters/Range"
         - $ref: "#/components/parameters/From"
         - $ref: "#/components/parameters/To"
       responses:
@@ -189,7 +186,6 @@ paths:
       operationId: getBreakdown
       summary: Read an approximate dimensional Top K breakdown
       parameters:
-        - $ref: "#/components/parameters/Range"
         - $ref: "#/components/parameters/From"
         - $ref: "#/components/parameters/To"
         - name: by
@@ -357,30 +353,24 @@ components:
       schema:
         type: string
         format: uri
-    Range:
-      name: range
-      in: query
-      required: true
-      description: Server-clock range. 24h is the rolling last 86400 seconds, not a calendar day. Custom ranges use inclusive dates in the configured timezone.
-      schema:
-        type: string
-        enum: [24h, today, yesterday, 7d, 30d, 90d, year, lifetime, custom]
     From:
       name: from
       in: query
-      required: false
-      description: Required only for range=custom. Inclusive local start date; forbidden for presets.
+      required: true
+      description: Inclusive Unix start second; must be positive and less than `to`.
       schema:
-        type: string
-        format: date
+        type: integer
+        format: int64
+        minimum: 1
     To:
       name: to
       in: query
-      required: false
-      description: Required only for range=custom. Inclusive local end date, no later than today; forbidden for presets.
+      required: true
+      description: Exclusive Unix end second; must be greater than `from`.
       schema:
-        type: string
-        format: date
+        type: integer
+        format: int64
+        minimum: 2
   responses:
     JSONError:
       description: The request failed. The body is intentionally generic and contains no configuration values.

@@ -25,7 +25,6 @@ interface TrafficChartProps {
   historyView?: "traffic" | "speed";
   historyLabelMode?: "time" | "date";
   live?: LiveChartPoint[];
-  liveBounds?: readonly [number, number];
   history?: HistoricalChartPoint[];
 }
 
@@ -34,7 +33,6 @@ interface TrafficTooltipParameter {
   marker?: unknown;
   seriesName?: unknown;
   value?: unknown;
-  data?: { resolution?: number };
 }
 
 export function TrafficChart({
@@ -42,7 +40,6 @@ export function TrafficChart({
   historyView = "traffic",
   historyLabelMode = "date",
   live = [],
-  liveBounds,
   history = [],
 }: TrafficChartProps) {
   const reference = useRef<HTMLDivElement>(null);
@@ -104,11 +101,7 @@ export function TrafficChart({
           backgroundColor: palette.tooltipBackground,
           borderColor: palette.lineStrong,
           textStyle: { color: palette.tooltipInk, fontSize: 11 },
-          formatter: createTooltipFormatter(
-            mode,
-            speedScale,
-            liveBounds !== undefined,
-          ),
+          formatter: createTooltipFormatter(mode, speedScale),
         },
         legend: {
           top: 0,
@@ -118,10 +111,8 @@ export function TrafficChart({
           textStyle: { color: palette.muted, fontSize: 10 },
         },
         xAxis: {
-          type: liveBounds ? "time" : "category",
-          data: liveBounds ? undefined : labels,
-          min: liveBounds ? liveBounds[0] * 1000 : undefined,
-          max: liveBounds ? liveBounds[1] * 1000 : undefined,
+          type: "category",
+          data: labels,
           boundaryGap: mode === "history" && historyView === "traffic",
           axisTick: { show: false },
           axisLine: { lineStyle: { color: palette.line } },
@@ -135,11 +126,7 @@ export function TrafficChart({
             color: palette.muted,
             fontSize: 10,
             formatter: (value: string) =>
-              formatTimestamp(
-                liveBounds ? String(Number(value) / 1000) : value,
-                mode,
-                historyLabelMode,
-              ),
+              formatTimestamp(value, mode, historyLabelMode),
           },
         },
         yAxis: {
@@ -161,38 +148,24 @@ export function TrafficChart({
                   name: "下载",
                   type: "line",
                   showSymbol: false,
-                  smooth: liveBounds ? false : 0.45,
+                  smooth: 0.45,
                   smoothMonotone: "x",
                   connectNulls: false,
                   lineStyle: { width: 2 },
                   areaStyle: { opacity: 0.07 },
-                  data: live.map((point) =>
-                    liveBounds
-                      ? {
-                          value: [point.timestamp * 1000, point.download],
-                          resolution: point.resolution ?? 1,
-                        }
-                      : point.download,
-                  ),
+                  data: live.map((point) => point.download),
                 },
                 {
                   id: "live-upload",
                   name: "上传",
                   type: "line",
                   showSymbol: false,
-                  smooth: liveBounds ? false : 0.45,
+                  smooth: 0.45,
                   smoothMonotone: "x",
                   connectNulls: false,
                   lineStyle: { width: 2 },
                   areaStyle: { opacity: 0.05 },
-                  data: live.map((point) =>
-                    liveBounds
-                      ? {
-                          value: [point.timestamp * 1000, point.upload],
-                          resolution: point.resolution ?? 1,
-                        }
-                      : point.upload,
-                  ),
+                  data: live.map((point) => point.upload),
                 },
               ]
             : historyView === "speed"
@@ -257,15 +230,7 @@ export function TrafficChart({
         ? { lazyUpdate: true, replaceMerge: ["series"] }
         : { lazyUpdate: true },
     );
-  }, [
-    history,
-    historyLabelMode,
-    historyView,
-    live,
-    liveBounds,
-    mode,
-    themeRevision,
-  ]);
+  }, [history, historyLabelMode, historyView, live, mode, themeRevision]);
   return (
     <div
       ref={reference}
@@ -335,33 +300,18 @@ function formatTrafficScale(value: number): string {
 function createTooltipFormatter(
   mode: "live" | "history",
   speedScale: boolean,
-  timeAxis = false,
 ): (params: TrafficTooltipParameter | TrafficTooltipParameter[]) => string {
   return (input) => {
     const params = Array.isArray(input) ? input : [input];
-    const timestamp = formatTooltipTimestamp(
-      timeAxis ? Number(params[0]?.axisValue) / 1000 : params[0]?.axisValue,
-      mode,
-    );
+    const timestamp = formatTooltipTimestamp(params[0]?.axisValue, mode);
     const formatValue = speedScale ? formatRate : formatTrafficScale;
     const values = params.map((param) => {
       const marker = typeof param.marker === "string" ? param.marker : "";
       const name = typeof param.seriesName === "string" ? param.seriesName : "";
-      const raw = Array.isArray(param.value) ? param.value[1] : param.value;
-      const value = typeof raw === "number" ? raw : Number.NaN;
+      const value = typeof param.value === "number" ? param.value : Number.NaN;
       return `${marker}${name} ${formatValue(value)}`;
     });
-    const resolution = params[0]?.data?.resolution;
-    const precision = timeAxis
-      ? [
-          resolution === 1
-            ? "秒级样本"
-            : `历史聚合 · ${resolution ?? "—"} 秒均值`,
-        ]
-      : [];
-    return [`<strong>${timestamp}</strong>`, ...precision, ...values].join(
-      "<br/>",
-    );
+    return [`<strong>${timestamp}</strong>`, ...values].join("<br/>");
   };
 }
 

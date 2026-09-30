@@ -30,7 +30,6 @@ func TestServiceResolveRangeUsesServerClockForPresets(t *testing.T) {
 				To:   time.Date(2026, time.July, 29, 0, 0, 0, 0, time.UTC).Unix(),
 			},
 		},
-		{name: "24h", selection: query.RangeSelection{Kind: query.RangeDay}, want: rollup.Range{From: now.Add(-24 * time.Hour).Unix(), To: now.Unix()}},
 		{name: "7d", selection: query.RangeSelection{Kind: query.RangeSevenDays}, want: rollup.Range{From: now.Add(-7 * 24 * time.Hour).Unix(), To: now.Unix()}},
 		{name: "30d", selection: query.RangeSelection{Kind: query.RangeThirtyDays}, want: rollup.Range{From: now.Add(-30 * 24 * time.Hour).Unix(), To: now.Unix()}},
 		{name: "90d", selection: query.RangeSelection{Kind: query.RangeNinetyDays}, want: rollup.Range{From: now.Add(-90 * 24 * time.Hour).Unix(), To: now.Unix()}},
@@ -138,23 +137,6 @@ func TestServiceResolveRangeRejectsInvalidSelections(t *testing.T) {
 	} {
 		if _, err := service.ResolveRange(selection); !errors.Is(err, query.ErrRangeSelection) {
 			t.Errorf("ResolveRange(%#v) error = %v, want ErrRangeSelection", selection, err)
-		}
-	}
-}
-
-func TestRollingDayKeeps24HoursAcrossDST(t *testing.T) {
-	location, err := time.LoadLocation("America/New_York")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, now := range []time.Time{
-		time.Date(2026, time.March, 8, 12, 0, 0, 0, location),
-		time.Date(2026, time.November, 1, 12, 0, 0, 0, location),
-	} {
-		service := newServiceAtLocation(t, &recordingQueryStore{}, now, location)
-		got, err := service.ResolveRange(query.RangeSelection{Kind: query.RangeDay})
-		if err != nil || got.To-got.From != 86400 || got.To != now.Unix() {
-			t.Fatalf("rolling day = %#v, %v", got, err)
 		}
 	}
 }

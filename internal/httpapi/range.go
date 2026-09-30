@@ -24,7 +24,7 @@ func strictRangeSelection(values url.Values, extras map[string]bool) (query.Rang
 		}
 		selection.FromDate = values.Get("from")
 		selection.ToDate = values.Get("to")
-	case query.RangeDay, query.RangeToday, query.RangeYesterday, query.RangeSevenDays, query.RangeThirtyDays,
+	case query.RangeToday, query.RangeYesterday, query.RangeSevenDays, query.RangeThirtyDays,
 		query.RangeNinetyDays, query.RangeYear, query.RangeLifetime:
 		if len(values["from"]) != 0 || len(values["to"]) != 0 {
 			return query.RangeSelection{}, false

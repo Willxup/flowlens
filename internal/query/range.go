@@ -14,7 +14,6 @@ var ErrRangeSelection = errors.New("invalid FlowLens historical range selection"
 type RangeKind string
 
 const (
-	RangeDay        RangeKind = "24h"
 	RangeToday      RangeKind = "today"
 	RangeYesterday  RangeKind = "yesterday"
 	RangeSevenDays  RangeKind = "7d"
@@ -46,8 +45,6 @@ func (s *Service) ResolveRange(selection RangeSelection) (rollup.Range, error) {
 
 	var result rollup.Range
 	switch selection.Kind {
-	case RangeDay:
-		result = rollup.Range{From: now.Add(-24 * time.Hour).Unix(), To: now.Unix()}
 	case RangeToday:
 		result = rollup.Range{From: today.Unix(), To: now.Unix()}
 	case RangeYesterday:

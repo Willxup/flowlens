@@ -69,9 +69,6 @@ test("production bundle works with the shipped CSP and named SSE events", async 
   });
 
   await page.goto("http://127.0.0.1:4175/");
-  await expect
-    .poll(() => apiRequests)
-    .toContain("/api/v1/series?range=24h&resolution=auto");
   await expect(page.locator(".app-shell")).toHaveAttribute(
     "data-source-mode",
     "app",

@@ -294,17 +294,3 @@ func statsHandler(t *testing.T, queries httpapi.StatisticsQueries) http.Handler 
 	}
 	return handler
 }
-
-func TestRollingDaySeriesAcceptsServerPlannedRange(t *testing.T) {
-	queries := fixtureStatisticsQueries()
-	handler := statsHandler(t, queries)
-	cookie := loginCookie(t, handler)
-	response := request(t, handler, http.MethodGet, "/api/v1/series?range=24h&resolution=auto", "", cookie)
-	if response.Code != http.StatusOK {
-		t.Fatalf("24h series = %d: %s", response.Code, response.Body.String())
-	}
-	if got := queries.selections[len(queries.selections)-1]; got.Kind != query.RangeDay {
-		t.Fatalf("selection = %#v", got)
-	}
-	assertResponse(t, handler, http.MethodGet, "/api/v1/series?range=24h&from=2026-07-01", "", cookie, http.StatusBadRequest)
-}

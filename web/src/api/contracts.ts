@@ -5,7 +5,6 @@ export type TimeSelection =
   | {
       kind: "preset";
       preset:
-        | "24h"
         | "today"
         | "yesterday"
         | "7d"

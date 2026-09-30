@@ -128,21 +128,6 @@ function profileFor(range: HistoricalRange, now: number): Profile {
   }
   const duration = range.to - range.from;
   const todayStart = now - ((now + 8 * 3600) % day);
-  if (duration === day && range.to === now) {
-    return fixedProfile(
-      11,
-      90_720_000_000n,
-      501_120_000_000n,
-      975,
-      2,
-      0.929,
-      0.897,
-      60,
-      range.from,
-      range.to,
-      true,
-    );
-  }
   if (range.from === day) {
     return fixedProfile(
       7,

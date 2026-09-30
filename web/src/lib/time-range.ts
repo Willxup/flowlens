@@ -48,8 +48,6 @@ export function toHistoricalRange(
     return { from, to: customTo };
   }
   switch (selection.preset) {
-    case "24h":
-      return { from: to - daySeconds, to };
     case "7d":
       return { from: to - 7 * daySeconds, to };
     case "30d":
