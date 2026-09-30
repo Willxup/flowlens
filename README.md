@@ -42,6 +42,7 @@ FlowLens is a self-hosted traffic dashboard for the sing-box Clash API. It keeps
 - Follow animated flow contributions from one target snapshot, with explicit stale states and estimated remainder
 - Search targets by name, endpoint, or protocol; sort by name or traffic and compare their contributions
 - Use responsive desktop and mobile navigation, light / dark themes, keyboard controls, and reduced-motion support
+- Explore a 24-hour timeline with a draggable overview and second-level detail for the recent hour; pause to inspect the past and return to live tracking
 - Track live upload and download throughput, moving averages, 60-minute peaks, and active connections
 - Explore today, yesterday, 7/30/90-day, year-to-date, all-time, and custom historical ranges
 - Attribute traffic by target, endpoint, port, protocol, source network, and hostname
