@@ -1,3 +1,4 @@
+import { useAnimatedClose } from "../../lib/motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   LabelCandidateResponse,
@@ -19,6 +20,7 @@ export function AliasDialog({
   onChanged: () => Promise<void>;
   onClose: () => void;
 }) {
+  const presence = useAnimatedClose(onClose);
   const dialogRef = useRef<HTMLElement>(null);
   useEffect(() => {
     const opener = document.activeElement;
@@ -109,14 +111,17 @@ export function AliasDialog({
   }
 
   return (
-    <div className="dialog-backdrop" role="presentation">
+    <div
+      className={`dialog-backdrop${presence.closing ? " is-closing" : ""}`}
+      role="presentation"
+    >
       <section
         ref={dialogRef}
         tabIndex={-1}
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             event.preventDefault();
-            onClose();
+            presence.close();
           }
           if (event.key !== "Tab") return;
           const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
@@ -154,7 +159,11 @@ export function AliasDialog({
             </div>
           </div>
           <Tooltip content="关闭别名">
-            <button type="button" aria-label="关闭别名" onClick={onClose}>
+            <button
+              type="button"
+              aria-label="关闭别名"
+              onClick={presence.close}
+            >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="m7 7 10 10M17 7 7 17" />
               </svg>

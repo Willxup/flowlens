@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type {
   LabelCandidateResponse,
@@ -43,7 +43,7 @@ describe("AliasDialog", () => {
     await user.tab({ shift: true });
     expect(close).toHaveFocus();
     await user.keyboard("{Escape}");
-    expect(onClose).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
     unmount();
     expect(opener).toHaveFocus();
     expect(document.body.style.overflow).toBe(previousOverflow);

@@ -1,3 +1,4 @@
+import { useReorderMotion } from "../../lib/motion";
 import type { LiveTargetResponse } from "../../api/contracts";
 import { formatRate, formatRatio } from "../../lib/format";
 
@@ -22,6 +23,10 @@ export function FlowMap({
         (a.upload_bytes_per_second + a.download_bytes_per_second),
     )
     .slice(0, 5);
+  const motionRef = useReorderMotion<HTMLElement>(
+    ".flow-destination",
+    ranked.map((item) => item.raw_endpoint).join("\0"),
+  );
   const shownRate = ranked.reduce(
     (sum, item) =>
       sum + item.upload_bytes_per_second + item.download_bytes_per_second,
@@ -43,7 +48,11 @@ export function FlowMap({
       rest: true,
     });
   return (
-    <section className="flow-map" aria-labelledby="flow-map-title">
+    <section
+      ref={motionRef}
+      className="flow-map"
+      aria-labelledby="flow-map-title"
+    >
       <div className="section-heading">
         <div>
           <span className="eyebrow">FLOW ATTRIBUTION / 01</span>

@@ -1,3 +1,4 @@
+import { useSelectionMotion } from "../lib/motion";
 import type { ReactNode } from "react";
 import type { ServiceLevel } from "../api/contracts";
 import { AppFooter } from "../components/AppFooter";
@@ -74,10 +75,11 @@ export function Shell({
   onNavigate: (workspace: Workspace) => void;
   children: ReactNode;
 }) {
+  const motionRef = useSelectionMotion();
   const current = navigation.find((item) => item.id === workspace)!;
   const logoutLabel = logoutFailed ? "退出失败，请重试" : "退出";
   return (
-    <div className="app-shell" data-source-mode={sourceMode}>
+    <div ref={motionRef} className="app-shell" data-source-mode={sourceMode}>
       <a className="skip-link" href="#workspace-content">
         跳转到内容
       </a>

@@ -293,7 +293,7 @@
   animation: none;
 }
 .workspace-enter {
-  animation: workspace-in 0.38s var(--ease-out) both;
+  animation: workspace-in 0.2s var(--ease-out) both;
 }
 .section-heading {
   display: flex;
@@ -807,7 +807,7 @@
 @keyframes workspace-in {
   from {
     opacity: 0.3;
-    transform: translateY(9px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;

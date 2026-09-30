@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import type {
   HistoricalSelection,
   TimeSelection,
@@ -28,7 +28,7 @@ class CountingHistorySource extends DemoDataSource {
 }
 
 describe("useHistoryViewModel", () => {
-  it("clears the previous range when a new historical query fails", async () => {
+  it("retains the previous result while a new range loads or fails", async () => {
     const source = new FailingHistorySource();
     const onUnauthorized = vi.fn();
     const initial: TimeSelection = { kind: "preset", preset: "today" };
@@ -39,12 +39,13 @@ describe("useHistoryViewModel", () => {
     );
     await waitFor(() => expect(result.current.view).not.toBeNull());
 
+    const previous = result.current.view;
     source.fail = true;
     rerender({ selection: { kind: "preset", preset: "30d" } });
 
     await waitFor(() => expect(result.current.error).toBe(true));
-    expect(result.current.view).toBeNull();
-    expect(result.current.breakdown).toBeNull();
+    expect(result.current.view).toBe(previous);
+    expect(result.current.breakdown).not.toBeNull();
   });
 
   it("reloads the active breakdown after an alias revision", async () => {
@@ -68,4 +69,38 @@ describe("useHistoryViewModel", () => {
 
     await waitFor(() => expect(source.breakdownCalls).toBe(2));
   });
+});
+
+it("keeps a successful result visible until the next range is ready", async () => {
+  const source = new DemoDataSource();
+  const original = source.overview.bind(source);
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  vi.spyOn(source, "overview").mockImplementation(async (selection) => {
+    if (selection.kind === "preset" && selection.preset === "30d") await gate;
+    return original(selection);
+  });
+  const onUnauthorized = vi.fn();
+  const { result, rerender } = renderHook(
+    ({ selection }: { selection: TimeSelection }) =>
+      useHistoryViewModel(source, selection, "endpoint", onUnauthorized),
+    {
+      initialProps: {
+        selection: { kind: "preset", preset: "today" } as TimeSelection,
+      },
+    },
+  );
+  await waitFor(() => expect(result.current.view).not.toBeNull());
+  const previous = result.current.view;
+  rerender({ selection: { kind: "preset", preset: "30d" } });
+  expect(result.current.loading).toBe(true);
+  expect(result.current.view).toBe(previous);
+  await act(async () => {
+    release();
+    await gate;
+  });
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  expect(result.current.view).not.toBe(previous);
 });

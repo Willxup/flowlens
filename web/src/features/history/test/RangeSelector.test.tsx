@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { RangeSelector } from "../RangeSelector";
 
@@ -58,12 +58,17 @@ describe("RangeSelector", () => {
     await user.click(screen.getByRole("button", { name: "自定义" }));
     await user.click(screen.getByRole("button", { name: "取消" }));
 
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
     expect(onChange).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "30 天" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
   });
 
   it("selects and applies dates through date cards and the calendar", async () => {
@@ -94,7 +99,9 @@ describe("RangeSelector", () => {
       from: "2026-07-16",
       to: "2026-07-22",
     });
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
   });
 
   it("moves the calendar between months", async () => {

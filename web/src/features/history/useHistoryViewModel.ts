@@ -33,13 +33,11 @@ export function useHistoryViewModel(
     const historicalSelection = selection;
     const controller = new AbortController();
     let active = true;
-    let loaded = false;
+    let pending = false;
     const load = async () => {
-      setState((current) =>
-        loaded
-          ? { ...current, loading: true, error: false }
-          : { loading: true, error: false, view: null, breakdown: null },
-      );
+      if (pending) return;
+      pending = true;
+      setState((current) => ({ ...current, loading: true, error: false }));
       try {
         const [overview, series, quality, breakdown] = await Promise.all([
           source.overview(historicalSelection, controller.signal),
@@ -48,7 +46,6 @@ export function useHistoryViewModel(
           source.breakdown(historicalSelection, by, controller.signal),
         ]);
         if (active) {
-          loaded = true;
           setState({
             loading: false,
             error: false,
@@ -62,9 +59,11 @@ export function useHistoryViewModel(
           setState((current) => ({
             loading: false,
             error: true,
-            view: loaded ? current.view : null,
-            breakdown: loaded ? current.breakdown : null,
+            view: current.view,
+            breakdown: current.breakdown,
           }));
+      } finally {
+        pending = false;
       }
     };
     void load();

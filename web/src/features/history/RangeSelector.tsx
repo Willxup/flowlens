@@ -1,3 +1,4 @@
+import { useAnimatedClose } from "../../lib/motion";
 import { useState } from "react";
 import type { TimeSelection } from "../../api/contracts";
 import { dateInTimezone } from "../../lib/time-range";
@@ -41,6 +42,7 @@ export function RangeSelector({
   onChange,
 }: RangeSelectorProps) {
   const [customOpen, setCustomOpen] = useState(false);
+  const presence = useAnimatedClose(() => setCustomOpen(false));
   const currentDate = dateInTimezone(now, timezone);
   const [from, setFrom] = useState(currentDate);
   const [to, setTo] = useState(currentDate);
@@ -54,6 +56,7 @@ export function RangeSelector({
     from !== "" && to !== "" && from <= to && to <= currentDate;
 
   function openCustom() {
+    presence.cancel();
     if (value.kind === "custom") {
       setFrom(value.from);
       setTo(value.to);
@@ -92,9 +95,11 @@ export function RangeSelector({
           <button
             key={preset.label}
             type="button"
-            aria-pressed={!customOpen && selected(preset.value)}
+            aria-pressed={
+              (!customOpen || presence.closing) && selected(preset.value)
+            }
             onClick={() => {
-              setCustomOpen(false);
+              presence.close();
               onChange(preset.value);
             }}
           >
@@ -103,7 +108,9 @@ export function RangeSelector({
         ))}
         <button
           type="button"
-          aria-pressed={customOpen || value.kind === "custom"}
+          aria-pressed={
+            (customOpen && !presence.closing) || value.kind === "custom"
+          }
           onClick={openCustom}
         >
           自定义
@@ -111,7 +118,7 @@ export function RangeSelector({
       </div>
       {customOpen ? (
         <section
-          className="custom-range-dialog"
+          className={`custom-range-dialog${presence.closing ? " is-closing" : ""}`}
           role="dialog"
           aria-labelledby="custom-range-title"
         >
@@ -201,7 +208,7 @@ export function RangeSelector({
               <button
                 className="soft-button"
                 type="button"
-                onClick={() => setCustomOpen(false)}
+                onClick={presence.close}
               >
                 取消
               </button>
@@ -211,7 +218,7 @@ export function RangeSelector({
                 disabled={!validCustomRange}
                 onClick={() => {
                   onChange({ kind: "custom", from, to });
-                  setCustomOpen(false);
+                  presence.close();
                 }}
               >
                 应用

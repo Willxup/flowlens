@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useReorderMotion } from "../../lib/motion";
+import { useDeferredValue, useMemo, useState } from "react";
 import type { ByteString, LiveTargetResponse } from "../../api/contracts";
 import {
   formatBytes,
@@ -48,6 +49,7 @@ export function TargetList({
   error?: boolean;
 }) {
   const [query, setQuery] = useState("");
+  const deferredQuery = useDeferredValue(query);
   const [sort, setSort] = useState<"traffic" | "name">("traffic");
   const rows = useMemo<Row[]>(() => {
     const result =
@@ -82,7 +84,7 @@ export function TargetList({
       .filter((row) =>
         (row.name + " " + row.raw + " " + row.network)
           .toLocaleLowerCase()
-          .includes(query.trim().toLocaleLowerCase()),
+          .includes(deferredQuery.trim().toLocaleLowerCase()),
       )
       .sort((a, b) =>
         sort === "name"
@@ -93,7 +95,18 @@ export function TargetList({
               ? -1
               : 1,
       );
-  }, [historical, historicalGlobalBytes, live, liveTotalRate, query, sort]);
+  }, [
+    historical,
+    historicalGlobalBytes,
+    live,
+    liveTotalRate,
+    deferredQuery,
+    sort,
+  ]);
+  const listRef = useReorderMotion<HTMLDivElement>(
+    ".target-item",
+    rows.map((row) => row.key).join("\0"),
+  );
   const max = rows.reduce(
     (value, row) => (row.weight > value ? row.weight : value),
     1n,
@@ -154,7 +167,11 @@ export function TargetList({
           {empty}
         </p>
       ) : (
-        <div className="target-list">
+        <div
+          className="target-list"
+          ref={listRef}
+          aria-busy={query !== deferredQuery}
+        >
           {rows.map((row, index) => (
             <article className="target-item" key={row.key}>
               <span className="target-rank" aria-label={`第 ${index + 1} 名`}>

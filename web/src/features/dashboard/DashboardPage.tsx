@@ -2,6 +2,8 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
+  useLayoutEffect,
   useState,
   type CSSProperties,
 } from "react";
@@ -175,17 +177,23 @@ export function DashboardPage({
           ? `目标快照已过期 · 最后观测 ${formatClock(live.observedAt)}`
           : "目标快照读取失败";
 
+  const scrollPositions = useRef<Partial<Record<Workspace, number>>>({});
+  const previousWorkspace = useRef(workspace);
+  useLayoutEffect(() => {
+    if (previousWorkspace.current === workspace) return;
+    previousWorkspace.current = workspace;
+    window.scrollTo(0, scrollPositions.current[workspace] ?? 0);
+    document
+      .querySelector<HTMLElement>(".page-title")
+      ?.focus({ preventScroll: true });
+  }, [workspace]);
   function navigate(next: Workspace) {
+    if (next === workspace) return;
+    scrollPositions.current[workspace] = window.scrollY;
     setWorkspace(next);
     if (next === "overview") setSelection({ kind: "live" });
     if (next === "history" && selection.kind === "live")
       setSelection({ kind: "preset", preset: "today" });
-    window.requestAnimationFrame(() => {
-      window.scrollTo(0, 0);
-      document
-        .querySelector<HTMLElement>(".page-title")
-        ?.focus({ preventScroll: true });
-    });
   }
   function selectRange(next: TimeSelection) {
     setSelection(next);
@@ -456,7 +464,10 @@ export function DashboardPage({
       ) : null}
 
       {workspace === "history" ? (
-        <div className="history-workspace workspace-enter">
+        <div
+          className="history-workspace workspace-enter"
+          aria-busy={history.loading}
+        >
           <section className="history-stage">
             <div className="section-heading">
               <div>
@@ -471,7 +482,9 @@ export function DashboardPage({
               </div>
               <span className="micro">
                 {history.loading
-                  ? "正在加载"
+                  ? history.view
+                    ? "正在更新 · 暂显示上次结果"
+                    : "正在加载"
                   : history.error
                     ? "查询失败 · 保留上次结果"
                     : "按范围查询"}

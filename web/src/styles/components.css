@@ -919,3 +919,98 @@ input::placeholder {
     grid-template-columns: 1fr;
   }
 }
+
+/* Shared motion: interaction feedback stays shorter than data transitions. */
+.motion-selection {
+  position: relative;
+  isolation: isolate;
+}
+.selection-indicator {
+  position: absolute;
+  pointer-events: none;
+  z-index: -1;
+  border-radius: 5px;
+  background: var(--download);
+  transform-origin: top left;
+}
+.side-nav .selection-indicator,
+.mobile-nav .selection-indicator {
+  background: var(--download-soft);
+  border: 1px solid var(--download-card-border);
+  border-radius: 9px;
+}
+.motion-selection > button[aria-pressed="true"],
+.motion-selection > button[aria-current="page"] {
+  background: transparent;
+  border-color: transparent;
+}
+button:active:not(:disabled) {
+  translate: 0 1px;
+}
+.target-item,
+.flow-destination {
+  transition: background-color 160ms var(--ease-out);
+}
+.flow-ribbon,
+.flow-particles {
+  transition:
+    d 220ms var(--ease-out),
+    stroke-width 220ms var(--ease-out);
+}
+.dialog-backdrop {
+  animation: overlay-in 180ms ease-out both;
+}
+.dialog-shell,
+.custom-range-dialog {
+  animation: panel-in 180ms var(--ease-out) both;
+}
+.dialog-backdrop.is-closing {
+  animation: overlay-out 120ms ease-in both;
+}
+.dialog-backdrop.is-closing .dialog-shell,
+.custom-range-dialog.is-closing {
+  animation: panel-out 120ms ease-in both;
+  pointer-events: none;
+}
+.history-workspace[aria-busy="true"] .history-totals,
+.history-workspace[aria-busy="true"] .chart-shell {
+  opacity: 0.65;
+}
+.history-totals,
+.history-workspace .chart-shell {
+  transition: opacity 160ms ease-out;
+}
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes overlay-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes panel-out {
+  to {
+    opacity: 0;
+    transform: translateY(3px) scale(0.99);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  button:active:not(:disabled) {
+    translate: none;
+  }
+}
