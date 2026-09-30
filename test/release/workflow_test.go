@@ -68,7 +68,6 @@ func TestCIWorkflowRunsProductAndReleaseChecksWithoutDeploymentPermissions(t *te
 		"node-version: \"24.14.0\"",
 		"version: 11.9.0",
 		"make check",
-		"make frontend-e2e",
 		"CGO_ENABLED=0",
 		"go mod verify",
 		"gitleaks/gitleaks-action",
@@ -83,14 +82,6 @@ func TestCIWorkflowRunsProductAndReleaseChecksWithoutDeploymentPermissions(t *te
 		}
 	}
 	assertNoDeploymentPermissions(t, "CI", contents)
-}
-
-func TestCIInstallsPlaywrightBrowsersInTheProjectCache(t *testing.T) {
-	contents := readRepositoryFile(t, ".github/workflows/ci.yml")
-	want := "- name: Install Chromium\n        env:\n          PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.flowlens-dev/cache/playwright\n        run: pnpm --dir web exec playwright install --with-deps chromium"
-	if !strings.Contains(contents, want) {
-		t.Error("CI must install Playwright browsers in the same project-local cache used by Makefile")
-	}
 }
 
 func TestReleaseWorkflowIsTagOnlyMultiArchitectureGHCRWithSBOM(t *testing.T) {

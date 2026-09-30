@@ -108,7 +108,6 @@ FlowLens 只负责观测。它不会配置 sing-box、对外暴露 Clash API 或
 corepack enable
 make deps
 make check
-make frontend-e2e
 ```
 
 无需 sing-box 即可运行 deterministic 前端演示：
@@ -116,6 +115,8 @@ make frontend-e2e
 ```bash
 pnpm --dir web dev:demo
 ```
+
+界面变更按需使用现有浏览器，通过人工或 computer-use 工具验收，不要求项目另装浏览器。记录浏览器版本、场景和实际结果；Demo 或截图不能单独证明生产 CSP、SSE 行为正确，详见[浏览器验收说明](./CONTRIBUTING.md#浏览器按需验收)。CI 保留构建及自动化单元、集成检查，不执行浏览器验收。
 
 项目缓存、工具、测试报告和临时文件都保存在 `.flowlens-dev/` 下。
 
