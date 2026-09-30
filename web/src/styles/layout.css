@@ -307,10 +307,10 @@
   height: 8px;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: var(--download);
+  background: var(--green);
   box-shadow:
-    0 0 0 4px var(--download-soft),
-    0 0 16px var(--download);
+    0 0 0 4px var(--green-soft),
+    0 0 16px var(--green);
   animation: signal-breathe 2.8s ease-in-out infinite;
 }
 .signal-dot.stale {
@@ -646,7 +646,7 @@
   font-size: 0.64rem;
 }
 .flow-footnote span:first-child {
-  color: var(--download);
+  color: var(--green);
 }
 .readout-row {
   display: flex;
@@ -844,8 +844,8 @@
   50% {
     opacity: 0.55;
     box-shadow:
-      0 0 0 7px var(--download-soft),
-      0 0 22px var(--download);
+      0 0 0 7px var(--green-soft),
+      0 0 22px var(--green);
   }
 }
 @media (max-width: 1220px) {

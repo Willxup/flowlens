@@ -169,7 +169,7 @@ input::placeholder {
   align-items: center;
   gap: 7px;
   min-height: 29px;
-  color: var(--download);
+  color: var(--green);
   font-family: var(--font-mono);
   font-size: 0.66rem;
   white-space: nowrap;
@@ -179,7 +179,7 @@ input::placeholder {
   height: 6px;
   border-radius: 50%;
   background: currentColor;
-  box-shadow: 0 0 0 3px var(--download-soft);
+  box-shadow: 0 0 0 3px var(--green-soft);
 }
 .live-status.degraded {
   color: var(--upload);

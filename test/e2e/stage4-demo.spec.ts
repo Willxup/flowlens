@@ -46,6 +46,11 @@ test("offline observatory works across workspaces, themes and viewports", async 
   expect(
     Math.abs(shellGeometry.railBottom - shellGeometry.workspaceBottom),
   ).toBeLessThanOrEqual(1);
+  const footerBottomGap = () =>
+    page.locator(".sidebar .app-footer").evaluate(
+      (element) => window.innerHeight - element.getBoundingClientRect().bottom,
+    );
+  expect(await footerBottomGap()).toBeCloseTo(17, 0);
   await page.evaluate(() =>
     window.scrollTo(0, document.documentElement.scrollHeight),
   );
@@ -54,6 +59,7 @@ test("offline observatory works across workspaces, themes and viewports", async 
       .locator(".sidebar")
       .evaluate((element) => Math.abs(element.getBoundingClientRect().top)),
   ).toBeLessThanOrEqual(1);
+  expect(await footerBottomGap()).toBeCloseTo(17, 0);
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.getByRole("button", { name: "深色模式" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -64,6 +70,10 @@ test("offline observatory works across workspaces, themes and viewports", async 
     fullPage: true,
     animations: "disabled",
   });
+  await page.screenshot({
+    path: resolve(artifacts, "observatory-dark-viewport.png"),
+    animations: "disabled",
+  });
   await page.getByRole("button", { name: "浅色模式" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.locator(".page-title").click();
@@ -71,6 +81,10 @@ test("offline observatory works across workspaces, themes and viewports", async 
   await page.screenshot({
     path: resolve(artifacts, "observatory-light.png"),
     fullPage: true,
+    animations: "disabled",
+  });
+  await page.screenshot({
+    path: resolve(artifacts, "observatory-light-viewport.png"),
     animations: "disabled",
   });
 
