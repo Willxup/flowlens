@@ -136,15 +136,6 @@ export function Shell({
               ))}
             </nav>
             <div className="sidebar-bottom">
-              <div className="sidebar-note">
-                <span className="note-glyph" aria-hidden="true">
-                  ↗
-                </span>
-                <div>
-                  <strong>全局流量精确记录</strong>
-                  <span>目标归因来自连接采样</span>
-                </div>
-              </div>
               <AppFooter version={version} />
             </div>
           </div>
