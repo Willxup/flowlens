@@ -15,13 +15,12 @@ export PNPM_HOME := $(DEV_ROOT)/cache/pnpm/home
 export npm_config_store_dir := $(DEV_ROOT)/cache/pnpm/store
 export NPM_CONFIG_CACHE := $(DEV_ROOT)/cache/npm
 export NPM_CONFIG_PREFIX := $(DEV_ROOT)/tools/npm
-export PLAYWRIGHT_BROWSERS_PATH := $(DEV_ROOT)/cache/playwright
 export XDG_CACHE_HOME := $(DEV_ROOT)/cache/xdg
 export XDG_CONFIG_HOME := $(DEV_ROOT)/config/xdg
 export XDG_DATA_HOME := $(DEV_ROOT)/data/xdg
 export XDG_STATE_HOME := $(DEV_ROOT)/state/xdg
 
-.PHONY: prepare deps frontend-deps playwright-deps frontend-format-check frontend-typecheck frontend-test frontend-e2e frontend-build frontend-check tidy test vet fmt-check check release-check release-image release-multiarch
+.PHONY: prepare deps frontend-deps frontend-format-check frontend-typecheck frontend-test frontend-build frontend-check tidy test vet fmt-check check release-check release-image release-multiarch
 
 PNPM_INSTALL_FLAGS ?= --frozen-lockfile
 VERSION ?= dev
@@ -42,7 +41,7 @@ endif
 prepare:
 	mkdir -p "$(GOCACHE)" "$(GOMODCACHE)" "$(GOPATH)" "$(TMPDIR)" \
 		"$(COREPACK_HOME)" "$(PNPM_HOME)" "$(npm_config_store_dir)" \
-		"$(NPM_CONFIG_CACHE)" "$(NPM_CONFIG_PREFIX)" "$(PLAYWRIGHT_BROWSERS_PATH)" "$(DEV_ROOT)/cache/typescript" \
+		"$(NPM_CONFIG_CACHE)" "$(NPM_CONFIG_PREFIX)" "$(DEV_ROOT)/cache/typescript" \
 		"$(XDG_CACHE_HOME)" "$(XDG_CONFIG_HOME)" "$(XDG_DATA_HOME)" "$(XDG_STATE_HOME)"
 
 deps: prepare frontend-deps
@@ -50,9 +49,6 @@ deps: prepare frontend-deps
 
 frontend-deps: prepare
 	pnpm --dir web install $(PNPM_INSTALL_FLAGS)
-
-playwright-deps: prepare
-	pnpm --dir web exec playwright install chromium
 
 frontend-format-check: prepare
 	pnpm --dir web format:check
@@ -62,9 +58,6 @@ frontend-typecheck: prepare
 
 frontend-test: prepare
 	pnpm --dir web test:run
-
-frontend-e2e: prepare
-	pnpm --dir web test:e2e
 
 frontend-build: prepare
 	pnpm --dir web build:app

@@ -27,5 +27,3 @@ node_modules/
 /web/dist/
 /web/.vite/
 /web/.vitest/
-/playwright-report/
-/test-results/

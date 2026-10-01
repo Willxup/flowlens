@@ -13,7 +13,6 @@
     "preview:app": "vite preview --mode app --host 127.0.0.1 --port 4175",
     "preview:demo": "vite preview --mode demo --host 127.0.0.1 --port 4174",
     "test": "vitest",
-    "test:e2e": "playwright test",
     "test:run": "vitest run",
     "typecheck": "tsc -p tsconfig.app.json --noEmit"
   },
@@ -23,7 +22,6 @@
     "react-dom": "19.1.1"
   },
   "devDependencies": {
-    "@playwright/test": "1.54.1",
     "@testing-library/jest-dom": "6.6.3",
     "@testing-library/react": "16.3.0",
     "@testing-library/user-event": "14.6.1",

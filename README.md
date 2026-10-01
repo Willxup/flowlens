@@ -112,7 +112,6 @@ FlowLens is an observer. It does not configure sing-box, expose the Clash API, o
 corepack enable
 make deps
 make check
-make frontend-e2e
 ```
 
 Run the deterministic frontend demo without a sing-box instance:
@@ -120,6 +119,8 @@ Run the deterministic frontend demo without a sing-box instance:
 ```bash
 pnpm --dir web dev:demo
 ```
+
+UI changes are checked on demand in an existing browser, manually or with computer-use tools; no project-managed browser installation is required. Record the browser/version, scenario, and actual result. A demo or screenshot alone does not verify production CSP or SSE behavior; see [browser acceptance guidance](./CONTRIBUTING.md#浏览器按需验收). CI continues to run builds and automated unit/integration checks, but does not perform browser acceptance.
 
 All project caches, tools, test reports, and temporary files remain under `.flowlens-dev/`.
 

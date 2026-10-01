@@ -5,7 +5,7 @@
 ## Verification
 
 - [ ] `make check`
-- [ ] `make frontend-e2e` when UI behavior changes
+- [ ] On-demand browser acceptance for UI/browser changes: browser/version, scenarios, actual results, and relevant CSP/SSE evidence recorded (or explicitly marked not verified)
 - [ ] Public API documentation updated when applicable
 - [ ] No real configuration, credential, Cookie, database, backup, log, or private address added
 - [ ] Commits include `Signed-off-by` (DCO)
