@@ -139,6 +139,10 @@ describe("TrafficChart", () => {
       "live-upload",
     ]);
     expect(secondUpdateOptions).toEqual({ lazyUpdate: true });
+    const update = chart.setOption.mock.calls[1]![0] as Record<string, unknown>;
+    expect(update.grid).toBeUndefined();
+    expect(update.tooltip).toBeUndefined();
+    expect(update.animationDurationUpdate).toBe(180);
     unmount();
     expect(chart.dispose).toHaveBeenCalledOnce();
   });

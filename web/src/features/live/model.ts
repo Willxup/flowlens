@@ -24,6 +24,7 @@ export interface LiveView {
   status: StatusResponse;
   connected: boolean;
   observedAt: number | null;
+  sampledAt: number | null;
   intervalMillis: number | null;
   targetGlobalRate: number | null;
   hasGap: boolean;
@@ -37,20 +38,28 @@ export function buildLiveView(
   targets: LiveTargetsResponse | null,
   connected: boolean,
 ): LiveView {
-  const samples = [...sourceSamples]
+  const ordered = [...sourceSamples]
     .filter(validSample)
     .sort((left, right) => left.timestamp - right.timestamp)
     .slice(-3600);
+  const latest = ordered.at(-1)?.timestamp;
+  const samples =
+    latest === undefined
+      ? []
+      : ordered.filter((sample) => sample.timestamp > latest - 3600);
   const current = samples.at(-1);
   const chart = chartPoints(samples);
   return {
     currentUpload: current?.upload_bytes_per_second ?? null,
     currentDownload: current?.download_bytes_per_second ?? null,
-    averageUpload1m: average(samples.slice(-60), "upload_bytes_per_second"),
-    averageDownload1m: average(samples.slice(-60), "download_bytes_per_second"),
-    averageUpload5m: average(samples.slice(-300), "upload_bytes_per_second"),
+    averageUpload1m: average(inWindow(samples, 60), "upload_bytes_per_second"),
+    averageDownload1m: average(
+      inWindow(samples, 60),
+      "download_bytes_per_second",
+    ),
+    averageUpload5m: average(inWindow(samples, 300), "upload_bytes_per_second"),
     averageDownload5m: average(
-      samples.slice(-300),
+      inWindow(samples, 300),
       "download_bytes_per_second",
     ),
     peakUpload60m: peak(samples, "upload_bytes_per_second"),
@@ -61,6 +70,7 @@ export function buildLiveView(
     status,
     connected,
     observedAt: targets?.observed_at ?? null,
+    sampledAt: current?.timestamp ?? null,
     intervalMillis: targets?.interval_millis ?? null,
     targetGlobalRate:
       targets === null
@@ -77,6 +87,9 @@ function validSample(sample: LiveSampleResponse): boolean {
   return (
     Number.isSafeInteger(sample.timestamp) &&
     sample.timestamp > 0 &&
+    Number.isFinite(sample.upload_bytes_per_second) &&
+    Number.isFinite(sample.download_bytes_per_second) &&
+    Number.isSafeInteger(sample.active_connections) &&
     sample.upload_bytes_per_second >= 0 &&
     sample.download_bytes_per_second >= 0 &&
     sample.active_connections >= 0
@@ -89,6 +102,13 @@ function average(
 ): number | null {
   if (samples.length === 0) return null;
   return samples.reduce((sum, sample) => sum + sample[key], 0) / samples.length;
+}
+
+function inWindow(samples: LiveSampleResponse[], seconds: number) {
+  const latest = samples.at(-1)?.timestamp;
+  return latest === undefined
+    ? []
+    : samples.filter((sample) => sample.timestamp > latest - seconds);
 }
 
 function peak(

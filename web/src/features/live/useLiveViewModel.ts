@@ -18,6 +18,9 @@ export function useLiveViewModel(
   const [samples, setSamples] = useState<LiveSampleResponse[]>([]);
   const [targets, setTargets] = useState<LiveTargetsResponse | null>(null);
   const [connected, setConnected] = useState(false);
+  const [targetError, setTargetError] = useState(false);
+  const [targetsUpdatedAt, setTargetsUpdatedAt] = useState<number | null>(null);
+  const [targetLoading, setTargetLoading] = useState(true);
 
   useEffect(() => {
     if (!enabled) return;
@@ -25,9 +28,18 @@ export function useLiveViewModel(
     const loadTargets = async () => {
       try {
         const value = await source.liveTargets();
-        if (active) setTargets(value);
+        if (active) {
+          setTargets(value);
+          setTargetsUpdatedAt(Date.now());
+          setTargetError(false);
+          setTargetLoading(false);
+        }
       } catch (error) {
         if (error instanceof UnauthorizedError) onUnauthorized();
+        else if (active) {
+          setTargetError(true);
+          setTargetLoading(false);
+        }
       }
     };
     void loadTargets();
@@ -48,7 +60,20 @@ export function useLiveViewModel(
   }, [enabled, onStatus, onUnauthorized, source]);
 
   return useMemo(
-    () => buildLiveView(samples, status, targets, connected),
-    [connected, samples, status, targets],
+    () => ({
+      ...buildLiveView(samples, status, targets, connected),
+      targetError,
+      targetLoading,
+      targetsUpdatedAt,
+    }),
+    [
+      connected,
+      samples,
+      status,
+      targets,
+      targetError,
+      targetLoading,
+      targetsUpdatedAt,
+    ],
   );
 }
