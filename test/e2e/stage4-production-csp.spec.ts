@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 const csp = [
   "default-src 'self'",
@@ -73,8 +75,8 @@ test("production bundle works with the shipped CSP and named SSE events", async 
     "data-source-mode",
     "app",
   );
-  await expect(page.getByRole("heading", { name: "实时吞吐" })).toBeVisible();
-  const footer = page.locator("footer.app-footer");
+  await expect(page.getByRole("heading", { name: "当前吞吐" })).toBeVisible();
+  const footer = page.locator(".mobile-footer footer.app-footer");
   await expect(footer.getByText("© 2026")).toBeVisible();
   await expect(footer.getByRole("link", { name: "FlowLens" })).toHaveAttribute(
     "href",
@@ -91,9 +93,13 @@ test("production bundle works with the shipped CSP and named SSE events", async 
   await expect(footer.locator(".app-footer-version-separator")).toBeHidden();
   await expect.poll(() => apiRequests).toContain("/api/v1/connections/live");
   await expect(
-    page.getByText("Fixture · 198.51.100.20:443").first(),
+    page.locator(".flow-target-name").getByText("Fixture"),
   ).toBeVisible();
   await expect(page.locator(".chart-shell svg")).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "移动工作区" })
+    .getByRole("button", { name: "历史分析" })
+    .click();
   await page.getByRole("button", { name: "30 天" }).click();
   await expect(page.getByRole("heading", { name: "历史流量" })).toBeVisible();
   await expect.poll(() => apiRequests).toContain("/api/v1/overview?range=30d");
@@ -106,21 +112,21 @@ test("production bundle works with the shipped CSP and named SSE events", async 
   expect(apiRequests.some((request) => /[?&](from|to)=\d/.test(request))).toBe(
     false,
   );
-  await expect(page.locator(".topology-desktop-flow")).toHaveAttribute(
+  await page
+    .getByRole("navigation", { name: "移动工作区" })
+    .getByRole("button", { name: "实时总览" })
+    .click();
+  await expect(page.locator(".flow-network")).toHaveAttribute(
     "preserveAspectRatio",
     "none",
   );
   await page.setViewportSize({ width: 1280, height: 900 });
-  await expect(page.locator(".topology-desktop-flow")).toBeVisible();
-  const [flowBox, sourceBox, targetBox] = await Promise.all([
-    page.locator(".topology-desktop-flow").boundingBox(),
-    page.locator(".node-source-one").boundingBox(),
-    page.locator(".node-target-0").boundingBox(),
-  ]);
-  if (flowBox === null || sourceBox === null || targetBox === null)
-    throw new Error("missing topology boxes");
-  expect(sourceBox.x + sourceBox.width - flowBox.x).toBeCloseTo(4, 0);
-  expect(flowBox.x + flowBox.width - targetBox.x).toBeCloseTo(4, 0);
+  await expect(page.locator(".flow-network")).toBeVisible();
+  await expect(page.locator(".flow-target-branch .flow-ribbon")).toHaveCount(1);
+  await expect(page.locator(".flow-rest-branch .flow-ribbon")).toHaveAttribute(
+    "d",
+    /107/,
+  );
   await page.setViewportSize({ width: 320, height: 720 });
   await page.locator(".logout-button").click();
   await expect(
@@ -241,3 +247,106 @@ function fixtureResponse(path: string): unknown {
     };
   return undefined;
 }
+
+test("full live window updates remain responsive", async ({
+  page,
+}, testInfo) => {
+  await page.addInitScript(() => {
+    class SampleStream extends EventTarget {
+      onopen: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      sequence = 1;
+      timestamp = Math.floor(Date.now() / 1000);
+      interval = 0;
+      constructor() {
+        super();
+        setTimeout(() => {
+          this.onopen?.();
+          const sample = (timestamp: number) => ({
+            timestamp,
+            status: "ok",
+            active_connections: 3,
+            upload_bytes_per_second:
+              1000000 + Math.round(Math.sin(timestamp / 30) * 100000),
+            download_bytes_per_second:
+              5000000 + Math.round(Math.cos(timestamp / 60) * 1000000),
+          });
+          this.dispatchEvent(
+            new MessageEvent("snapshot", {
+              data: JSON.stringify({
+                sequence: this.sequence++,
+                samples: Array.from({ length: 3600 }, (_, i) =>
+                  sample(this.timestamp - 3599 + i),
+                ),
+              }),
+            }),
+          );
+          this.interval = window.setInterval(() => {
+            this.dispatchEvent(
+              new MessageEvent("sample", {
+                data: JSON.stringify({
+                  sequence: this.sequence++,
+                  sample: sample(++this.timestamp),
+                }),
+              }),
+            );
+          }, 1000);
+        }, 20);
+      }
+      close() {
+        clearInterval(this.interval);
+      }
+    }
+    Object.defineProperty(window, "EventSource", { value: SampleStream });
+  });
+  await page.route("**/api/**", async (route) => {
+    const response = fixtureResponse(new URL(route.request().url()).pathname);
+    await route.fulfill({ json: response ?? {} });
+  });
+  await page.goto("http://127.0.0.1:4175/");
+  await expect(page.locator(".chart-shell svg")).toBeVisible();
+  const samples = await page.evaluate(async () => {
+    const frames: number[] = [];
+    const longTasks: number[] = [];
+    const observer = new PerformanceObserver((list) =>
+      list.getEntries().forEach((entry) => longTasks.push(entry.duration)),
+    );
+    observer.observe({ type: "longtask", buffered: false });
+    await new Promise<void>((resolve) => {
+      let last = performance.now();
+      const end = last + 4200;
+      function frame(now: number) {
+        frames.push(now - last);
+        last = now;
+        if (now < end) requestAnimationFrame(frame);
+        else resolve();
+      }
+      requestAnimationFrame(frame);
+    });
+    observer.disconnect();
+    frames.sort((a, b) => a - b);
+    return {
+      frames: frames.length,
+      p95FrameMs: frames[Math.floor(frames.length * 0.95)],
+      maxFrameMs: frames.at(-1),
+      longTasks,
+    };
+  });
+  await testInfo.attach("live-frame-timing.json", {
+    body: JSON.stringify(samples, null, 2),
+    contentType: "application/json",
+  });
+  const artifacts = resolve(process.cwd(), "../.flowlens-dev/artifacts");
+  mkdirSync(artifacts, { recursive: true });
+  writeFileSync(
+    resolve(artifacts, "live-frame-timing.json"),
+    JSON.stringify(samples, null, 2),
+  );
+  expect(samples.frames).toBeGreaterThan(60);
+  expect(samples.p95FrameMs).toBeLessThan(50);
+  await page
+    .getByRole("navigation", { name: "工作区", exact: true })
+    .getByRole("button", { name: /目标探索/ })
+    .click();
+  await expect(page.getByRole("heading", { name: "目标探索" })).toBeVisible();
+});

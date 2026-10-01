@@ -2,8 +2,27 @@ import type { StorageResponse } from "../../api/contracts";
 import { InfoTooltip } from "../../components/Tooltip";
 import { formatBytes } from "../../lib/format";
 
-export function StoragePanel({ value }: { value: StorageResponse | null }) {
-  if (value === null) return <p className="empty-state">存储状态正在加载。</p>;
+export function StoragePanel({
+  value,
+  error = false,
+}: {
+  value: StorageResponse | null;
+  error?: boolean;
+}) {
+  if (value === null)
+    return (
+      <section className="detail-panel storage-panel">
+        <div className="section-heading">
+          <div>
+            <span className="eyebrow">STORAGE / 02</span>
+            <h2>存储健康</h2>
+          </div>
+        </div>
+        <p className="empty-state">
+          {error ? "存储状态暂时无法加载。" : "存储状态正在加载。"}
+        </p>
+      </section>
+    );
   const cleanup = value.last_rollup_cleanup;
   const summary = value.protecting
     ? "数据库已进入容量保护，请检查空间和保留策略。"
@@ -13,9 +32,12 @@ export function StoragePanel({ value }: { value: StorageResponse | null }) {
         ? "数据库空间充足，最近一次聚合清理已经顺利完成。"
         : "数据库空间正常，但最近一次聚合清理失败。";
   return (
-    <section className="panel storage-panel" aria-labelledby="storage-title">
+    <section
+      className="detail-panel storage-panel"
+      aria-labelledby="storage-title"
+    >
       <div className="storage-lead">
-        <span className="eyebrow">Storage health</span>
+        <span className="eyebrow">STORAGE / 02</span>
         <div className="heading-with-tooltip">
           <h2 id="storage-title">存储健康</h2>
           <InfoTooltip content={summary} label="查看“存储健康”说明" />

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import * as echarts from "echarts/core";
 import { BarChart, LineChart } from "echarts/charts";
 import {
@@ -35,25 +35,37 @@ interface TrafficTooltipParameter {
   value?: unknown;
 }
 
-export function TrafficChart({
+const emptyLive: LiveChartPoint[] = [];
+const emptyHistory: HistoricalChartPoint[] = [];
+
+export const TrafficChart = memo(function TrafficChart({
   mode,
   historyView = "traffic",
   historyLabelMode = "date",
-  live = [],
-  history = [],
+  live = emptyLive,
+  history = emptyHistory,
 }: TrafficChartProps) {
   const reference = useRef<HTMLDivElement>(null);
   const chartReference = useRef<ReturnType<typeof echarts.init> | null>(null);
   const seriesShapeReference = useRef<string | null>(null);
+  const configuration = useRef("");
   const [themeRevision, setThemeRevision] = useState(0);
   useEffect(() => {
     const element = reference.current;
-    if (element === null || element.clientWidth === 0) return;
+    if (element === null) return;
     const chart = echarts.init(element, undefined, { renderer: "svg" });
     chartReference.current = chart;
-    const resize = () => chart.resize();
+    let resizeFrame = 0;
+    const resize = () => {
+      cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => chart.resize());
+    };
+    const observer = new ResizeObserver(resize);
+    observer.observe(element);
     window.addEventListener("resize", resize);
     return () => {
+      cancelAnimationFrame(resizeFrame);
+      observer.disconnect();
       window.removeEventListener("resize", resize);
       chartReference.current = null;
       chart.dispose();
@@ -62,12 +74,15 @@ export function TrafficChart({
 
   useEffect(() => {
     const media = window.matchMedia?.("(prefers-color-scheme: dark)");
+    const motion = window.matchMedia?.("(prefers-reduced-motion: reduce)");
     const update = () => setThemeRevision((current) => current + 1);
     window.addEventListener("flowlens-theme-change", update);
     media?.addEventListener("change", update);
+    motion?.addEventListener("change", update);
     return () => {
       window.removeEventListener("flowlens-theme-change", update);
       media?.removeEventListener("change", update);
+      motion?.removeEventListener("change", update);
     };
   }, []);
 
@@ -84,12 +99,45 @@ export function TrafficChart({
       seriesShapeReference.current !== null &&
       seriesShapeReference.current !== seriesShape;
     seriesShapeReference.current = seriesShape;
+    const reduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    const configurationKey = [
+      mode,
+      historyView,
+      historyLabelMode,
+      themeRevision,
+      reduced,
+    ].join(":");
+    if (mode === "live" && configuration.current === configurationKey) {
+      chart.setOption(
+        {
+          animation: !reduced,
+          animationDurationUpdate: reduced ? 0 : 180,
+          xAxis: {
+            data: labels,
+            axisLabel: {
+              interval: Math.max(0, Math.ceil(labels.length / 10) - 1),
+            },
+          },
+          series: [
+            { id: "live-download", data: live.map((point) => point.download) },
+            { id: "live-upload", data: live.map((point) => point.upload) },
+          ],
+        },
+        { lazyUpdate: true },
+      );
+      return;
+    }
+    configuration.current = configurationKey;
     const palette = chartPalette();
     chart.setOption(
       {
-        animation:
-          mode !== "live" &&
-          !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+        animation: mode !== "live" && !reduced,
+        animationDuration: 220,
+        animationDurationUpdate: reduced ? 0 : 180,
+        animationEasingUpdate: "cubicOut",
+        animationThreshold: 10000,
         color: [palette.download, palette.upload, palette.green],
         textStyle: { fontFamily: palette.fontFamily },
         grid: { left: 52, right: 14, top: 34, bottom: 28 },
@@ -242,7 +290,7 @@ export function TrafficChart({
       }
     />
   );
-}
+});
 
 function chartPalette() {
   const styles = getComputedStyle(document.documentElement);

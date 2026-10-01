@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useAnimatedClose } from "../../lib/motion";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   LabelCandidateResponse,
   LabelResponse,
@@ -19,6 +20,19 @@ export function AliasDialog({
   onChanged: () => Promise<void>;
   onClose: () => void;
 }) {
+  const presence = useAnimatedClose(onClose);
+  const dialogRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const opener = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialogRef.current?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
+    };
+  }, []);
+
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [error, setError] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
@@ -97,8 +111,37 @@ export function AliasDialog({
   }
 
   return (
-    <div className="dialog-backdrop" role="presentation">
+    <div
+      className={`dialog-backdrop${presence.closing ? " is-closing" : ""}`}
+      role="presentation"
+    >
       <section
+        ref={dialogRef}
+        tabIndex={-1}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            presence.close();
+          }
+          if (event.key !== "Tab") return;
+          const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+            'button:not(:disabled), input:not(:disabled), a[href], select:not(:disabled), textarea:not(:disabled), [tabindex="0"]',
+          );
+          if (!focusable?.length) return;
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (
+            event.shiftKey &&
+            (document.activeElement === first ||
+              document.activeElement === dialogRef.current)
+          ) {
+            event.preventDefault();
+            last?.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first?.focus();
+          }
+        }}
         className="dialog-shell"
         role="dialog"
         aria-modal="true"
@@ -116,7 +159,11 @@ export function AliasDialog({
             </div>
           </div>
           <Tooltip content="关闭别名">
-            <button type="button" aria-label="关闭别名" onClick={onClose}>
+            <button
+              type="button"
+              aria-label="关闭别名"
+              onClick={presence.close}
+            >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="m7 7 10 10M17 7 7 17" />
               </svg>

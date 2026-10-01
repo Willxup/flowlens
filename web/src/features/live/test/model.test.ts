@@ -53,7 +53,7 @@ describe("buildLiveView", () => {
     const view = buildLiveView(samples, status, targets, true);
     expect(view.currentUpload).toBe(500);
     expect(view.averageUpload1m).toBeCloseTo(
-      (500 + ((243 + 301) * 59) / 2) / 60,
+      (500 + ((246 + 301) * 56) / 2) / 57,
     );
     expect(view.peakDownload60m).toBe(1000);
     expect(view.chart.some((point) => point.upload === null)).toBe(true);
@@ -69,5 +69,18 @@ describe("buildLiveView", () => {
     expect(view.currentUpload).toBeNull();
     expect(view.activeConnections).toBeNull();
     expect(view.chart).toEqual([]);
+  });
+
+  it("excludes samples older than the actual 60 minute window", () => {
+    const view = buildLiveView(
+      [sample(1, 9999, 9999), sample(3602, 20, 10)],
+      status,
+      null,
+      true,
+    );
+    expect(view.peakUpload60m).toBe(20);
+    expect(view.chart).toHaveLength(1);
+    expect(view.averageUpload1m).toBe(20);
+    expect(view.sampledAt).toBe(3602);
   });
 });

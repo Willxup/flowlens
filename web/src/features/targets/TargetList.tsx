@@ -1,3 +1,5 @@
+import { useReorderMotion } from "../../lib/motion";
+import { useDeferredValue, useMemo, useState } from "react";
 import type { ByteString, LiveTargetResponse } from "../../api/contracts";
 import {
   formatBytes,
@@ -15,130 +17,236 @@ export type HistoricalTargetRow = {
   downloadBytes: ByteString;
 };
 
+type Row = {
+  key: string;
+  name: string;
+  raw: string;
+  network: string;
+  download: string;
+  upload: string;
+  value: string;
+  share: string;
+  weight: bigint;
+};
+
 export function TargetList({
   live,
   liveTotalRate,
   historical,
+  historicalGlobalBytes,
+  available = true,
+  noTraffic = false,
+  loading = false,
+  error = false,
 }: {
   live?: LiveTargetResponse[];
   liveTotalRate?: number | null;
   historical?: HistoricalTargetRow[];
+  historicalGlobalBytes?: ByteString;
+  available?: boolean;
+  noTraffic?: boolean;
+  loading?: boolean;
+  error?: boolean;
 }) {
-  const rows =
-    live !== undefined
-      ? live.map((item) => {
-          const identity = targetIdentity(item.raw_endpoint, item.display_name);
-          return {
-            key: item.raw_endpoint,
-            ...identity,
-            network: formatNetwork(item.network_code),
-            download: formatRate(item.download_bytes_per_second),
-            upload: formatRate(item.upload_bytes_per_second),
-            share: liveShare(item, liveTotalRate),
-            value: formatRate(
-              item.upload_bytes_per_second + item.download_bytes_per_second,
-            ),
-            magnitude:
-              item.upload_bytes_per_second + item.download_bytes_per_second,
-          };
-        })
-      : (historical ?? []).map((item) => {
-          const identity = targetIdentity(item.rawValue, item.displayName);
-          return {
+  const [query, setQuery] = useState("");
+  const deferredQuery = useDeferredValue(query);
+  const [sort, setSort] = useState<"traffic" | "name">("traffic");
+  const rows = useMemo<Row[]>(() => {
+    const result =
+      live !== undefined
+        ? live.map((item) => {
+            const weight =
+              item.upload_bytes_per_second + item.download_bytes_per_second;
+            return {
+              key: item.raw_endpoint,
+              name: targetName(item.raw_endpoint, item.display_name),
+              raw: item.raw_endpoint,
+              network: formatNetwork(item.network_code),
+              download: formatRate(item.download_bytes_per_second),
+              upload: formatRate(item.upload_bytes_per_second),
+              value: formatRate(weight),
+              share: liveShareText(weight, liveTotalRate),
+              weight: BigInt(Math.round(weight * 1000)),
+            };
+          })
+        : (historical ?? []).map((item) => ({
             key: item.rawValue,
-            ...identity,
+            name: targetName(item.rawValue, item.displayName),
+            raw: item.rawValue,
             network: formatNetwork(item.networkCode),
             download: formatBytes(item.downloadBytes),
             upload: formatBytes(item.uploadBytes),
-            share: null,
             value: formatBytes(item.totalBytes),
-            magnitude: Number(
-              BigInt(item.totalBytes) > 10_000_000_000n
-                ? 10_000_000_000n
-                : BigInt(item.totalBytes),
-            ),
-          };
-        });
-  const max = Math.max(1, ...rows.map((row) => row.magnitude));
+            share: historicalShareText(item.totalBytes, historicalGlobalBytes),
+            weight: BigInt(item.totalBytes),
+          }));
+    return result
+      .filter((row) =>
+        (row.name + " " + row.raw + " " + row.network)
+          .toLocaleLowerCase()
+          .includes(deferredQuery.trim().toLocaleLowerCase()),
+      )
+      .sort((a, b) =>
+        sort === "name"
+          ? a.name.localeCompare(b.name, "zh-CN")
+          : a.weight === b.weight
+            ? a.raw.localeCompare(b.raw)
+            : a.weight > b.weight
+              ? -1
+              : 1,
+      );
+  }, [
+    historical,
+    historicalGlobalBytes,
+    live,
+    liveTotalRate,
+    deferredQuery,
+    sort,
+  ]);
+  const listRef = useReorderMotion<HTMLDivElement>(
+    ".target-item",
+    rows.map((row) => row.key).join("\0"),
+  );
+  const max = rows.reduce(
+    (value, row) => (row.weight > value ? row.weight : value),
+    1n,
+  );
+  const empty = loading
+    ? "目标数据正在加载。"
+    : error
+      ? "目标数据暂时无法加载。"
+      : !available
+        ? "当前采集能力不支持这个维度。"
+        : noTraffic
+          ? "所选时间没有流量。"
+          : query
+            ? "没有匹配的目标。"
+            : "当前没有可展示的目标。";
   return (
-    <div className="target-list">
+    <section className="target-explorer" aria-label="目标列表">
+      <div className="explorer-controls">
+        <label className="search-field">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="10.8" cy="10.8" r="6.4" />
+            <path d="m16 16 4.2 4.2" />
+          </svg>
+          <span className="sr-only">搜索目标</span>
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索名称、端点或协议"
+            aria-label="搜索目标"
+          />
+        </label>
+        <div className="sort-control" aria-label="目标排序">
+          <button
+            type="button"
+            aria-pressed={sort === "traffic"}
+            onClick={() => setSort("traffic")}
+          >
+            按流量
+          </button>
+          <button
+            type="button"
+            aria-pressed={sort === "name"}
+            onClick={() => setSort("name")}
+          >
+            按名称
+          </button>
+        </div>
+      </div>
+      <div className="explorer-summary">
+        <span>{loading ? "正在读取目标" : `显示 ${rows.length} 个目标`}</span>
+        <span>
+          {live !== undefined ? "当前速率 · 近似归因" : "周期累计 · 近似归因"}
+        </span>
+      </div>
       {rows.length === 0 ? (
-        <p className="empty-state">当前没有可展示的目标。</p>
+        <p className="empty-state" role="status">
+          {empty}
+        </p>
       ) : (
-        rows.slice(0, 8).map((row, index) => (
-          <div className="target-item" key={row.key}>
-            <div
-              className="target-icon target-rank"
-              aria-label={`第 ${index + 1} 名`}
-            >
-              {index + 1}
-            </div>
-            <div className="target-main">
-              <strong>{row.name}</strong>
-              <span className="target-detail">
-                {row.rawDetail === null ? null : (
-                  <>
-                    <span>{row.rawDetail}</span>
-                    <i aria-hidden="true">·</i>
-                  </>
-                )}
-                <span>{row.network}</span>
-                <i aria-hidden="true">·</i>
-                <span aria-label={`下载 ${row.download}`}>
-                  <b className="target-download" aria-hidden="true">
-                    ↓
-                  </b>{" "}
-                  {row.download}
-                </span>
-                <i aria-hidden="true">·</i>
-                <span aria-label={`上传 ${row.upload}`}>
-                  <b className="target-upload" aria-hidden="true">
-                    ↑
-                  </b>{" "}
-                  {row.upload}
-                </span>
-                {row.share === null ? null : (
-                  <>
-                    <i aria-hidden="true">·</i>
-                    <span>{row.share}</span>
-                  </>
-                )}
+        <div
+          className="target-list"
+          ref={listRef}
+          aria-busy={query !== deferredQuery}
+        >
+          {rows.map((row, index) => (
+            <article className="target-item" key={row.key}>
+              <span className="target-rank" aria-label={`第 ${index + 1} 名`}>
+                {String(index + 1).padStart(2, "0")}
               </span>
-              <div className="target-bar">
-                <i
-                  style={{
-                    width: `${Math.max(4, (row.magnitude / max) * 100)}%`,
-                  }}
-                />
+              <div className="target-main">
+                <div className="target-heading">
+                  <strong title={row.name}>{row.name}</strong>
+                  <span className="protocol-chip">{row.network}</span>
+                </div>
+                {row.name === row.raw ? null : (
+                  <span className="target-raw" title={row.raw}>
+                    {row.raw}
+                  </span>
+                )}
+                <div className="target-bar" aria-hidden="true">
+                  <i
+                    style={{
+                      width: `${row.weight <= 0n ? 0 : Math.max(1, Number((row.weight * 1000n) / max) / 10)}%`,
+                    }}
+                  />
+                </div>
               </div>
-            </div>
-            <strong className="target-value">{row.value}</strong>
-          </div>
-        ))
+              <div className="target-values">
+                <strong>{row.value}</strong>
+                <span>{row.share}</span>
+                <small>
+                  <span aria-label={`下载 ${row.download}`}>
+                    <b className="target-download" aria-hidden="true">
+                      ↓
+                    </b>{" "}
+                    {row.download}
+                  </span>
+                  <span aria-label={`上传 ${row.upload}`}>
+                    <b className="target-upload" aria-hidden="true">
+                      ↑
+                    </b>{" "}
+                    {row.upload}
+                  </span>
+                </small>
+              </div>
+            </article>
+          ))}
+        </div>
       )}
-    </div>
+    </section>
   );
 }
 
-function targetIdentity(
-  rawValue: string,
-  displayName: string,
-): { name: string; rawDetail: string | null } {
-  const legacySuffix = ` · ${rawValue}`;
-  const normalizedName = displayName.endsWith(legacySuffix)
-    ? displayName.slice(0, -legacySuffix.length).trim()
-    : displayName.trim();
-  const name = normalizedName === "" ? rawValue : normalizedName;
-  return { name, rawDetail: name === rawValue ? null : rawValue };
+function targetName(raw: string, display: string): string {
+  const suffix = ` · ${raw}`;
+  const normalized = display.endsWith(suffix)
+    ? display.slice(0, -suffix.length)
+    : display;
+  return normalized.trim() || raw;
 }
 
-function liveShare(
-  item: LiveTargetResponse,
-  totalRate: number | null | undefined,
-): string | null {
-  if (totalRate === undefined || totalRate === null || totalRate <= 0)
-    return null;
-  return `占全局 ${formatRatio(
-    (item.upload_bytes_per_second + item.download_bytes_per_second) / totalRate,
-  )}`;
+function liveShareText(
+  weight: number,
+  globalRate: number | null | undefined,
+): string {
+  if (globalRate === null || globalRate === undefined) return "占比未知";
+  if (globalRate === 0) return "全局速率为 0";
+  const ratio = weight / globalRate;
+  return ratio > 1 ? "估算超出全局" : `占全局 ${formatRatio(ratio)}`;
+}
+
+function historicalShareText(
+  total: ByteString,
+  global: ByteString | undefined,
+): string {
+  if (global === undefined) return "占比未知";
+  const denominator = BigInt(global);
+  if (denominator === 0n) return "全局流量为 0";
+  if (BigInt(total) > denominator) return "估算超出全局";
+  const ratio = Number((BigInt(total) * 10000n) / denominator) / 10000;
+  return `占全局 ${formatRatio(ratio)}`;
 }
