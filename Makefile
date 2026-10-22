@@ -91,7 +91,7 @@ release-check: prepare
 	"$(GITLEAKS)" dir --max-archive-depth=1 --config .gitleaks.toml --no-banner --redact "$(REPORT_DIR)/release-tree.tar"
 
 release-image: prepare
-	docker build \
+	docker build --pull \
 		--build-arg VERSION="$(VERSION)" \
 		--build-arg COMMIT="$(COMMIT)" \
 		--build-arg BUILD_DATE="$(BUILD_DATE)" \
@@ -99,7 +99,7 @@ release-image: prepare
 
 release-multiarch: prepare
 	mkdir -p "$(REPORT_DIR)"
-	docker buildx build \
+	docker buildx build --pull \
 		--platform "$(PLATFORMS)" \
 		--build-arg VERSION="$(VERSION)" \
 		--build-arg COMMIT="$(COMMIT)" \

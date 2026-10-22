@@ -1,6 +1,7 @@
 package release_test
 
 import (
+	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
@@ -47,6 +48,41 @@ func TestWorkflowsUseNode24ActionReleases(t *testing.T) {
 	}
 }
 
+func TestGoSecurityBaseline(t *testing.T) {
+	// CVE-2026-111943 is fixed in Go 1.26.10. Require the patched
+	// version for local builds as well as the release fixture image.
+	for _, test := range []struct {
+		path string
+		want string
+	}{
+		{"go.mod", "go 1.26.10"},
+		{"test/release/fixture/Dockerfile", "FROM golang:1.26.10-alpine AS build"},
+	} {
+		t.Run(test.path, func(t *testing.T) {
+			if !hasLine(readRepositoryFile(t, test.path), test.want) {
+				t.Errorf("%s missing %q", test.path, test.want)
+			}
+		})
+	}
+}
+
+func TestNodeRequiresMinimumVersionWithoutLocalPin(t *testing.T) {
+	var manifest struct {
+		Engines struct {
+			Node string `json:"node"`
+		} `json:"engines"`
+	}
+	if err := json.Unmarshal([]byte(readRepositoryFile(t, "web/package.json")), &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if manifest.Engines.Node != ">=24.22.1" {
+		t.Errorf("Node engine = %q, want minimum-only constraint >=24.22.1", manifest.Engines.Node)
+	}
+	if !hasLine(readRepositoryFile(t, "web/pnpm-workspace.yaml"), "engineStrict: true") {
+		t.Error("pnpm must enforce the Node engine requirement during dependency installation")
+	}
+}
+
 func workflowActionReferences(contents string) []string {
 	var references []string
 	for _, line := range strings.Split(contents, "\n") {
@@ -64,8 +100,9 @@ func TestCIWorkflowRunsProductAndReleaseChecksWithoutDeploymentPermissions(t *te
 	for _, value := range []string{
 		"pull_request:",
 		"branches: [main]",
-		"go-version: \"1.26.2\"",
-		"node-version: \"24.14.0\"",
+		"go-version: \"1.26.10\"",
+		"node-version: \"24.x\"",
+		"check-latest: true",
 		"version: 11.9.0",
 		"make check",
 		"CGO_ENABLED=0",
@@ -95,6 +132,7 @@ func TestReleaseWorkflowIsTagOnlyMultiArchitectureGHCRWithSBOM(t *testing.T) {
 		"docker/build-push-action",
 		"ghcr.io/willxup/flowlens",
 		"platforms: linux/amd64,linux/arm64",
+		"pull: true",
 		"push: true",
 		"sbom: true",
 		"provenance: false",

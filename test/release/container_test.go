@@ -12,8 +12,8 @@ import (
 func TestDockerfileIsCrossCompiledAndCarriesReleaseMetadata(t *testing.T) {
 	contents := readRepositoryFile(t, "Dockerfile")
 	required := []string{
-		"FROM --platform=$BUILDPLATFORM node:24.14.0-alpine AS web-build",
-		"FROM --platform=$BUILDPLATFORM golang:1.26.2-alpine AS build",
+		"FROM --platform=$BUILDPLATFORM node:24-alpine AS web-build",
+		"FROM --platform=$BUILDPLATFORM golang:1.26.10-alpine AS build",
 		"ARG TARGETOS",
 		"ARG TARGETARCH",
 		"CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath",
@@ -83,7 +83,7 @@ func TestComposeUsesPublishedImageAndHardenedRuntime(t *testing.T) {
 
 func TestDockerContextExcludesLocalAndRuntimeData(t *testing.T) {
 	contents := readRepositoryFile(t, ".dockerignore")
-	for _, line := range []string{".git", ".flowlens-dev", "config/config.yaml", "data", "*.db", "*.db-wal", "*.db-shm"} {
+	for _, line := range []string{".git", ".flowlens-dev", "**/node_modules", "config/config.yaml", "data", "*.db", "*.db-wal", "*.db-shm"} {
 		if !hasLine(contents, line) {
 			t.Errorf(".dockerignore missing %q", line)
 		}
@@ -111,6 +111,8 @@ func TestReleaseMakeTargetsDoNotPushByDefault(t *testing.T) {
 		"release-check:",
 		"release-image:",
 		"release-multiarch:",
+		"docker build --pull",
+		"docker buildx build --pull",
 		"PUSH ?= false",
 		"ifeq ($(PUSH),true)",
 		"--output type=oci,dest=",
