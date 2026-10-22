@@ -4,7 +4,7 @@
 
 ## 开发环境
 
-项目固定使用 Go 1.26.2、Node.js 24.14.0 和 pnpm 11.9.0。Makefile 会把可重定向的缓存和测试产物放在仓库内的 `.flowlens-dev/`。
+项目固定使用 Go 1.26.10、Node.js 24.14.0 和 pnpm 11.9.0。Makefile 会把可重定向的缓存和测试产物放在仓库内的 `.flowlens-dev/`。
 
 ```bash
 corepack enable

@@ -102,7 +102,7 @@ FlowLens 只负责观测。它不会配置 sing-box、对外暴露 Clash API 或
 
 ### 前置依赖
 
-- Go 1.26.2
+- Go 1.26.10
 - Node.js 24.14.0
 - pnpm 11.9.0
 

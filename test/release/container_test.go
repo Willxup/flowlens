@@ -13,7 +13,7 @@ func TestDockerfileIsCrossCompiledAndCarriesReleaseMetadata(t *testing.T) {
 	contents := readRepositoryFile(t, "Dockerfile")
 	required := []string{
 		"FROM --platform=$BUILDPLATFORM node:24.14.0-alpine AS web-build",
-		"FROM --platform=$BUILDPLATFORM golang:1.26.2-alpine AS build",
+		"FROM --platform=$BUILDPLATFORM golang:1.26.10-alpine AS build",
 		"ARG TARGETOS",
 		"ARG TARGETARCH",
 		"CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath",

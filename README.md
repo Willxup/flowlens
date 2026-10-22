@@ -102,7 +102,7 @@ FlowLens is an observer. It does not configure sing-box, expose the Clash API, o
 
 ### Prerequisites
 
-- Go 1.26.2
+- Go 1.26.10
 - Node.js 24.14.0
 - pnpm 11.9.0
 

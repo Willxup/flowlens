@@ -12,7 +12,7 @@ RUN corepack enable && corepack prepare pnpm@11.9.0 --activate && pnpm --dir web
 COPY web ./web
 RUN pnpm --dir web build:app
 
-FROM --platform=$BUILDPLATFORM golang:1.26.2-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.26.10-alpine AS build
 ARG TARGETOS
 ARG TARGETARCH
 ARG VERSION
