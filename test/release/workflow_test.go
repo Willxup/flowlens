@@ -1,6 +1,7 @@
 package release_test
 
 import (
+	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
@@ -65,6 +66,23 @@ func TestGoSecurityBaseline(t *testing.T) {
 	}
 }
 
+func TestNodeRequiresMinimumVersionWithoutLocalPin(t *testing.T) {
+	var manifest struct {
+		Engines struct {
+			Node string `json:"node"`
+		} `json:"engines"`
+	}
+	if err := json.Unmarshal([]byte(readRepositoryFile(t, "web/package.json")), &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if manifest.Engines.Node != ">=24.22.1" {
+		t.Errorf("Node engine = %q, want minimum-only constraint >=24.22.1", manifest.Engines.Node)
+	}
+	if !hasLine(readRepositoryFile(t, "web/pnpm-workspace.yaml"), "engineStrict: true") {
+		t.Error("pnpm must enforce the Node engine requirement during dependency installation")
+	}
+}
+
 func workflowActionReferences(contents string) []string {
 	var references []string
 	for _, line := range strings.Split(contents, "\n") {
@@ -83,7 +101,8 @@ func TestCIWorkflowRunsProductAndReleaseChecksWithoutDeploymentPermissions(t *te
 		"pull_request:",
 		"branches: [main]",
 		"go-version: \"1.26.10\"",
-		"node-version: \"24.14.0\"",
+		"node-version: \"24.x\"",
+		"check-latest: true",
 		"version: 11.9.0",
 		"make check",
 		"CGO_ENABLED=0",
@@ -113,6 +132,7 @@ func TestReleaseWorkflowIsTagOnlyMultiArchitectureGHCRWithSBOM(t *testing.T) {
 		"docker/build-push-action",
 		"ghcr.io/willxup/flowlens",
 		"platforms: linux/amd64,linux/arm64",
+		"pull: true",
 		"push: true",
 		"sbom: true",
 		"provenance: false",

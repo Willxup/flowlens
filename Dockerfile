@@ -5,7 +5,7 @@ ARG VERSION=dev
 ARG COMMIT=unknown
 ARG BUILD_DATE=unknown
 
-FROM --platform=$BUILDPLATFORM node:24.14.0-alpine AS web-build
+FROM --platform=$BUILDPLATFORM node:24-alpine AS web-build
 WORKDIR /src
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./web/
 RUN corepack enable && corepack prepare pnpm@11.9.0 --activate && pnpm --dir web install --frozen-lockfile

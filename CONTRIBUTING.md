@@ -4,7 +4,7 @@
 
 ## 开发环境
 
-项目固定使用 Go 1.26.10、Node.js 24.14.0 和 pnpm 11.9.0。Makefile 会把可重定向的缓存和测试产物放在仓库内的 `.flowlens-dev/`。
+项目使用 Go 1.26.10、Node.js >=24.22.1 和 pnpm 11.9.0。本地 Node.js 仅要求最低版本，不固定精确版本，可以与其他项目共用符合要求的运行时；pnpm 安装依赖时会校验 engines。CI 跟随最新 Node.js 24.x，Docker 构建使用 `node:24-alpine`；Makefile 镜像构建目标和发布工作流会拉取最新基础镜像，手动构建时也请使用 `docker build --pull`。Makefile 会把可重定向的缓存和测试产物放在仓库内的 `.flowlens-dev/`。
 
 ```bash
 corepack enable

@@ -7,7 +7,7 @@ docs
 test
 config/config.yaml
 data
-node_modules
+**/node_modules
 web/dist
 coverage
 *.md
